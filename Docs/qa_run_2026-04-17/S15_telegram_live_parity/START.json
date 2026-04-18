@@ -1,0 +1,15 @@
+{
+  "agent_id": "S15",
+  "tier": "post-release",
+  "started_at": "2026-04-17T14:40:00Z",
+  "round": 3,
+  "scope": "Telegram live polling (fake bot harness)",
+  "constraints": [
+    "no real Telegram bot token",
+    "mocked LLM provider (no API keys)",
+    "no data/ access",
+    "C13 Round 2 CLI+Electron results reused; only Telegram live run 3 scenarios added"
+  ],
+  "plan_ref": "Docs/plans/PLAN_post_release_followups_2026-04-17.md §10 (Sprint S15)",
+  "prior_round2_ref": "Docs/qa_run_2026-04-17/C13_parity_process_level/"
+}

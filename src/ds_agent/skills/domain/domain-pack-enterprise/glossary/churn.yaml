@@ -1,0 +1,13 @@
+term_id: term.churn
+canonical_form: churn
+definition: "Customer churn measured as cancelled active subscriptions within a month."
+synonyms:
+  - customer churn
+  - churn rate
+  - 이탈률
+abbreviations:
+  - CCR
+linked_metric_ids:
+  - monthly_churn_rate
+category: metric
+owner: growth_team

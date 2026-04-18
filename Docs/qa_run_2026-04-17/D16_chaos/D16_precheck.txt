@@ -1,0 +1,43 @@
+D16 Chaos / Recovery Engineer — Pre-Check Snapshot
+====================================================
+
+Captured at session start (before any chaos scenarios execute).
+
+1. ds-agent-* processes already running (NOT spawned by D16)
+------------------------------------------------------------
+  pid=193632  name=ds-agent-api.exe
+  cmdline:    C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\build\ds-agent-backend\ds-agent-api.exe --port 18850
+
+  NOTE: This appears to be the C15 packaging smoke / TIER3 artifact backend
+  (build/ds-agent-backend/ds-agent-api.exe), which was already running when
+  D16 started. It is OUTSIDE D16's scope — D16 spawns its own subprocesses
+  only under .tmp/qa_D16/. D16 will NOT touch pid=193632 and must ensure
+  the pre-existing pid is still present at end-of-run (it is not an orphan
+  created by D16).
+
+2. Lock / tmp files under .tmp/qa_D16/
+--------------------------------------
+  None (directory freshly created).
+
+3. Real user data/ directory
+----------------------------
+  D16 never writes into C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\data\
+  or any other non-.tmp area. All chaos fixtures live under
+  C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\.tmp\qa_D16\.
+
+4. Python environment
+---------------------
+  Python 3.12.10, ds_agent importable from source tree.
+
+5. Test strategy
+----------------
+  Eight scenarios run as in-process chaos experiments or via subprocess
+  python children. We use the SAME Python source tree (source import) so
+  the test exercises the real runtime code paths. For "backend restart"
+  semantics we simulate (a) mid-run crash by forcibly exiting the child,
+  and (b) fresh-boot recovery by starting a NEW child process which calls
+  StartupRecovery.recover() against the same workspace. This is the
+  canonical recovery contract under test.
+
+  We do NOT invoke real external services, real keyring, real network
+  provider calls, or real disk-full on the host FS. All are simulated.

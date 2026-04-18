@@ -1,0 +1,85 @@
+{
+    "agent_id": "A02-reaudit",
+    "round": 2,
+    "baseline_final": "Docs/qa_run_2026-04-17/A02_security/FINAL.json",
+    "fix_sprint_input": "Docs/qa_run_2026-04-17/S2_pii_redaction/FINAL.json",
+    "status": "pass",
+    "started_at_utc": "2026-04-17T20:04:32Z",
+    "completed_at_utc": "2026-04-17T20:15:32Z",
+    "code_sha": "nogit:C5CEB225F7C821B036DC03245FF5D625717A6D77D60FCEF7A5A9A87FBDB35C86",
+    "evidence": [
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/START.json",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/A02_secret_scan.txt",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/A02_sandbox_blocklist.csv",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/A02_runtime_checks_reaudit.json",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/junit_code_security.xml",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/junit_secret_storage.xml",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/junit_observability.xml",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/junit_pii_redaction_app.xml",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/junit_a02_core.xml",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/junit_a02_core_full.xml",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/junit_sandbox_flake_check.xml",
+        "Docs/qa_run_2026-04-17/A02_security_reaudit/A02_security_report_reaudit.md"
+    ],
+    "prior_failures_resolved": [
+        {"id": "PII-email-msg", "baseline_key": "message_email_removed", "resolved": true},
+        {"id": "PII-phone-msg", "baseline_key": "message_phone_removed", "resolved": true},
+        {"id": "PII-card-spaced-or-unspaced-msg", "baseline_key": "message_card_removed", "resolved": true},
+        {"id": "PII-extra-email", "baseline_key": "extra_notes_email_removed", "resolved": true},
+        {"id": "PII-extra-phone", "baseline_key": "extra_notes_phone_removed", "resolved": true},
+        {"id": "PII-extra-card", "baseline_key": "extra_notes_card_removed", "resolved": true},
+        {"id": "PII-field-customer_email", "baseline_key": "field_customer_email_redacted", "resolved": true}
+    ],
+    "prior_passes_still_passing": [
+        {"id": "secret-scan", "still_passing": true},
+        {"id": "sandbox-blocklist-8of8", "still_passing": true},
+        {"id": "sandbox-preamble-injection", "still_passing": true},
+        {"id": "keyring-chunking-roundtrip-and-rollback", "still_passing": true},
+        {"id": "sentry-token-redaction", "still_passing": true}
+    ],
+    "new_regressions": [],
+    "false_positive_check": {
+        "uuid_not_redacted": true,
+        "sha_not_redacted": true,
+        "long_digits_not_redacted": true,
+        "no_phony_card_mask": true,
+        "no_phony_email_mask": true,
+        "no_phony_phone_mask": true
+    },
+    "scope_respected": true,
+    "scope_respected_rationale": "S2 FINAL.json claims only sentry_backend.py + test_observability.py modified. Independent verification via filesystem mtime in the 19:21-19:45 UTC window plus content inspection confirms: (a) both files present with expected PII-redaction content, (b) other files modified in the same window are attributable to parallel streams S1/S3/S4 (each with its own scoped FINAL.json), (c) no other observability/ or redaction-hook file was touched.",
+    "additional_scenarios_not_in_baseline": {
+        "nested_contexts_user_email_redacted": true,
+        "phone_number_field_name_redacted": true,
+        "application_layer_pii_redaction_tests_pass": "4/4"
+    },
+    "advisory_sandbox_flake": {
+        "description": "Baseline A02 flagged a Windows os.open('nul') failure in test_pandas_read_write_cycle during broad run; isolated rerun passed.",
+        "reaudit_rerun_result": "pass (1.59s, deterministic in this run)",
+        "impact_on_gate": "none (advisory only)"
+    },
+    "metrics": {
+        "secret_scan_matches": 0,
+        "sandbox_blocklist_cases": 8,
+        "sandbox_blocklist_blocked": 8,
+        "junit_core_passed": 87,
+        "junit_core_failed": 0,
+        "junit_observability_passed": 13,
+        "junit_observability_failed": 0,
+        "junit_pii_redaction_app_passed": 4,
+        "junit_pii_redaction_app_failed": 0,
+        "junit_secret_storage_passed": 22,
+        "junit_secret_storage_failed": 0,
+        "junit_code_security_passed": 38,
+        "junit_code_security_failed": 0,
+        "pii_redaction_checks_total": 8,
+        "pii_redaction_checks_passed": 8,
+        "pii_redaction_checks_failed": 0,
+        "prior_failures_resolved_count": 7,
+        "new_regressions_count": 0,
+        "false_positive_checks_total": 6,
+        "false_positive_checks_passed": 6
+    },
+    "duration_sec": 660,
+    "independence_statement": "This FINAL.json is the independent A02 re-audit verdict. S2's self-reported pass was not relied upon for adjudication; every baseline procedure was re-executed, every key-by-key diff performed, and an additional false-positive negative guard and scope check were added."
+}

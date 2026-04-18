@@ -1,0 +1,164 @@
+{
+  "scenarios": [
+    {
+      "label": "DS_only_production",
+      "target_stage": "production",
+      "approver_count": 1,
+      "final_chain_state": "pending_Lead",
+      "trace": [
+        {
+          "event": "evaluate",
+          "chain_state": "pending_DS",
+          "target_stage": "production"
+        },
+        {
+          "event": "approve(DS)",
+          "approver": "ds-user",
+          "chain_state": "pending_Lead"
+        }
+      ],
+      "apply_outcome": {
+        "applied": false,
+        "error": "Promotion decision must be approved before apply.",
+        "error_type": "ValueError"
+      }
+    },
+    {
+      "label": "DS_Lead_production",
+      "target_stage": "production",
+      "approver_count": 2,
+      "final_chain_state": "pending_MLOps",
+      "trace": [
+        {
+          "event": "evaluate",
+          "chain_state": "pending_DS",
+          "target_stage": "production"
+        },
+        {
+          "event": "approve(DS)",
+          "approver": "ds-user",
+          "chain_state": "pending_Lead"
+        },
+        {
+          "event": "approve(Lead)",
+          "approver": "lead-user",
+          "chain_state": "pending_MLOps"
+        }
+      ],
+      "apply_outcome": {
+        "applied": false,
+        "error": "Promotion decision must be approved before apply.",
+        "error_type": "ValueError"
+      }
+    },
+    {
+      "label": "DS_Lead_MLOps_production",
+      "target_stage": "production",
+      "approver_count": 3,
+      "final_chain_state": "approved",
+      "trace": [
+        {
+          "event": "evaluate",
+          "chain_state": "pending_DS",
+          "target_stage": "production"
+        },
+        {
+          "event": "approve(DS)",
+          "approver": "ds-user",
+          "chain_state": "pending_Lead"
+        },
+        {
+          "event": "approve(Lead)",
+          "approver": "lead-user",
+          "chain_state": "pending_MLOps"
+        },
+        {
+          "event": "approve(MLOps)",
+          "approver": "mlops-user",
+          "chain_state": "approved"
+        }
+      ],
+      "apply_outcome": {
+        "applied": true,
+        "target_stage": "production",
+        "applied_alias": "champion",
+        "replaced_model_id": "m_churn_lightgbm"
+      }
+    },
+    {
+      "label": "DS_Lead_staging",
+      "target_stage": "staging",
+      "approver_count": 2,
+      "final_chain_state": "pending_MLOps",
+      "trace": [
+        {
+          "event": "evaluate",
+          "chain_state": "pending_DS",
+          "target_stage": "staging"
+        },
+        {
+          "event": "approve(DS)",
+          "approver": "ds-user",
+          "chain_state": "pending_Lead"
+        },
+        {
+          "event": "approve(Lead)",
+          "approver": "lead-user",
+          "chain_state": "pending_MLOps"
+        }
+      ],
+      "apply_outcome": {
+        "applied": false,
+        "error": "Promotion decision must be approved before apply.",
+        "error_type": "ValueError"
+      }
+    },
+    {
+      "label": "DS_Lead_MLOps_staging",
+      "target_stage": "staging",
+      "approver_count": 3,
+      "final_chain_state": "approved",
+      "trace": [
+        {
+          "event": "evaluate",
+          "chain_state": "pending_DS",
+          "target_stage": "staging"
+        },
+        {
+          "event": "approve(DS)",
+          "approver": "ds-user",
+          "chain_state": "pending_Lead"
+        },
+        {
+          "event": "approve(Lead)",
+          "approver": "lead-user",
+          "chain_state": "pending_MLOps"
+        },
+        {
+          "event": "approve(MLOps)",
+          "approver": "mlops-user",
+          "chain_state": "approved"
+        }
+      ],
+      "apply_outcome": {
+        "applied": true,
+        "target_stage": "staging",
+        "applied_alias": "challenger",
+        "replaced_model_id": null
+      }
+    }
+  ],
+  "boundary_enforcement": {
+    "DS_only_prod_blocks_apply": true,
+    "DS_Lead_prod_blocks_apply": true,
+    "DS_Lead_MLOps_prod_applies": true,
+    "DS_Lead_staging_blocks_apply": true,
+    "DS_Lead_MLOps_staging_applies": true
+  },
+  "stage_alias_mapping": {
+    "production_applied_alias": "champion",
+    "staging_applied_alias": "challenger",
+    "alias_differs_by_stage": true
+  },
+  "plan_spec_interpretation": "Plan spec \u00a75.4.6 reads '2-of-3 -> staging / 3-of-3 -> production'. Observed code implements a uniform 3-role sequential chain: apply() requires chain_state='approved' regardless of target_stage. With only 2 approvals, both staging and production remain in pending_MLOps and cannot be applied. The stage boundary is expressed only through target_alias (challenger vs champion) selected at evaluate() time. Promotion Gate role enforcement is therefore STRONGER than the plan text (no 2-of-3 shortcut), and behaves consistently for staging and production."
+}

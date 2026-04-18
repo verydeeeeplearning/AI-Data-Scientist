@@ -1,0 +1,15 @@
+{
+  "agent_id": "A03",
+  "agent_name": "Contract & Schema Auditor",
+  "tier": 1,
+  "started_at": "2026-04-16T19:00:17Z",
+  "inputs": [
+    "Docs/PRE_RELEASE_AI_TEST_PLAN_2026-04-17.md"
+  ],
+  "inputs_hash": "b8599777df84348e9c6a8a42f4f2890dc21f598457f365cb2103dfc709479e7e",
+  "code_sha": null,
+  "code_snapshot_id": "fd5e256bf0e1f349087e1e28c78adf187a87dc848e67373315aef274b7bd4a6e",
+  "notes": [
+    "Git metadata unavailable in workspace; using composite snapshot SHA-256 of pyproject.toml, uv.lock, and electron/package-lock.json."
+  ]
+}

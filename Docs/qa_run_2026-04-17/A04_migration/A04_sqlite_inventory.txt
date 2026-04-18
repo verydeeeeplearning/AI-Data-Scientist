@@ -1,0 +1,7 @@
+central_migration_files=__init__.py,config_migrations.py
+observed_max_schema_version=12
+plan_claim_v13_satisfied=False
+learning_store_version=1
+task_contract_store_version=10
+work_object_store_version=12
+semantic_store_version=7

@@ -1,0 +1,91 @@
+{
+  "agent": "B08",
+  "role": "Task Contract / Verifier / Decision OS Tester",
+  "completed_at": "2026-04-17T00:00:00Z",
+  "status": "pending_reviewer_judgement",
+  "scope_tag": "spec_01_task_contract + spec_03_verifier + spec_06_decision_os",
+  "metrics": {
+    "paths_verified": "8/8",
+    "lifecycle_invalid_transitions_blocked": true,
+    "promotion_gate_enforced": true,
+    "rundiff_deterministic": true,
+    "ten_dim_scorer_weighted_delta_ge_0_5": true,
+    "shadow_comparison_persists_both_paths": true,
+    "review_artifact_auto_capture_from_hidden_block": true,
+    "assumption_verify_confidence_delta_score": 0.5,
+    "verifier_each_layer_fail_produces_fail_verdict": true,
+    "verifier_happy_path_is_pass": true
+  },
+  "pytest_summary": {
+    "command": "scoped pytest for task contract / verifier / decision_os test files",
+    "passed": 69,
+    "failed": 4,
+    "failure_classification": "ENV-2 (pandas/numpy not installed in venv) — out of scope, logic covered via orchestrator unit path"
+  },
+  "critical_failures": [],
+  "deviations": [
+    {
+      "id": "NOTE-B08-1",
+      "where": "Promotion Gate",
+      "plan_text": "2-of-3 -> staging / 3-of-3 -> production",
+      "observed": "Uniform 3-of-3 sequential chain required for both stages; stage boundary expressed only via alias (staging=challenger, production=champion)",
+      "severity": "informational",
+      "classification": "policy-tightening deviation; boundary strictly enforced, behavior uniformly safer than plan text"
+    }
+  ],
+  "pre_existing_or_env_issues": [
+    {
+      "id": "ENV-2",
+      "tests": [
+        "tests/integration/test_run_verifier_tool.py::test_run_verifier_tool_persists_and_loads_verdict",
+        "tests/integration/test_run_verifier_tool.py::test_run_verifier_tool_records_into_existing_task_contract",
+        "tests/integration/test_run_verifier_tool.py::test_run_verifier_tool_records_shadow_comparison_when_hook_log_present",
+        "tests/integration/test_run_verifier_tool.py::test_shadow_comparison_tools_load_and_list_persisted_records"
+      ],
+      "root_cause": "pandas / numpy not present in this venv; run_verifier tool returns ok:false with MODULENOTFOUNDERROR",
+      "recommended_owner": "Tier 4 D16 chaos / environment stream"
+    }
+  ],
+  "evidence": {
+    "folder": "Docs/qa_run_2026-04-17/B08_task_contract/",
+    "files": [
+      "START.json",
+      "FINAL.json",
+      "B08_report.md",
+      "B08_lifecycle_traces.json",
+      "B08_lifecycle_matrix.json",
+      "B08_path2_assumption_verdict.json",
+      "B08_path3_verifier_summary.json",
+      "B08_path4_10dim_scores.json",
+      "B08_path5_shadow_diff.json",
+      "B08_path6_promotion_gate.json",
+      "B08_path7_rundiff.json",
+      "B08_path8_review_artifact_capture.json",
+      "B08_pytest.xml",
+      "B08_verdict_samples/HAPPY_all_layers_pass.json",
+      "B08_verdict_samples/L1_statistical_fail.json",
+      "B08_verdict_samples/L2_data_fail_missingness.json",
+      "B08_verdict_samples/L3_policy_fail_pii.json",
+      "B08_verdict_samples/L4_narrative_judge_fail.json"
+    ]
+  },
+  "constraints_compliance": {
+    "no_source_modifications": true,
+    "no_full_regression_pytest": true,
+    "scope_isolated_pytest_only": true,
+    "no_data_dir_writes": true,
+    "no_real_external_delivery": true,
+    "no_llm_hint_injection": true,
+    "no_self_pass_judgement": true
+  },
+  "final_path_summary": {
+    "path_1_lifecycle": "PASS",
+    "path_2_assumption_verdict": "PASS",
+    "path_3_four_layer_verifier": "PASS",
+    "path_4_ten_dim_scorer": "PASS",
+    "path_5_shadow_evaluation": "PASS",
+    "path_6_promotion_gate_roles": "PASS (stricter-than-plan enforcement)",
+    "path_7_rundiff_determinism": "PASS",
+    "path_8_ds_review_artifacts_capture": "PASS"
+  }
+}

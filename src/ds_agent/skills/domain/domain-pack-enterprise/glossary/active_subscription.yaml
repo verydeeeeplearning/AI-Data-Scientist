@@ -1,0 +1,8 @@
+term_id: term.active_subscription
+canonical_form: active subscription
+definition: "Subscription contract currently in force and billable under the revenue policy."
+linked_metric_ids:
+  - monthly_recurring_revenue
+  - monthly_churn_rate
+category: entity
+owner: growth_team

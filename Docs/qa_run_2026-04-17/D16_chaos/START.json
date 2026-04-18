@@ -1,0 +1,35 @@
+{
+  "agent_id": "D16",
+  "agent_name": "Chaos / Recovery Engineer",
+  "tier": 4,
+  "solo": true,
+  "started_at": "2026-04-17T00:00:00Z",
+  "inputs": {
+    "plan": "Docs/PRE_RELEASE_AI_TEST_PLAN_2026-04-17.md (\u00a77.1)",
+    "handoff": "Docs/qa_run_2026-04-17/HANDOFF_NEXT_AGENT.md",
+    "gate_in": "Docs/qa_run_2026-04-17/TIER3_GATE_DECISION.md (PASS)"
+  },
+  "scope_modules": [
+    "src/ds_agent/runtime/startup_recovery.py",
+    "src/ds_agent/runtime/checkpoint_store.py",
+    "src/ds_agent/runtime/authority_overlay.py",
+    "src/ds_agent/runtime/channel_identity.py",
+    "src/ds_agent/runtime/session_registry.py",
+    "src/ds_agent/infrastructure/secrets/secret_storage.py",
+    "src/ds_agent/infrastructure/persistence/ (SQLite lock path)",
+    "src/ds_agent/api/ (WS server, only via subprocess)"
+  ],
+  "scenarios": [
+    "S1 Mid-session kill",
+    "S2 SQLite lock",
+    "S3 Keyring degraded mode",
+    "S4 Network drop",
+    "S5 Disk full",
+    "S6 Clock drift",
+    "S7 Concurrent sessions",
+    "S8 Incident mode persistence"
+  ],
+  "code_snapshot_sha256_head": "103b6fd5f4e9a29d",
+  "python_version": "3.12.10",
+  "platform": "Windows 11 Home 10.0.26200"
+}

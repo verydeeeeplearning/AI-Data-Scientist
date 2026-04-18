@@ -1,0 +1,18 @@
+{
+  "stream": "S6",
+  "started_at": "2026-04-17T00:00:00Z",
+  "scope": {
+    "files_in_scope": [
+      "src/ds_agent/application/learning/rollback_promotion.py",
+      "src/ds_agent/infrastructure/persistence/learning_store.py",
+      "src/ds_agent/application/ports/learning_store_port.py",
+      "tests/unit/application/test_rollback_atomicity.py"
+    ],
+    "files_out_of_scope": [
+      "src/ds_agent/domain/**",
+      "any other application use cases (promote/deprecate) — scanned only, not modified"
+    ]
+  },
+  "objective": "Introduce use-case-level atomic persistence for RollbackPromotion (save_item + save_deprecation_record in single transaction) via new application-layer port, keeping Clean Architecture contracts intact.",
+  "approach": "Option A (use-case-level transaction) with new port LearningStoreAtomicPort in application/ports/. Avoids modifying domain layer (per scope constraint)."
+}

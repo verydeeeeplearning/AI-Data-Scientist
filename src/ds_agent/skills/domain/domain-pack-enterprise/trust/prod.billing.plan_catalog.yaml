@@ -1,0 +1,9 @@
+fqtn: prod.billing.plan_catalog
+grade: gold
+owner: billing_ops
+description: "Canonical billing plan dimension with interval, package, and pricing metadata."
+refresh:
+  cadence: weekly
+  max_staleness_minutes: 10080
+grade_rationale: "Certified plan catalog used by finance and growth segmentation."
+last_audited: 2026-04-15

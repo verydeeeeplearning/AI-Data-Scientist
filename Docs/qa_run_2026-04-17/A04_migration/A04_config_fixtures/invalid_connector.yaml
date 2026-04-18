@@ -1,0 +1,17 @@
+connectors:
+  warehouse:
+    type: postgres
+    label: warehouse
+    credential_method: env
+    credential_ref: PG_DSN
+    read_only: true
+    timeout_seconds: 30
+    max_rows: 10000
+    options:
+      host: localhost
+_schema_version: 4
+observability:
+  sentry_dsn: null
+  sentry_environment: production
+  telemetry_enabled: false
+  error_reporting_enabled: false

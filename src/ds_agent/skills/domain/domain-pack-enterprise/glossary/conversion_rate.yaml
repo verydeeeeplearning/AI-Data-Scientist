@@ -1,0 +1,7 @@
+term_id: term.conversion_rate
+canonical_form: conversion rate
+definition: "General share of entities progressing from one funnel state to another."
+linked_metric_ids:
+  - trial_to_paid_conversion_rate
+category: metric
+owner: growth_team

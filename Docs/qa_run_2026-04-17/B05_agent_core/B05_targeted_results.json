@@ -1,0 +1,41 @@
+{
+  "budget_guard": {
+    "cheap_tool_over_budget_allowed": true,
+    "expensive_under_threshold_allowed": true,
+    "expensive_at_threshold_denied": true,
+    "expensive_over_threshold_denied": true,
+    "deny_reason_mentions_budget": true
+  },
+  "iteration_budget_stop": {
+    "llm_chat_call_count": 3,
+    "expected_max_calls": 3,
+    "loop_stopped_at_boundary": true,
+    "budget_exhausted_in_result": true,
+    "task_failed_emitted": true
+  },
+  "prompt_builder_token_budget": {
+    "identity_in_large": true,
+    "safety_in_large": true,
+    "memory_present_in_large": true,
+    "project_present_in_large": true,
+    "identity_in_tight": true,
+    "memory_dropped_in_tight": true,
+    "project_dropped_in_tight": true,
+    "assembler_keeps_required": true,
+    "assembler_drops_optional_when_tight": true
+  },
+  "session_init_single_injection": {
+    "injections_returned": 1,
+    "ds_methodology_count": 1,
+    "safety_count": 1,
+    "contains_baseline_rule": true,
+    "injected_exactly_once_per_session": true
+  },
+  "review_artifact_capture": {
+    "cleaned_response_excludes_block": true,
+    "captured_count": 1,
+    "captured_run_id": "run-42",
+    "captured_skill_name": "backtesting",
+    "emitted_captured_event": true
+  }
+}

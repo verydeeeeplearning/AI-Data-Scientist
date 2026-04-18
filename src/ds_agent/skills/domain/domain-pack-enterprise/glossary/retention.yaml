@@ -1,0 +1,7 @@
+term_id: term.retention
+canonical_form: retention
+definition: "Portion of customers or revenue retained after churn and downgrade movements."
+linked_metric_ids:
+  - net_revenue_retention
+category: metric
+owner: growth_team

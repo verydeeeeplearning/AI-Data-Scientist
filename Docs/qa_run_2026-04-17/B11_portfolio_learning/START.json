@@ -1,0 +1,30 @@
+{
+  "agent": "B11_portfolio_learning",
+  "started_at": "2026-04-17T00:00:00Z",
+  "scope": {
+    "specs": ["Spec 09 Portfolio", "Spec 10 Learning Governance"],
+    "paths": [
+      "1. Portfolio 4-quadrant transitions + illegal transitions rejected",
+      "2. max_active_slots hard constraint (slots=2, 3rd resume_task rejected)",
+      "3. PriorityCalculator formula verification (informational only, not enforced)",
+      "4. WaitCondition 4 kinds (Timer/Approval/DataFreshness/External)",
+      "5. Learning 8-state machine + invalid reverse transitions",
+      "6. Promotion thresholds (pattern=1.00, kb_entry=1.00, custom_skill=1.02)",
+      "7. Auto-deprecation hard constraint (2 consecutive eval fails)",
+      "8. Rollback atomicity (PromotionRecord rollback with failure injection)",
+      "9. Feature flag off (DS_AGENT_PORTFOLIO_ENABLED=false hides tools)"
+    ],
+    "feature_flags": ["DS_AGENT_PORTFOLIO_ENABLED", "DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1"]
+  },
+  "constraints": [
+    "no source modification",
+    "no real external calls",
+    "no full regression pytest",
+    "scope isolated execution only",
+    "no data/ access",
+    "no self pass judgement",
+    "LLM=orchestrator principle must be checked for PriorityCalculator"
+  ],
+  "output_dir": "Docs/qa_run_2026-04-17/B11_portfolio_learning",
+  "tmp_dir": ".tmp/qa_B11"
+}

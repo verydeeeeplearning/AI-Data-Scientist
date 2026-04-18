@@ -1,0 +1,26 @@
+metric_id: net_revenue_retention
+display_name: Net Revenue Retention
+owner: finance_team
+definition: "Percentage of starting recurring revenue retained after expansion and contraction within a month."
+synonyms:
+  - NRR
+  - net dollar retention
+grain: monthly
+unit: percentage
+direction: higher_is_better
+related_metrics:
+  - monthly_recurring_revenue
+  - monthly_churn_rate
+caveats:
+  - Pause and write-off adjustments are excluded from the certified executive definition.
+verified_query_ids:
+  - vq-nrr-postgres
+calculation:
+  numerator:
+    source: prod.finance.mrr_ledger
+    filter: movement_type IN ('starting','expansion','contraction')
+    aggregation: SUM(net_revenue_amount)
+  denominator:
+    source: prod.finance.mrr_ledger
+    filter: movement_type = 'starting'
+    aggregation: SUM(net_revenue_amount)

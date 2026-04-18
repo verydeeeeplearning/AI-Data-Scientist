@@ -1,0 +1,11 @@
+term_id: term.cac
+canonical_form: CAC
+definition: "Customer acquisition cost measured from attributable spend and closed-won deals."
+synonyms:
+  - customer acquisition cost
+abbreviations:
+  - CAC
+linked_metric_ids:
+  - customer_acquisition_cost
+category: metric
+owner: marketing_ops

@@ -1,0 +1,23 @@
+{
+  "agent_id": "A04-reaudit",
+  "round": 2,
+  "started_at": "2026-04-17T00:00:00Z",
+  "scope": "Re-audit of A04 Migration & Config after Fix Sprint S3/S4",
+  "baseline_final": "Docs/qa_run_2026-04-17/A04_migration/FINAL.json",
+  "fix_sprint_inputs": [
+    "Docs/qa_run_2026-04-17/S3_drift_cleanup/FINAL.json",
+    "Docs/qa_run_2026-04-17/S4_v13_migration/FINAL.json"
+  ],
+  "prior_failures_to_verify": [
+    {"id": "F1-work_object_v12", "desc": "work_object_store schema expectation v11 must be updated to v12"},
+    {"id": "F2-semantic_v7", "desc": "semantic test_migration_v6 expectation must advance to v7"},
+    {"id": "F3-v13_plan_claim", "desc": "central v13 runner must be found and plan claim must be satisfied"}
+  ],
+  "output_folder": "Docs/qa_run_2026-04-17/A04_migration_reaudit/",
+  "platform": "Windows",
+  "constraints": [
+    "source code modification forbidden",
+    "full regression pytest untrusted (Windows .tmp flake); only migration-scope targeted tests",
+    "S3/S4 self-judgment not trusted"
+  ]
+}

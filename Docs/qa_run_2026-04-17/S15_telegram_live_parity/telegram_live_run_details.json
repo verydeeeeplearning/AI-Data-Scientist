@@ -1,0 +1,143 @@
+[
+  {
+    "scenario_id": "P-01",
+    "result": {
+      "channel": "Telegram",
+      "scenario_id": "P-01",
+      "session_id": "telegram:555777:7:P-01-042433",
+      "status": "error",
+      "goal_echo": "tips.csv의 total_bill 예측 — 데이터 로드와 프로파일링, baseline 선형 회귀 모델, 평가, 최종 DeliveryPack(PDF)을 생성하세요.",
+      "final_verdict": "",
+      "delivery_pack_body_hash": "51de5976e68aeb2df5e3e1d92a01d7e59a402415109531d52a45e32bbf062585",
+      "delivery_pack_body_preview": "The AI service is temporarily unavailable. [DSA-LLM-001] Wait a moment and retry, or switch to another model.",
+      "metric_spec": {},
+      "error_code": "INTERNAL",
+      "channel_origin": "live:ptb_app+fake_bot+subprocess:227436",
+      "timestamp_utc": "2026-04-18T04:24:42Z",
+      "raw_final_content": "The AI service is temporarily unavailable. [DSA-LLM-001] Wait a moment and retry, or switch to another model.",
+      "raw_event_count": 1,
+      "raw_event_types": [
+        "res"
+      ],
+      "fallback_notes": [
+        "telegram live harness: Update.de_json → TelegramPlugin._on_text → InboundMessage → telegram_session_id → WS chat.send"
+      ]
+    },
+    "cleanup": {
+      "pid": 227436,
+      "exit_code": 1,
+      "killed": true,
+      "already_exited": false
+    },
+    "harness": {
+      "chat_id": 555777,
+      "user_id": 8881,
+      "thread_id": 7,
+      "base_session_id": "telegram:555777:7",
+      "session_id": "telegram:555777:7:P-01-042433",
+      "fake_bot": {
+        "fake_bot_calls_total": 0,
+        "fake_bot_call_methods": []
+      },
+      "inbound_text_len": 92,
+      "inbound_channel_id": "telegram",
+      "inbound_conversation_id": "555777",
+      "inbound_thread_id": "7",
+      "plugin_class": "TelegramPlugin"
+    }
+  },
+  {
+    "scenario_id": "P-02",
+    "result": {
+      "channel": "Telegram",
+      "scenario_id": "P-02",
+      "session_id": "telegram:555778:P-02-042443",
+      "status": "error",
+      "goal_echo": "현재 세션의 Authority를 Supervised에서 Delegate로 전환하고, 실험 기록 삭제(가상) CAUTION 도구를 호출해 승인 플로우를 트리거하세요.",
+      "final_verdict": "",
+      "delivery_pack_body_hash": "51de5976e68aeb2df5e3e1d92a01d7e59a402415109531d52a45e32bbf062585",
+      "delivery_pack_body_preview": "The AI service is temporarily unavailable. [DSA-LLM-001] Wait a moment and retry, or switch to another model.",
+      "metric_spec": {},
+      "error_code": "INTERNAL",
+      "channel_origin": "live:ptb_app+fake_bot+subprocess:207640",
+      "timestamp_utc": "2026-04-18T04:24:53Z",
+      "raw_final_content": "The AI service is temporarily unavailable. [DSA-LLM-001] Wait a moment and retry, or switch to another model.",
+      "raw_event_count": 1,
+      "raw_event_types": [
+        "res"
+      ],
+      "fallback_notes": [
+        "telegram live harness: Update.de_json → TelegramPlugin._on_text → InboundMessage → telegram_session_id → WS chat.send"
+      ]
+    },
+    "cleanup": {
+      "pid": 207640,
+      "exit_code": 1,
+      "killed": true,
+      "already_exited": false
+    },
+    "harness": {
+      "chat_id": 555778,
+      "user_id": 8882,
+      "thread_id": null,
+      "base_session_id": "telegram:555778",
+      "session_id": "telegram:555778:P-02-042443",
+      "fake_bot": {
+        "fake_bot_calls_total": 0,
+        "fake_bot_call_methods": []
+      },
+      "inbound_text_len": 91,
+      "inbound_channel_id": "telegram",
+      "inbound_conversation_id": "555778",
+      "inbound_thread_id": null,
+      "plugin_class": "TelegramPlugin"
+    }
+  },
+  {
+    "scenario_id": "P-03",
+    "result": {
+      "channel": "Telegram",
+      "scenario_id": "P-03",
+      "session_id": "telegram:555779:7:P-03-042454",
+      "status": "error",
+      "goal_echo": "세션에서 관찰한 반복 패턴을 LearningInbox 항목으로 추출하고, 하나를 review·approve 후 promote. 이후 2회 eval 실패 → auto-deprecate를 시뮬레이션하세요.",
+      "final_verdict": "",
+      "delivery_pack_body_hash": "51de5976e68aeb2df5e3e1d92a01d7e59a402415109531d52a45e32bbf062585",
+      "delivery_pack_body_preview": "The AI service is temporarily unavailable. [DSA-LLM-001] Wait a moment and retry, or switch to another model.",
+      "metric_spec": {},
+      "error_code": "INTERNAL",
+      "channel_origin": "live:ptb_app+fake_bot+subprocess:221464",
+      "timestamp_utc": "2026-04-18T04:25:04Z",
+      "raw_final_content": "The AI service is temporarily unavailable. [DSA-LLM-001] Wait a moment and retry, or switch to another model.",
+      "raw_event_count": 1,
+      "raw_event_types": [
+        "res"
+      ],
+      "fallback_notes": [
+        "telegram live harness: Update.de_json → TelegramPlugin._on_text → InboundMessage → telegram_session_id → WS chat.send"
+      ]
+    },
+    "cleanup": {
+      "pid": 221464,
+      "exit_code": 1,
+      "killed": true,
+      "already_exited": false
+    },
+    "harness": {
+      "chat_id": 555779,
+      "user_id": 8883,
+      "thread_id": 7,
+      "base_session_id": "telegram:555779:7",
+      "session_id": "telegram:555779:7:P-03-042454",
+      "fake_bot": {
+        "fake_bot_calls_total": 0,
+        "fake_bot_call_methods": []
+      },
+      "inbound_text_len": 112,
+      "inbound_channel_id": "telegram",
+      "inbound_conversation_id": "555779",
+      "inbound_thread_id": "7",
+      "plugin_class": "TelegramPlugin"
+    }
+  }
+]

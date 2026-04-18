@@ -1,0 +1,9 @@
+fqtn: staging.billing.exchange_rate_daily
+grade: silver
+owner: billing_ops
+description: "Daily foreign-exchange staging table used for currency normalization."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Monitored reference data pending treasury audit signoff."
+last_audited: 2026-04-15

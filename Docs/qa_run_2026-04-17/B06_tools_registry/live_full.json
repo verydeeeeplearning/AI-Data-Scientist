@@ -1,0 +1,3096 @@
+[
+  {
+    "name": "ab_test",
+    "timeout": 120,
+    "required": [
+      "action"
+    ],
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "design",
+          "check",
+          "analyze"
+        ],
+        "description": "Which A/B testing action to run."
+      },
+      "effect_size": {
+        "type": "number"
+      },
+      "alpha": {
+        "type": "number",
+        "default": 0.05
+      },
+      "power": {
+        "type": "number",
+        "default": 0.8
+      },
+      "test_type": {
+        "type": "string",
+        "default": "proportion"
+      },
+      "control_n": {
+        "type": "integer"
+      },
+      "treatment_n": {
+        "type": "integer"
+      },
+      "expected_control_ratio": {
+        "type": "number",
+        "default": 0.5
+      },
+      "expected_treatment_ratio": {
+        "type": "number",
+        "default": 0.5
+      },
+      "control_values": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "treatment_values": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      "metric_type": {
+        "type": "string",
+        "default": "continuous"
+      },
+      "p_value": {
+        "type": "number"
+      },
+      "look": {
+        "type": "integer",
+        "default": 1
+      },
+      "max_looks": {
+        "type": "integer",
+        "default": 3
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "add_assumption",
+    "timeout": 120,
+    "required": [
+      "task_id",
+      "statement",
+      "rationale",
+      "risk_level"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "statement": {
+        "type": "string"
+      },
+      "rationale": {
+        "type": "string"
+      },
+      "risk_level": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "asked_user": {
+        "type": "boolean"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "advance_work_object_phase",
+    "timeout": 120,
+    "required": [
+      "work_object_id",
+      "to_phase"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string"
+      },
+      "to_phase": {
+        "type": "string",
+        "enum": [
+          "intake",
+          "executing",
+          "review",
+          "documenting",
+          "followup",
+          "closed",
+          "failed"
+        ]
+      },
+      "run_id": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "ask_user",
+    "timeout": 300,
+    "required": [
+      "question"
+    ],
+    "properties": {
+      "question": {
+        "type": "string",
+        "description": "The question to ask the user"
+      },
+      "options": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Optional list of choices for the user to select from"
+      },
+      "default": {
+        "type": "string",
+        "description": "Default answer if user doesn't respond"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "build_delivery_pack",
+    "timeout": 120,
+    "required": [
+      "task_id"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "audiences": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "follow_up_actions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "source_analysis_id": {
+        "type": "string"
+      },
+      "confidence": {
+        "type": "number"
+      },
+      "signed_by": {
+        "type": "string"
+      },
+      "signature": {
+        "type": "string"
+      },
+      "global_context": {
+        "type": "object"
+      },
+      "tenant": {
+        "type": "string",
+        "default": "default"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "close_task_contract",
+    "timeout": 120,
+    "required": [
+      "task_id",
+      "expected_version",
+      "closing_note"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "expected_version": {
+        "type": "integer"
+      },
+      "closing_note": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "close_work_object",
+    "timeout": 120,
+    "required": [
+      "work_object_id",
+      "reason"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string"
+      },
+      "reason": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "compare_runs",
+    "timeout": 120,
+    "required": [
+      "run_a_id",
+      "run_b_id"
+    ],
+    "properties": {
+      "run_a_id": {
+        "type": "string"
+      },
+      "run_b_id": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "governance"
+  },
+  {
+    "name": "create_calendar_event",
+    "timeout": 30,
+    "required": [
+      "work_object_id",
+      "summary",
+      "start",
+      "end"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string",
+        "description": "WorkObject to track this event against."
+      },
+      "summary": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string",
+        "default": ""
+      },
+      "start": {
+        "type": "string",
+        "description": "ISO-8601 datetime for event start."
+      },
+      "end": {
+        "type": "string",
+        "description": "ISO-8601 datetime for event end."
+      },
+      "timezone": {
+        "type": "string",
+        "default": "UTC"
+      },
+      "attendees": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": []
+      },
+      "calendar_id": {
+        "type": "string",
+        "default": "primary"
+      },
+      "conference_tool": {
+        "type": "string",
+        "enum": [
+          "meet",
+          "zoom",
+          "teams"
+        ]
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "create_git_pr",
+    "timeout": 30,
+    "required": [
+      "title",
+      "body",
+      "head"
+    ],
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "body": {
+        "type": "string"
+      },
+      "head": {
+        "type": "string"
+      },
+      "base": {
+        "type": "string",
+        "default": "main"
+      },
+      "repository": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "create_jira_ticket",
+    "timeout": 30,
+    "required": [
+      "summary",
+      "description",
+      "project"
+    ],
+    "properties": {
+      "summary": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "project": {
+        "type": "string"
+      },
+      "issue_type": {
+        "type": "string",
+        "default": "Task"
+      },
+      "assignee": {
+        "type": "string"
+      },
+      "priority": {
+        "type": "string"
+      },
+      "labels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "base_url": {
+        "type": "string"
+      },
+      "work_object_id": {
+        "type": "string"
+      },
+      "location": {
+        "type": "string",
+        "enum": [
+          "request",
+          "documentation",
+          "follow_up"
+        ],
+        "default": "follow_up"
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "create_task_contract",
+    "timeout": 120,
+    "required": [
+      "session_id",
+      "contract_type",
+      "business_goal",
+      "goal_brief",
+      "required_deliverables"
+    ],
+    "properties": {
+      "session_id": {
+        "type": "string"
+      },
+      "contract_type": {
+        "type": "string"
+      },
+      "business_goal": {
+        "type": "string"
+      },
+      "goal_brief": {
+        "type": "object"
+      },
+      "required_deliverables": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "allowed_data_sources": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "forbidden_data_patterns": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "budget": {
+        "type": "object"
+      },
+      "autonomy": {
+        "type": "object"
+      },
+      "authority": {
+        "type": "string",
+        "enum": [
+          "shadow",
+          "supervised",
+          "delegate",
+          "autopilot",
+          "incident",
+          "freeze"
+        ]
+      },
+      "audience": {
+        "type": "string",
+        "enum": [
+          "junior_mentor",
+          "peer_ds",
+          "senior_staff",
+          "executive",
+          "auditor"
+        ]
+      },
+      "mission": {
+        "type": "string"
+      },
+      "decision_owner": {
+        "type": "string"
+      },
+      "decision_deadline": {
+        "type": "string"
+      },
+      "definition_of_done": {
+        "type": "object"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "create_work_object",
+    "timeout": 120,
+    "required": [
+      "task_contract_id",
+      "title",
+      "request_source",
+      "requestor_id",
+      "requestor_display",
+      "original_text"
+    ],
+    "properties": {
+      "task_contract_id": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "request_source": {
+        "type": "string",
+        "enum": [
+          "slack",
+          "email",
+          "jira",
+          "cli",
+          "telegram",
+          "electron",
+          "api"
+        ]
+      },
+      "requestor_id": {
+        "type": "string"
+      },
+      "requestor_display": {
+        "type": "string"
+      },
+      "original_text": {
+        "type": "string"
+      },
+      "channel": {
+        "type": "string"
+      },
+      "request_metadata": {
+        "type": "object"
+      },
+      "external_reference": {
+        "type": "object"
+      },
+      "delivery_pack_id": {
+        "type": "string"
+      },
+      "owner_agent": {
+        "type": "string"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "parent_work_object_id": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "dashboard_spec",
+    "timeout": 30,
+    "required": [
+      "metrics"
+    ],
+    "properties": {
+      "metrics": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "description": "Metric definitions with names, SQL, and chart types."
+      },
+      "dimensions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Dashboard dimensions or breakdowns."
+      },
+      "filters": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "description": "Filter definitions."
+      },
+      "layout": {
+        "type": "object",
+        "description": "Optional layout metadata."
+      },
+      "format": {
+        "type": "string",
+        "enum": [
+          "json",
+          "yaml"
+        ],
+        "default": "json"
+      },
+      "output_path": {
+        "type": "string",
+        "description": "Optional file path to write the generated spec."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "data_loader",
+    "timeout": 60,
+    "required": [
+      "file_path"
+    ],
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "Path to the data file (CSV, Parquet, Excel, JSON)"
+      },
+      "file_type": {
+        "type": "string",
+        "enum": [
+          "csv",
+          "parquet",
+          "excel",
+          "json"
+        ],
+        "description": "Type of data source. Auto-detected from extension if omitted."
+      },
+      "sample_rows": {
+        "type": "integer",
+        "default": 5,
+        "description": "Number of rows to include in the head preview"
+      },
+      "encoding": {
+        "type": "string",
+        "default": "utf-8",
+        "description": "File encoding (for CSV/JSON)"
+      },
+      "separator": {
+        "type": "string",
+        "default": ",",
+        "description": "Column separator (for CSV)"
+      },
+      "nrows": {
+        "type": "integer",
+        "description": "Maximum number of rows to load. Omit to load all."
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "data_profiler",
+    "timeout": 120,
+    "required": [
+      "file_path"
+    ],
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "Path to the dataset file (CSV/Parquet)"
+      },
+      "target_column": {
+        "type": "string",
+        "description": "Target variable for target-specific analysis"
+      },
+      "profile_level": {
+        "type": "string",
+        "enum": [
+          "quick",
+          "standard",
+          "deep"
+        ],
+        "default": "standard",
+        "description": "Profiling depth"
+      },
+      "sample_size": {
+        "type": "integer",
+        "description": "Number of rows to sample for large datasets"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "describe_table_trust",
+    "timeout": 120,
+    "required": [
+      "fqtns"
+    ],
+    "properties": {
+      "fqtns": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Fully qualified table names to evaluate."
+      },
+      "allow_untrusted": {
+        "type": "boolean",
+        "default": false,
+        "description": "When true, downgrade missing/untrusted tables to warnings."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "dispatch_delivery",
+    "timeout": 120,
+    "required": [
+      "task_id"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "artifact_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "channels": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "email",
+            "slack_dm",
+            "slack_channel",
+            "notion_page",
+            "confluence",
+            "jira_ticket",
+            "git_pr",
+            "compliance_system"
+          ]
+        }
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": false
+      },
+      "approve_manual_review": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "distributed_exec",
+    "timeout": 300,
+    "required": [
+      "code",
+      "backend",
+      "data_path"
+    ],
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python code to execute. DATA_PATH is injected automatically."
+      },
+      "backend": {
+        "type": "string",
+        "enum": [
+          "dask",
+          "ray",
+          "spark"
+        ],
+        "description": "Distributed execution backend."
+      },
+      "data_path": {
+        "type": "string",
+        "description": "Dataset path exposed to the code as DATA_PATH."
+      },
+      "timeout": {
+        "type": "integer",
+        "default": 120,
+        "description": "Execution timeout in seconds."
+      }
+    },
+    "is_async": true,
+    "safety_level": "caution",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "drift_monitor",
+    "timeout": 120,
+    "required": [],
+    "properties": {
+      "reference_data": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "description": "Reference data as a list of records."
+      },
+      "current_data": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "description": "Current data as a list of records."
+      },
+      "reference_path": {
+        "type": "string",
+        "description": "Path to the reference dataset."
+      },
+      "current_path": {
+        "type": "string",
+        "description": "Path to the current dataset."
+      },
+      "features": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Optional subset of features to check."
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "evaluate_model",
+    "timeout": 300,
+    "required": [
+      "code",
+      "model_path",
+      "test_data_path",
+      "target_column"
+    ],
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python code for evaluation. Should load model and test data, compute metrics, generate plots."
+      },
+      "model_path": {
+        "type": "string",
+        "description": "Path to the trained model file"
+      },
+      "test_data_path": {
+        "type": "string",
+        "description": "Path to the test dataset"
+      },
+      "target_column": {
+        "type": "string",
+        "description": "Name of the target variable"
+      },
+      "task_type": {
+        "type": "string",
+        "enum": [
+          "binary_classification",
+          "multiclass_classification",
+          "regression"
+        ],
+        "description": "Type of ML task"
+      },
+      "output_dir": {
+        "type": "string",
+        "description": "Directory to save evaluation artifacts"
+      },
+      "timeout": {
+        "type": "integer",
+        "default": 300,
+        "description": "Maximum execution time in seconds"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "ds_modeling"
+  },
+  {
+    "name": "execute_code",
+    "timeout": 120,
+    "required": [
+      "code"
+    ],
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python code to execute"
+      },
+      "timeout": {
+        "type": "integer",
+        "default": 120,
+        "description": "Maximum execution time in seconds"
+      }
+    },
+    "is_async": true,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "feature_engineer",
+    "timeout": 180,
+    "required": [
+      "code",
+      "input_path",
+      "output_path"
+    ],
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python code for feature engineering. Should load data, create features, save results."
+      },
+      "input_path": {
+        "type": "string",
+        "description": "Path to the input dataset"
+      },
+      "output_path": {
+        "type": "string",
+        "description": "Path to save the engineered feature matrix"
+      },
+      "target_column": {
+        "type": "string",
+        "description": "Target variable name"
+      },
+      "timeout": {
+        "type": "integer",
+        "default": 180,
+        "description": "Maximum execution time in seconds"
+      }
+    },
+    "is_async": true,
+    "safety_level": "caution",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "generate_deployment",
+    "timeout": 120,
+    "required": [
+      "code",
+      "model_path",
+      "output_dir"
+    ],
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python code to generate deployment artifacts."
+      },
+      "model_path": {
+        "type": "string",
+        "description": "Path to the trained model file"
+      },
+      "output_dir": {
+        "type": "string",
+        "description": "Directory to save deployment artifacts"
+      },
+      "deployment_target": {
+        "type": "string",
+        "enum": [
+          "docker",
+          "aws_lambda",
+          "gcp_cloud_run",
+          "kubernetes",
+          "local"
+        ],
+        "default": "docker",
+        "description": "Target deployment platform"
+      }
+    },
+    "is_async": true,
+    "safety_level": "caution",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "generate_report",
+    "timeout": 120,
+    "required": [
+      "code",
+      "project_dir",
+      "output_path"
+    ],
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python code to generate the report."
+      },
+      "project_dir": {
+        "type": "string",
+        "description": "Path to the project directory containing artifacts"
+      },
+      "output_path": {
+        "type": "string",
+        "description": "Path to save the generated report file"
+      },
+      "report_type": {
+        "type": "string",
+        "enum": [
+          "technical",
+          "executive",
+          "model_card",
+          "full"
+        ],
+        "default": "full",
+        "description": "Type of report"
+      },
+      "output_format": {
+        "type": "string",
+        "enum": [
+          "markdown",
+          "html"
+        ],
+        "default": "markdown",
+        "description": "Output file format"
+      },
+      "audience": {
+        "type": "string",
+        "enum": [
+          "technical",
+          "executive",
+          "pm",
+          "slack"
+        ],
+        "description": "Optional audience hint exposed to the report generation code."
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "get_learning_item",
+    "timeout": 120,
+    "required": [
+      "item_id"
+    ],
+    "properties": {
+      "item_id": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "general"
+  },
+  {
+    "name": "get_post_deploy_status",
+    "timeout": 120,
+    "required": [
+      "model_id"
+    ],
+    "properties": {
+      "model_id": {
+        "type": "string"
+      },
+      "window": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "governance"
+  },
+  {
+    "name": "get_review_artifacts",
+    "timeout": 120,
+    "required": [
+      "run_id"
+    ],
+    "properties": {
+      "run_id": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "governance"
+  },
+  {
+    "name": "get_review_verdict",
+    "timeout": 120,
+    "required": [
+      "verdict_id"
+    ],
+    "properties": {
+      "verdict_id": {
+        "type": "string"
+      },
+      "workspace_dir": {
+        "type": "string"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "get_task_contract",
+    "timeout": 120,
+    "required": [
+      "task_id"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "include": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "goal_brief",
+            "metric_specs",
+            "dataset_manifest",
+            "assumption_log",
+            "review_verdicts",
+            "delivery_pack"
+          ]
+        }
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "get_verifier_shadow_comparison",
+    "timeout": 120,
+    "required": [
+      "comparison_id"
+    ],
+    "properties": {
+      "comparison_id": {
+        "type": "string"
+      },
+      "workspace_dir": {
+        "type": "string"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "get_work_object",
+    "timeout": 120,
+    "required": [
+      "work_object_id"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string"
+      },
+      "timeline_limit": {
+        "type": "integer",
+        "default": 50
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "get_work_object_timeline",
+    "timeout": 120,
+    "required": [
+      "work_object_id"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer",
+        "default": 100
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "lineage_capture",
+    "timeout": 10,
+    "required": [
+      "action"
+    ],
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "decision",
+          "trace"
+        ],
+        "description": "Whether to capture a decision memo or trace a record."
+      },
+      "record_id": {
+        "type": "string",
+        "description": "Existing lineage record id for trace action."
+      },
+      "what": {
+        "type": "string",
+        "description": "Decision subject."
+      },
+      "why": {
+        "type": "string",
+        "description": "Decision rationale."
+      },
+      "alternatives_considered": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Alternatives that were considered."
+      },
+      "parent_id": {
+        "type": "string",
+        "description": "Optional parent lineage id for decision action."
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Optional session id to associate with the decision."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "link_external_resource",
+    "timeout": 120,
+    "required": [
+      "work_object_id",
+      "system",
+      "resource_type",
+      "resource_id"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string"
+      },
+      "system": {
+        "type": "string"
+      },
+      "resource_type": {
+        "type": "string"
+      },
+      "resource_id": {
+        "type": "string"
+      },
+      "url": {
+        "type": "string"
+      },
+      "metadata": {
+        "type": "object"
+      },
+      "idempotency_key": {
+        "type": "string"
+      },
+      "location": {
+        "type": "string",
+        "enum": [
+          "request",
+          "documentation",
+          "follow_up"
+        ]
+      },
+      "action_type": {
+        "type": "string",
+        "enum": [
+          "ticket",
+          "calendar",
+          "message",
+          "dashboard_update"
+        ]
+      },
+      "description": {
+        "type": "string"
+      },
+      "policy_decision_id": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "list_delivery_log",
+    "timeout": 120,
+    "required": [
+      "task_id"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "pack_id": {
+        "type": "string"
+      },
+      "artifact_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "channels": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "email",
+            "slack_dm",
+            "slack_channel",
+            "notion_page",
+            "confluence",
+            "jira_ticket",
+            "git_pr",
+            "compliance_system"
+          ]
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "default": 50
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "list_deprecations",
+    "timeout": 120,
+    "required": [],
+    "properties": {
+      "limit": {
+        "type": "integer",
+        "default": 20
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "general"
+  },
+  {
+    "name": "list_files",
+    "timeout": 120,
+    "required": [
+      "directory"
+    ],
+    "properties": {
+      "directory": {
+        "type": "string",
+        "description": "Directory path to list"
+      },
+      "pattern": {
+        "type": "string",
+        "default": "*",
+        "description": "Glob pattern to filter files (e.g., '*.csv', '**/*.py')"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "list_learning_inbox",
+    "timeout": 120,
+    "required": [],
+    "properties": {
+      "status": {
+        "type": "string",
+        "default": "proposed"
+      },
+      "item_type": {
+        "type": "string",
+        "default": "all"
+      },
+      "limit": {
+        "type": "integer",
+        "default": 20
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "general"
+  },
+  {
+    "name": "list_my_contracts",
+    "timeout": 120,
+    "required": [
+      "session_id"
+    ],
+    "properties": {
+      "session_id": {
+        "type": "string"
+      },
+      "status_filter": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "agreed",
+            "in_progress",
+            "review",
+            "closed",
+            "abandoned"
+          ]
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "default": 20
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "list_my_portfolio",
+    "timeout": 120,
+    "required": [],
+    "properties": {
+      "quadrant": {
+        "type": "string",
+        "default": "all"
+      },
+      "limit": {
+        "type": "integer",
+        "default": 20
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "general"
+  },
+  {
+    "name": "list_promotions",
+    "timeout": 120,
+    "required": [],
+    "properties": {
+      "limit": {
+        "type": "integer",
+        "default": 20
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "general"
+  },
+  {
+    "name": "list_verifier_shadow_comparisons",
+    "timeout": 120,
+    "required": [],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "verdict_id": {
+        "type": "string"
+      },
+      "workspace_dir": {
+        "type": "string"
+      },
+      "mismatches_only": {
+        "type": "boolean"
+      },
+      "limit": {
+        "type": "integer"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "list_work_objects",
+    "timeout": 120,
+    "required": [],
+    "properties": {
+      "session_id": {
+        "type": "string"
+      },
+      "task_contract_id": {
+        "type": "string"
+      },
+      "phase_filter": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "intake",
+            "executing",
+            "review",
+            "documenting",
+            "followup",
+            "closed",
+            "failed"
+          ]
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "default": 20
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "load_semantic_pack",
+    "timeout": 120,
+    "required": [],
+    "properties": {
+      "pack_dir": {
+        "type": "string",
+        "description": "Workspace-relative or absolute path to a semantic pack root."
+      },
+      "skill_name": {
+        "type": "string",
+        "description": "Built-in semantic pack skill directory name to load."
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": true,
+        "description": "When true, only return the diff without writing metrics."
+      },
+      "allow_definition_updates": {
+        "type": "boolean",
+        "default": false,
+        "description": "Allow metric definition changes to overwrite existing metrics."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "governance"
+  },
+  {
+    "name": "lookup_term",
+    "timeout": 120,
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Business term, acronym, or phrase to look up."
+      },
+      "limit": {
+        "type": "integer",
+        "default": 5,
+        "description": "Maximum number of glossary matches to return."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "memory_search",
+    "timeout": 120,
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search query for memory"
+      },
+      "memory_type": {
+        "type": "string",
+        "enum": [
+          "all",
+          "session",
+          "project",
+          "domain",
+          "global",
+          "experiments",
+          "code_patterns",
+          "domain_knowledge",
+          "projects"
+        ],
+        "default": "all",
+        "description": "Type of memory to search"
+      },
+      "max_results": {
+        "type": "integer",
+        "default": 5,
+        "description": "Maximum results to return"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "memory_store",
+    "timeout": 120,
+    "required": [
+      "content",
+      "memory_type"
+    ],
+    "properties": {
+      "content": {
+        "type": "string",
+        "description": "Content to store"
+      },
+      "memory_type": {
+        "type": "string",
+        "enum": [
+          "session",
+          "project",
+          "domain",
+          "global",
+          "experiment",
+          "code_pattern",
+          "domain_knowledge"
+        ],
+        "description": "Type of memory to store"
+      },
+      "key": {
+        "type": "string",
+        "description": "Short identifier key (e.g., 'churn_definition'). Same key+type will update existing entry."
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Tags for categorization and retrieval"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "notebook_generate",
+    "timeout": 30,
+    "required": [
+      "code_blocks",
+      "output_path"
+    ],
+    "properties": {
+      "code_blocks": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Ordered code cells to include in the notebook."
+      },
+      "descriptions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Markdown cells to include before the code cells."
+      },
+      "outputs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Optional stdout output for each code cell."
+      },
+      "output_path": {
+        "type": "string",
+        "description": "Target .ipynb path to write."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "open_git_pr",
+    "timeout": 60,
+    "required": [
+      "work_object_id",
+      "repo",
+      "base_branch",
+      "files",
+      "title",
+      "body_md"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string"
+      },
+      "provider": {
+        "type": "string",
+        "enum": [
+          "github",
+          "gitlab"
+        ],
+        "default": "github"
+      },
+      "repo": {
+        "type": "string"
+      },
+      "base_branch": {
+        "type": "string"
+      },
+      "head_branch": {
+        "type": "string"
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "content_base64": {
+              "type": "string"
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "add",
+                "update",
+                "delete"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "mode"
+          ]
+        }
+      },
+      "title": {
+        "type": "string"
+      },
+      "body_md": {
+        "type": "string"
+      },
+      "reviewers": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "labels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "draft": {
+        "type": "boolean",
+        "default": false
+      },
+      "api_base_url": {
+        "type": "string"
+      },
+      "token": {
+        "type": "string"
+      },
+      "location": {
+        "type": "string",
+        "enum": [
+          "request",
+          "documentation",
+          "follow_up"
+        ],
+        "default": "documentation"
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "pause_task",
+    "timeout": 120,
+    "required": [
+      "entry_id"
+    ],
+    "properties": {
+      "entry_id": {
+        "type": "string"
+      },
+      "wait_kind": {
+        "type": "string",
+        "default": "timer"
+      },
+      "wait_spec": {
+        "type": "string",
+        "default": "{}"
+      },
+      "reason": {
+        "type": "string",
+        "default": "paused by LLM"
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "general"
+  },
+  {
+    "name": "policy_check",
+    "timeout": 10,
+    "required": [
+      "action"
+    ],
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action or tool name to evaluate."
+      },
+      "data_sensitivity": {
+        "type": "string",
+        "enum": [
+          "public",
+          "internal",
+          "pii",
+          "restricted"
+        ],
+        "default": "internal"
+      },
+      "environment": {
+        "type": "string",
+        "default": "dev",
+        "description": "Execution environment such as dev/staging/prod."
+      },
+      "confidence": {
+        "type": "number",
+        "default": 1.0,
+        "description": "Confidence score used for deployment-style approvals."
+      },
+      "record_approval": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether to record an explicit approval for standing approval tracking."
+      },
+      "approved_by": {
+        "type": "string",
+        "default": "user",
+        "description": "Actor label stored when record_approval=true."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "post_to_slack",
+    "timeout": 30,
+    "required": [
+      "work_object_id",
+      "message"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      },
+      "blocks": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "webhook_url": {
+        "type": "string"
+      },
+      "channel": {
+        "type": "string"
+      },
+      "thread_ts": {
+        "type": "string"
+      },
+      "location": {
+        "type": "string",
+        "enum": [
+          "request",
+          "documentation",
+          "follow_up"
+        ],
+        "default": "documentation"
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "publish_confluence_page",
+    "timeout": 30,
+    "required": [
+      "work_object_id",
+      "title",
+      "body_markdown"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "body_markdown": {
+        "type": "string"
+      },
+      "space_key": {
+        "type": "string"
+      },
+      "parent_page_id": {
+        "type": "string"
+      },
+      "labels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "version_comment": {
+        "type": "string"
+      },
+      "overwrite_page_id": {
+        "type": "string"
+      },
+      "base_url": {
+        "type": "string"
+      },
+      "email": {
+        "type": "string"
+      },
+      "api_token": {
+        "type": "string"
+      },
+      "location": {
+        "type": "string",
+        "enum": [
+          "request",
+          "documentation",
+          "follow_up"
+        ],
+        "default": "documentation"
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "publish_notion_page",
+    "timeout": 30,
+    "required": [
+      "work_object_id",
+      "title",
+      "body_markdown"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "body_markdown": {
+        "type": "string"
+      },
+      "parent_page_id": {
+        "type": "string"
+      },
+      "database_id": {
+        "type": "string"
+      },
+      "title_property": {
+        "type": "string",
+        "default": "title"
+      },
+      "status": {
+        "type": "string"
+      },
+      "owner": {
+        "type": "string"
+      },
+      "quarter": {
+        "type": "string"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "token": {
+        "type": "string"
+      },
+      "api_base_url": {
+        "type": "string"
+      },
+      "location": {
+        "type": "string",
+        "enum": [
+          "request",
+          "documentation",
+          "follow_up"
+        ],
+        "default": "documentation"
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "read_file",
+    "timeout": 120,
+    "required": [
+      "file_path"
+    ],
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "Path to the file to read"
+      },
+      "head_lines": {
+        "type": "integer",
+        "description": "Only return first N lines. Omit to read all."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "record_delivery_pack",
+    "timeout": 120,
+    "required": [
+      "task_id"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "artifacts": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "follow_up_actions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "source_analysis_id": {
+        "type": "string"
+      },
+      "confidence": {
+        "type": "number"
+      },
+      "signed_by": {
+        "type": "string"
+      },
+      "signature": {
+        "type": "string"
+      },
+      "global_context": {
+        "type": "object"
+      },
+      "tenant": {
+        "type": "string",
+        "default": "default"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "rendered",
+          "dispatched",
+          "rejected"
+        ],
+        "default": "draft"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "record_review_artifact",
+    "timeout": 120,
+    "required": [
+      "run_id",
+      "skill_name",
+      "summary",
+      "artifact"
+    ],
+    "properties": {
+      "run_id": {
+        "type": "string"
+      },
+      "skill_name": {
+        "type": "string",
+        "enum": [
+          "backtesting",
+          "causal-assumption-check",
+          "uncertainty-quantification",
+          "retrain-vs-rollback"
+        ]
+      },
+      "summary": {
+        "type": "string"
+      },
+      "artifact": {
+        "type": "object"
+      },
+      "narrative": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "governance"
+  },
+  {
+    "name": "record_review_verdict",
+    "timeout": 120,
+    "required": [
+      "task_id",
+      "category",
+      "result",
+      "reviewer",
+      "summary"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "category": {
+        "type": "string"
+      },
+      "result": {
+        "type": "string"
+      },
+      "reviewer": {
+        "type": "string"
+      },
+      "summary": {
+        "type": "string"
+      },
+      "evidence_refs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "register_feature",
+    "timeout": 120,
+    "required": [
+      "yaml_uri"
+    ],
+    "properties": {
+      "yaml_uri": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "governance"
+  },
+  {
+    "name": "render_delivery_artifact",
+    "timeout": 120,
+    "required": [
+      "task_id",
+      "artifact_id",
+      "analysis",
+      "output_dir"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "artifact_id": {
+        "type": "string"
+      },
+      "analysis": {
+        "type": [
+          "object",
+          "string"
+        ]
+      },
+      "output_dir": {
+        "type": "string"
+      },
+      "audience_profile": {
+        "type": "string",
+        "enum": [
+          "junior_mentor",
+          "peer_ds",
+          "senior_staff",
+          "executive",
+          "auditor"
+        ]
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "render_stakeholder_artifact",
+    "timeout": 60,
+    "required": [
+      "artifact",
+      "analysis",
+      "output_dir"
+    ],
+    "properties": {
+      "artifact": {
+        "type": "object",
+        "description": "DeliveryArtifact payload to render."
+      },
+      "analysis": {
+        "type": "object",
+        "description": "Structured analysis payload keyed by section name."
+      },
+      "output_dir": {
+        "type": "string",
+        "description": "Directory where the rendered file should be written."
+      },
+      "pack_context": {
+        "type": "object",
+        "description": "Optional DeliveryPack-level metadata such as pack_id and confidence."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "request_monitoring",
+    "timeout": 120,
+    "required": [
+      "entry_id",
+      "metric_name"
+    ],
+    "properties": {
+      "entry_id": {
+        "type": "string"
+      },
+      "metric_name": {
+        "type": "string"
+      },
+      "reason": {
+        "type": "string",
+        "default": "post-execution monitoring"
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "general"
+  },
+  {
+    "name": "request_promotion",
+    "timeout": 120,
+    "required": [
+      "candidate_run_id",
+      "target_stage",
+      "approvers",
+      "rollback_plan_ref"
+    ],
+    "properties": {
+      "candidate_run_id": {
+        "type": "string"
+      },
+      "target_stage": {
+        "type": "string",
+        "enum": [
+          "staging",
+          "production",
+          "canary"
+        ]
+      },
+      "approvers": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "rollback_plan_ref": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "governance"
+  },
+  {
+    "name": "resume_task",
+    "timeout": 120,
+    "required": [
+      "entry_id",
+      "run_id"
+    ],
+    "properties": {
+      "entry_id": {
+        "type": "string"
+      },
+      "run_id": {
+        "type": "string"
+      },
+      "reason": {
+        "type": "string",
+        "default": "condition satisfied"
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "general"
+  },
+  {
+    "name": "review_learning_item",
+    "timeout": 120,
+    "required": [
+      "item_id",
+      "decision"
+    ],
+    "properties": {
+      "item_id": {
+        "type": "string"
+      },
+      "decision": {
+        "type": "string"
+      },
+      "comment": {
+        "type": "string",
+        "default": ""
+      },
+      "reviewer": {
+        "type": "string",
+        "default": "llm"
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "general"
+  },
+  {
+    "name": "rollback_promotion",
+    "timeout": 120,
+    "required": [
+      "item_id"
+    ],
+    "properties": {
+      "item_id": {
+        "type": "string"
+      },
+      "reason": {
+        "type": "string",
+        "default": "manual rollback"
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "general"
+  },
+  {
+    "name": "run_eda",
+    "timeout": 120,
+    "required": [
+      "code",
+      "data_path"
+    ],
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python code for EDA. Use pandas, matplotlib/seaborn. Save plots with plt.savefig()."
+      },
+      "data_path": {
+        "type": "string",
+        "description": "Path to the dataset file to analyze"
+      },
+      "output_dir": {
+        "type": "string",
+        "description": "Directory to save generated plots"
+      },
+      "timeout": {
+        "type": "integer",
+        "default": 120,
+        "description": "Maximum execution time in seconds"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "run_verifier",
+    "timeout": 120,
+    "required": [
+      "task_id",
+      "session_id",
+      "task_type",
+      "business_goal"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "session_id": {
+        "type": "string"
+      },
+      "task_type": {
+        "type": "string"
+      },
+      "business_goal": {
+        "type": "string"
+      },
+      "artifacts": {
+        "type": "object",
+        "description": "Verifier inputs. May include semantic_candidates for verified query / glossary / trust write-back proposals."
+      },
+      "run_log": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "evidence_refs": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "workspace_dir": {
+        "type": "string"
+      },
+      "required_deliverables": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "shadow_mode": {
+        "type": "boolean"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "schema_inspect",
+    "timeout": 30,
+    "required": [
+      "action"
+    ],
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "list_schemas",
+          "list_tables",
+          "describe",
+          "sample",
+          "relationships"
+        ],
+        "description": "Inspection action to perform."
+      },
+      "connector_name": {
+        "type": "string",
+        "default": "default",
+        "description": "Configured warehouse connector name."
+      },
+      "schema": {
+        "type": "string",
+        "description": "Schema/namespace name."
+      },
+      "table": {
+        "type": "string",
+        "description": "Table name for describe/sample/relationships actions."
+      },
+      "limit": {
+        "type": "integer",
+        "default": 5,
+        "description": "Sample row limit for sample action (max 100)."
+      },
+      "cache_ttl_seconds": {
+        "type": "integer",
+        "default": 86400,
+        "description": "TTL for metadata cache entries."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "search_sessions",
+    "timeout": 120,
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search query. Use '*' to list most recent session entries."
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Optional session ID to restrict results to."
+      },
+      "max_results": {
+        "type": "integer",
+        "default": 10,
+        "description": "Maximum results to return"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "semantic_query",
+    "timeout": 120,
+    "required": [
+      "question"
+    ],
+    "properties": {
+      "question": {
+        "type": "string",
+        "description": "Business question or KPI request to resolve semantically."
+      },
+      "required_grain": {
+        "type": "string",
+        "enum": [
+          "hourly",
+          "daily",
+          "weekly",
+          "monthly",
+          "quarterly",
+          "yearly"
+        ],
+        "description": "Optional grain constraint for metric matching."
+      },
+      "as_of_date": {
+        "type": "string",
+        "description": "Optional ISO date for calendar hints and query binding."
+      },
+      "dialect": {
+        "type": "string",
+        "enum": [
+          "postgres",
+          "bigquery",
+          "snowflake",
+          "duckdb",
+          "databricks_sql"
+        ],
+        "default": "postgres",
+        "description": "Preferred SQL dialect for verified queries."
+      },
+      "allow_untrusted": {
+        "type": "boolean",
+        "default": false,
+        "description": "Allow bronze/untrusted tables with warnings instead of blocking."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "send_email",
+    "timeout": 30,
+    "required": [
+      "work_object_id",
+      "to",
+      "subject"
+    ],
+    "properties": {
+      "work_object_id": {
+        "type": "string",
+        "description": "WorkObject to track this email against."
+      },
+      "to": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Recipient email addresses."
+      },
+      "subject": {
+        "type": "string"
+      },
+      "body_html": {
+        "type": "string",
+        "default": ""
+      },
+      "body_text": {
+        "type": "string",
+        "default": ""
+      },
+      "cc": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": []
+      },
+      "reply_to": {
+        "type": "string"
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "send_to_slack",
+    "timeout": 30,
+    "required": [
+      "message"
+    ],
+    "properties": {
+      "message": {
+        "type": "string",
+        "description": "Slack message text."
+      },
+      "blocks": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "description": "Optional Slack Block Kit payload."
+      },
+      "webhook_url": {
+        "type": "string",
+        "description": "Optional webhook URL; defaults to DS_AGENT_SLACK_WEBHOOK_URL."
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  },
+  {
+    "name": "set_sla",
+    "timeout": 120,
+    "required": [
+      "entry_id",
+      "priority"
+    ],
+    "properties": {
+      "entry_id": {
+        "type": "string"
+      },
+      "priority": {
+        "type": "string"
+      },
+      "deadline": {
+        "type": "string",
+        "default": ""
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "general"
+  },
+  {
+    "name": "skill_list",
+    "timeout": 120,
+    "required": [],
+    "properties": {
+      "category": {
+        "type": "string",
+        "enum": [
+          "ds_methodology",
+          "task_type",
+          "best_practice",
+          "custom"
+        ],
+        "description": "Filter by skill category"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "skill_search",
+    "timeout": 120,
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search query"
+      },
+      "category": {
+        "type": "string",
+        "enum": [
+          "ds_methodology",
+          "task_type",
+          "best_practice",
+          "custom"
+        ],
+        "description": "Filter by category"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "skill_view",
+    "timeout": 120,
+    "required": [
+      "skill_name"
+    ],
+    "properties": {
+      "skill_name": {
+        "type": "string",
+        "description": "Name of the skill (e.g., 'scoping', 'eda', 'modeling')"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "slide_generate",
+    "timeout": 30,
+    "required": [
+      "sections"
+    ],
+    "properties": {
+      "sections": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "description": "Ordered slide sections with title and bullets."
+      },
+      "audience": {
+        "type": "string",
+        "default": "executive",
+        "description": "Audience hint used in output metadata."
+      },
+      "output_path": {
+        "type": "string",
+        "description": "Optional file path to write the markdown slide spec."
+      },
+      "output_format": {
+        "type": "string",
+        "enum": [
+          "markdown"
+        ],
+        "default": "markdown"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "sql_query",
+    "timeout": 60,
+    "required": [
+      "sql"
+    ],
+    "properties": {
+      "sql": {
+        "type": "string",
+        "description": "Read-only SQL query to execute."
+      },
+      "connector_name": {
+        "type": "string",
+        "default": "default",
+        "description": "Configured warehouse connector name."
+      },
+      "timeout": {
+        "type": "integer",
+        "default": 30,
+        "description": "Per-query timeout in seconds."
+      },
+      "estimated_cost_usd": {
+        "type": "number",
+        "description": "Internal hook-populated cost estimate for the query."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "standing_order",
+    "timeout": 30,
+    "required": [
+      "action"
+    ],
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "create",
+          "list",
+          "update",
+          "delete",
+          "run_now",
+          "view_history"
+        ],
+        "description": "Standing-order action to perform."
+      },
+      "order_id": {
+        "type": "string",
+        "description": "Standing-order identifier."
+      },
+      "name": {
+        "type": "string",
+        "description": "Human-readable order name."
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session to receive autonomous runs."
+      },
+      "prompt": {
+        "type": "string",
+        "description": "Prompt executed when the order fires."
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional order description."
+      },
+      "trigger": {
+        "type": "object",
+        "description": "Trigger spec. Cron example: {'type': 'cron', 'cron': '0 9 * * MON', 'timezone': 'Asia/Seoul'}. Event example: {'type': 'event', 'event_type': 'file.created', 'filters': {'path_suffix': '.csv'}}."
+      },
+      "scope": {
+        "type": "object",
+        "description": "Optional structured scope metadata."
+      },
+      "approval_gate": {
+        "type": "string",
+        "enum": [
+          "auto_report",
+          "approval_required",
+          "notify_only"
+        ],
+        "description": "How results should be handled after execution."
+      },
+      "budget_limit_usd": {
+        "type": "number",
+        "description": "Per-run budget cap for the standing order."
+      },
+      "enabled": {
+        "type": "boolean",
+        "description": "Whether the order is active."
+      },
+      "escalation": {
+        "type": "object",
+        "description": "Optional escalation rule: {'metric_key': 'z_score', 'operator': '>=', 'threshold': 3, 'target': 'manager', 'channel': 'telegram'}."
+      },
+      "limit": {
+        "type": "integer",
+        "description": "History/list result limit."
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "ds_analysis"
+  },
+  {
+    "name": "train_model",
+    "timeout": 900,
+    "required": [
+      "code",
+      "data_path",
+      "target_column"
+    ],
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python code for model training. Should load data, train model, evaluate, and save."
+      },
+      "data_path": {
+        "type": "string",
+        "description": "Path to the feature matrix file"
+      },
+      "target_column": {
+        "type": "string",
+        "description": "Name of the target variable column"
+      },
+      "model_type": {
+        "type": "string",
+        "description": "Model algorithm (e.g., lightgbm, xgboost, random_forest)"
+      },
+      "task_type": {
+        "type": "string",
+        "enum": [
+          "binary_classification",
+          "multiclass_classification",
+          "regression"
+        ],
+        "description": "Type of ML task"
+      },
+      "model_output_path": {
+        "type": "string",
+        "description": "Path to save the trained model file"
+      },
+      "timeout": {
+        "type": "integer",
+        "default": 900,
+        "description": "Maximum execution time in seconds (default 15 min)"
+      }
+    },
+    "is_async": true,
+    "safety_level": "caution",
+    "category": "ds_modeling"
+  },
+  {
+    "name": "update_task_contract",
+    "timeout": 120,
+    "required": [
+      "task_id",
+      "expected_version",
+      "patch"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "expected_version": {
+        "type": "integer"
+      },
+      "patch": {
+        "type": "object"
+      },
+      "transition_to": {
+        "type": "string",
+        "enum": [
+          "agreed",
+          "in_progress",
+          "review",
+          "closed",
+          "abandoned"
+        ]
+      },
+      "reason": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "verify_assumption",
+    "timeout": 120,
+    "required": [
+      "task_id",
+      "entry_id",
+      "expected_version"
+    ],
+    "properties": {
+      "task_id": {
+        "type": "string"
+      },
+      "entry_id": {
+        "type": "string"
+      },
+      "expected_version": {
+        "type": "integer"
+      },
+      "verification_note": {
+        "type": "string"
+      }
+    },
+    "is_async": false,
+    "safety_level": "safe",
+    "category": "mission"
+  },
+  {
+    "name": "web_search",
+    "timeout": 30,
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search query"
+      },
+      "source": {
+        "type": "string",
+        "enum": [
+          "general",
+          "arxiv",
+          "kaggle",
+          "stackoverflow",
+          "docs"
+        ],
+        "default": "general",
+        "description": "Search source"
+      },
+      "max_results": {
+        "type": "integer",
+        "default": 5,
+        "description": "Maximum number of results to return"
+      }
+    },
+    "is_async": true,
+    "safety_level": "safe",
+    "category": "utility"
+  },
+  {
+    "name": "write_file",
+    "timeout": 120,
+    "required": [
+      "file_path",
+      "content"
+    ],
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "Path to the file to write"
+      },
+      "content": {
+        "type": "string",
+        "description": "Content to write to the file"
+      }
+    },
+    "is_async": false,
+    "safety_level": "caution",
+    "category": "utility"
+  }
+]

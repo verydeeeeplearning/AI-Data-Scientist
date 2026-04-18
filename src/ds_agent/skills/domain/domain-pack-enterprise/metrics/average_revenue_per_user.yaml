@@ -1,0 +1,27 @@
+metric_id: average_revenue_per_user
+display_name: Average Revenue Per User
+owner: finance_team
+definition: "Average recognized subscription revenue per active user within a month."
+synonyms:
+  - ARPU
+  - revenue per user
+grain: monthly
+unit: amount
+direction: higher_is_better
+related_metrics:
+  - monthly_recurring_revenue
+  - monthly_active_users
+caveats:
+  - Enterprise contracts may require separate segmentation because seat bundles distort the mean.
+verified_query_ids:
+  - vq-arpu-postgres
+  - vq-arpu-bigquery
+calculation:
+  numerator:
+    source: prod.finance.mrr_ledger
+    filter: revenue_type = 'subscription'
+    aggregation: SUM(net_revenue_amount)
+  denominator:
+    source: prod.growth.subscription
+    filter: status = 'active'
+    aggregation: COUNT(DISTINCT subscription_id)

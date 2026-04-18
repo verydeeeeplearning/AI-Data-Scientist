@@ -1,0 +1,10 @@
+[2026-04-17T12:22:51Z] Scenario 7 START — 5 concurrent sessions, identity + isolation
+[2026-04-17T12:22:51Z] workspace=C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\.tmp\qa_D16\scenario_7
+[2026-04-17T12:22:51Z] session_ids=['telegram:100200300', 'telegram:100200300:topic-A', 'telegram:100200300:topic-B', 'ws:chrome-abc123', 'cli:local-aquap']
+[2026-04-17T12:22:51Z] parse DM conv=100200300 thread=None / topic-A conv=100200300 thread=topic-A / topic-B conv=100200300 thread=topic-B
+[2026-04-17T12:22:51Z] legacy_dm=None legacy_topic_A=telegram:100200300 legacy_topic_B=telegram:100200300
+[2026-04-17T12:22:51Z] 5 concurrent session workers finished in 0.04s errors=0
+[2026-04-17T12:22:51Z] registry.active_count=5
+[2026-04-17T12:22:51Z] registry ids=['cli:local-aquap', 'telegram:100200300', 'telegram:100200300:topic-A', 'telegram:100200300:topic-B', 'ws:chrome-abc123']
+[2026-04-17T12:22:51Z] persisted ids on disk=['cli:local-aquap', 'telegram:100200300', 'telegram:100200300:topic-A', 'telegram:100200300:topic-B', 'ws:chrome-abc123']
+[2026-04-17T12:22:51Z] PASS: 5 concurrent sessions — unique ids, thread-aware, isolated checkpoints, correct registry persistence

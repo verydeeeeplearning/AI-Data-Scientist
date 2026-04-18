@@ -1,0 +1,9 @@
+term_id: term.monthly_recurring_revenue
+canonical_form: monthly recurring revenue
+definition: "Certified month-end recurring subscription revenue."
+synonyms:
+  - mrr
+linked_metric_ids:
+  - monthly_recurring_revenue
+category: metric
+owner: finance_team

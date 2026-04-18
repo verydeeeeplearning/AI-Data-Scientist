@@ -1,0 +1,319 @@
+/// <reference types="vite/client" />
+
+import type {
+  CertificationStatusView,
+  CertificationSubmissionView,
+} from './types/certification';
+import type {
+  WorkObjectDetailView,
+  WorkObjectListItemView,
+} from './types/workObject';
+import type {
+  AssumptionVerificationResultView,
+  DeliveryBuildResultView,
+  DeliveryDispatchResultView,
+  DeliveryLogQueryResultView,
+  DeliveryRenderResultView,
+  RenderedArtifactPreviewView,
+  ShadowComparisonView,
+  TaskContractListItem,
+  TaskContractView,
+} from './types/taskContract';
+import type { ArtifactPreviewView } from './types/artifactPreview';
+
+interface ElectronAPI {
+  deleteApiKey: (
+    provider: string
+  ) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>;
+  getMaskedApiKeys: () => Promise<{
+    available: boolean;
+    persistent: boolean;
+    backend: 'safeStorage' | 'unavailable';
+    maskedKeys: Record<string, string>;
+    error?: string;
+  }>;
+  getSecretVaultStatus: () => Promise<{
+    available: boolean;
+    persistent: boolean;
+    backend: 'safeStorage' | 'unavailable';
+    error?: string;
+  }>;
+  platform: string;
+  minimize: () => void;
+  maximize: () => void;
+  close: () => void;
+  openFileDialog: () => Promise<string | null>;
+  saveDiagnosticBundle: (
+    defaultName: string,
+    payload: Record<string, unknown> | null
+  ) => Promise<{ canceled: boolean; path: string | null }>;
+  exportSupportBundle: (
+    defaultName?: string
+  ) => Promise<{ canceled: boolean; path: string | null; error?: string }>;
+  updateObservability: (params: {
+    errorReportingEnabled: boolean;
+    telemetryEnabled: boolean;
+  }) => Promise<{
+    sentryConfigured: boolean;
+    errorReportingEnabled: boolean;
+    telemetryEnabled: boolean;
+  }>;
+  revealPath: (targetPath: string) => Promise<{ ok: boolean; error?: string }>;
+  previewArtifactFile: (targetPath: string) => Promise<
+    | { ok: true; preview: ArtifactPreviewView }
+    | { ok: false; error: string }
+  >;
+  setApiKey: (
+    provider: string,
+    key: string
+  ) => Promise<{ ok: boolean; error?: string }>;
+  loadSampleForUseCase: (useCaseId: string) => Promise<
+    | {
+        ok: true;
+        sample: {
+          useCaseId: string;
+          filename: string;
+          label: string;
+          description: string;
+          mimeType: string;
+          data: string;
+        };
+      }
+    | { ok: false; error: string }
+  >;
+  finishArtifactExport: (params: {
+    stagedPath: string;
+    suggestedFilename: string;
+    format: string;
+    needsPdfRender: boolean;
+  }) => Promise<{
+    canceled: boolean;
+    path: string | null;
+    error?: string;
+  }>;
+  certification: {
+    list: () => Promise<
+      | { ok: true; missions: CertificationStatusView[] }
+      | { ok: false; error: string }
+    >;
+    status: (params: { missionName: string }) => Promise<
+      | { ok: true; mission: CertificationStatusView }
+      | { ok: false; error: string }
+    >;
+    submit: (params: {
+      missionName: string;
+      targetLevel: string;
+      approvedBy?: string[];
+      evidenceRef?: string;
+    }) => Promise<
+      | { ok: true; result: CertificationSubmissionView }
+      | { ok: false; error: string }
+    >;
+  };
+  workObject: {
+    list: (params?: {
+      sessionId?: string;
+      taskContractId?: string;
+      phase?: string[];
+      limit?: number;
+    }) => Promise<
+      | { ok: true; workObjects: WorkObjectListItemView[] }
+      | { ok: false; error: string }
+    >;
+    get: (params: {
+      workObjectId: string;
+      timelineLimit?: number;
+    }) => Promise<
+      | { ok: true; detail: WorkObjectDetailView }
+      | { ok: false; error: string }
+    >;
+    intake: (params: {
+      taskContractId?: string;
+      title: string;
+      requestSource?: string;
+      requestorId?: string;
+      requestorDisplay?: string;
+      originalText?: string;
+      channel?: string;
+      ownerAgent?: string;
+      tags?: string[];
+    }) => Promise<
+      | { ok: true; result: unknown }
+      | { ok: false; error: string }
+    >;
+    advance: (params: {
+      workObjectId: string;
+      toPhase: string;
+      runId?: string;
+    }) => Promise<
+      | { ok: true; result: unknown }
+      | { ok: false; error: string }
+    >;
+    close: (params: {
+      workObjectId: string;
+      reason: string;
+    }) => Promise<
+      | { ok: true; result: unknown }
+      | { ok: false; error: string }
+    >;
+  };
+  taskContract: {
+    list: (params?: {
+      sessionId?: string;
+      status?: string[];
+      limit?: number;
+    }) => Promise<
+      | { ok: true; contracts: TaskContractListItem[] }
+      | { ok: false; error: string }
+    >;
+    active: (params: {
+      sessionId: string;
+      include?: string[];
+    }) => Promise<
+      | { ok: true; contract: TaskContractView | null }
+      | { ok: false; error: string }
+    >;
+    get: (params: {
+      taskId: string;
+      include?: string[];
+    }) => Promise<
+      | { ok: true; contract: TaskContractView }
+      | { ok: false; error: string }
+    >;
+    update: (params: {
+      taskId: string;
+      expectedVersion: number;
+      patch?: Record<string, unknown>;
+      transitionTo?: string;
+      reason?: string;
+    }) => Promise<
+      | { ok: true; result: { task_id: string; status: string; new_version: number } }
+      | { ok: false; error: string }
+    >;
+    close: (params: {
+      taskId: string;
+      expectedVersion: number;
+      closingNote: string;
+    }) => Promise<
+      | {
+          ok: true;
+          result: {
+            task_id: string;
+            status: string;
+            new_version: number;
+            dod_summary: string[];
+          };
+        }
+      | { ok: false; error: string }
+    >;
+    verifyAssumption: (params: {
+      taskId: string;
+      entryId: string;
+      expectedVersion: number;
+      verificationNote?: string;
+    }) => Promise<
+      | { ok: true; result: AssumptionVerificationResultView }
+      | { ok: false; error: string }
+    >;
+    buildDeliveryPack: (params: {
+      taskId: string;
+      audiences?: string[];
+      followUpActions?: string[];
+      sourceAnalysisId?: string;
+      confidence?: number;
+      signedBy?: string;
+      signature?: string;
+      globalContext?: Record<string, string>;
+      tenant?: string;
+    }) => Promise<
+      | { ok: true; result: DeliveryBuildResultView }
+      | { ok: false; error: string }
+    >;
+    renderArtifact: (params: {
+      taskId: string;
+      artifactId: string;
+      analysis: Record<string, unknown> | string;
+      outputDir?: string;
+      audienceProfile?: string;
+      providerBacked?: boolean;
+      model?: string;
+    }) => Promise<
+      | { ok: true; result: DeliveryRenderResultView }
+      | { ok: false; error: string }
+    >;
+    previewRenderedArtifact: (params: {
+      renderedUri: string;
+      format: string;
+    }) => Promise<
+      | { ok: true; preview: RenderedArtifactPreviewView }
+      | { ok: false; error: string }
+    >;
+    dispatchDelivery: (params: {
+      taskId: string;
+      artifactIds?: string[];
+      channels?: string[];
+      dryRun?: boolean;
+      approveManualReview?: boolean;
+    }) => Promise<
+      | { ok: true; result: DeliveryDispatchResultView }
+      | { ok: false; error: string }
+    >;
+    listDeliveryLog: (params: {
+      taskId: string;
+      packId?: string;
+      artifactIds?: string[];
+      channels?: string[];
+      limit?: number;
+    }) => Promise<
+      | { ok: true; result: DeliveryLogQueryResultView }
+      | { ok: false; error: string }
+    >;
+    listShadowComparisons: (params: {
+      taskId: string;
+      verdictId?: string;
+      mismatchesOnly?: boolean;
+      limit?: number;
+    }) => Promise<
+      | { ok: true; comparisons: ShadowComparisonView[] }
+      | { ok: false; error: string }
+    >;
+    getShadowComparison: (params: {
+      taskId: string;
+      comparisonId: string;
+    }) => Promise<
+      | { ok: true; comparison: ShadowComparisonView }
+      | { ok: false; error: string }
+    >;
+  };
+  updater: {
+    check: () => Promise<
+      | { ok: true; updateAvailable: boolean; version: string | null }
+      | { ok: false; error: string }
+    >;
+    download: () => Promise<{ ok: true } | { ok: false; error: string }>;
+    install: () => Promise<{ ok: true }>;
+    getState: () => Promise<{
+      channel: 'stable' | 'beta' | 'internal' | string;
+      currentVersion: string;
+      isPackaged: boolean;
+    }>;
+    on: (
+      event:
+        | 'checking'
+        | 'update-available'
+        | 'update-not-available'
+        | 'download-progress'
+        | 'update-ready'
+        | 'error',
+      handler: (payload: Record<string, unknown>) => void
+    ) => () => void;
+  };
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
+}
+
+export {};

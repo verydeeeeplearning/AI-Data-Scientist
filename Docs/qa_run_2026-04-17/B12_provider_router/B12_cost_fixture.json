@@ -1,0 +1,115 @@
+[
+  {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "input_tokens": 1000000,
+    "output_tokens": 500000,
+    "cache_read_tokens": 200000,
+    "expected_cost_usd": 10.56,
+    "actual_cost_usd": 10.56,
+    "match": true
+  },
+  {
+    "provider": "openai",
+    "model": "gpt-5.4",
+    "input_tokens": 2000000,
+    "output_tokens": 400000,
+    "expected_cost_usd": 11.0,
+    "actual_cost_usd": 11.0,
+    "match": true
+  },
+  {
+    "provider": "codex",
+    "model": "gpt-5.4",
+    "input_tokens": 100000,
+    "output_tokens": 50000,
+    "expected_cost_usd": 1.0,
+    "actual_cost_usd": 1.0,
+    "match": true
+  },
+  {
+    "provider": "gemini",
+    "model": "gemini-2.5-pro",
+    "input_tokens": 800000,
+    "output_tokens": 200000,
+    "expected_cost_usd": 1.4000000000000001,
+    "actual_cost_usd": 1.4000000000000001,
+    "match": true,
+    "note": "uses DEFAULT_PRICING fallback"
+  },
+  {
+    "provider": "groq",
+    "model": "groq/llama-3.3-70b-versatile",
+    "input_tokens": 1000000,
+    "output_tokens": 500000,
+    "expected_cost_usd": 0.985,
+    "actual_cost_usd": 0.985,
+    "match": true
+  },
+  {
+    "provider": "mistral",
+    "model": "mistral/mistral-large-latest",
+    "input_tokens": 1000000,
+    "output_tokens": 500000,
+    "expected_cost_usd": 2.5,
+    "actual_cost_usd": 2.5,
+    "match": true
+  },
+  {
+    "provider": "deepseek",
+    "model": "deepseek/deepseek-chat",
+    "input_tokens": 1000000,
+    "output_tokens": 500000,
+    "expected_cost_usd": 0.49,
+    "actual_cost_usd": 0.49,
+    "match": true
+  },
+  {
+    "provider": "qwen",
+    "model": "qwen/qwen3.5-plus",
+    "input_tokens": 1000000,
+    "output_tokens": 500000,
+    "expected_cost_usd": 1.2,
+    "actual_cost_usd": 1.2,
+    "match": true
+  },
+  {
+    "provider": "litellm",
+    "model": "openrouter/anthropic/claude-sonnet-4",
+    "input_tokens": 1000000,
+    "output_tokens": 500000,
+    "expected_cost_usd": 10.5,
+    "actual_cost_usd": 10.5,
+    "match": true
+  },
+  {
+    "provider": "ollama",
+    "model": "qwen2.5:32b",
+    "input_tokens": 100000,
+    "output_tokens": 50000,
+    "expected_cost_usd": 0.25,
+    "actual_cost_usd": 0.25,
+    "match": true,
+    "note": "DEFAULT_PRICING (self-hosted)"
+  },
+  {
+    "provider": "vllm",
+    "model": "meta-llama/Llama-3-8B",
+    "input_tokens": 100000,
+    "output_tokens": 50000,
+    "expected_cost_usd": 0.25,
+    "actual_cost_usd": 0.25,
+    "match": true,
+    "note": "DEFAULT_PRICING (self-hosted)"
+  },
+  {
+    "provider": "sglang",
+    "model": "Qwen/Qwen3-8B",
+    "input_tokens": 100000,
+    "output_tokens": 50000,
+    "expected_cost_usd": 0.25,
+    "actual_cost_usd": 0.25,
+    "match": true,
+    "note": "DEFAULT_PRICING (self-hosted)"
+  }
+]

@@ -1,0 +1,3 @@
+{"event": "dual_write.store_domain_knowledge", "tags": ["churn_domain"], "return_value": {"stored": true, "type": "domain_knowledge", "id": "churn_domain", "tags": ["churn_domain"]}, "pre_pending_proposals": 0, "post_pending_proposals": 1, "pre_domain_kb_count": 0, "post_domain_kb_count": 1, "new_proposals": ["SP-auto-79a7aa54"]}
+{"event": "semantic_proposal.approve", "proposal_id": "SP-approve-001", "status_after_review": "approved", "apply_target": "m-roas-001", "metric_after_alias": ["roas", "roi_ads"]}
+{"event": "semantic_proposal.reject", "proposal_id": "SP-reject-001", "status_after_review": "rejected"}

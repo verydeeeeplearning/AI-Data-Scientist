@@ -1,0 +1,9 @@
+fqtn: prod.product.trial_funnel_daily
+grade: gold
+owner: product_analytics
+description: "Daily trial funnel mart covering starts, activations, and paid conversions."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Certified funnel mart used for trial-to-paid KPI review."
+last_audited: 2026-04-15

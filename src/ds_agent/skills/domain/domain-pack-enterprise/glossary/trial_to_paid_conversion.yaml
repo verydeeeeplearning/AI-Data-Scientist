@@ -1,0 +1,9 @@
+term_id: term.trial_to_paid_conversion
+canonical_form: trial to paid conversion
+definition: "Share of trial accounts converting to a paid subscription."
+synonyms:
+  - trial conversion
+linked_metric_ids:
+  - trial_to_paid_conversion_rate
+category: metric
+owner: growth_team

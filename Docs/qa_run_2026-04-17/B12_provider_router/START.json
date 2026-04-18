@@ -1,0 +1,52 @@
+{
+  "agent": "B12_provider_router",
+  "role": "Provider Router & Cost Tester",
+  "started_at": "2026-04-17T00:00:00Z",
+  "tier": 2,
+  "scope": {
+    "targets": [
+      "src/ds_agent/providers/*.py",
+      "src/ds_agent/infrastructure/auth/*.py"
+    ],
+    "test_dirs": [
+      "tests/unit/infrastructure/test_anthropic_provider.py",
+      "tests/unit/infrastructure/test_openai_provider.py",
+      "tests/unit/infrastructure/test_codex_responses.py",
+      "tests/unit/infrastructure/test_litellm_provider.py",
+      "tests/unit/infrastructure/test_local_providers.py",
+      "tests/unit/infrastructure/test_oauth_providers.py",
+      "tests/unit/infrastructure/test_oauth_service.py",
+      "tests/unit/infrastructure/test_oauth_rpc.py",
+      "tests/unit/infrastructure/test_pkce.py",
+      "tests/unit/infrastructure/test_pricing.py",
+      "tests/unit/infrastructure/test_provider_base.py",
+      "tests/unit/infrastructure/test_provider_factory.py",
+      "tests/unit/infrastructure/test_provider_router.py",
+      "tests/unit/infrastructure/test_callback_server.py",
+      "tests/integration/test_oauth_flow.py"
+    ]
+  },
+  "constraints": {
+    "no_source_modifications": true,
+    "no_real_api_calls": true,
+    "no_global_regression": true,
+    "no_real_keyring_writes": true,
+    "no_data_dir_writes": true,
+    "no_self_pass_judgement": true
+  },
+  "paths": {
+    "root": "C:/Users/aquap/Desktop/AI_Data_Scientist_Demo",
+    "providers_dir": "C:/Users/aquap/Desktop/AI_Data_Scientist_Demo/src/ds_agent/providers",
+    "oauth_dir": "C:/Users/aquap/Desktop/AI_Data_Scientist_Demo/src/ds_agent/infrastructure/auth",
+    "output_dir": "C:/Users/aquap/Desktop/AI_Data_Scientist_Demo/Docs/qa_run_2026-04-17/B12_provider_router",
+    "tmp_dir": "C:/Users/aquap/Desktop/AI_Data_Scientist_Demo/.tmp/qa_B12"
+  },
+  "plan": {
+    "path_1": "Provider mocked round-trip for all discovered providers",
+    "path_2": "Cost calculation fixture — tokens x price = expected (exact)",
+    "path_3": "Streaming delta assembly equals final content",
+    "path_4": "OAuth PKCE code_verifier/challenge validation (Gemini + Codex)",
+    "path_5": "Fail-over: primary raises -> secondary picks up",
+    "path_6": "Timeout enforcement: 130s simulated delay -> TimeoutError"
+  }
+}

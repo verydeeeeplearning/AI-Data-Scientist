@@ -1,0 +1,108 @@
+{
+  "generated_at": "2026-04-16T20:31:30.076286+00:00",
+  "lifecycle_sequence": [
+    {
+      "from": "draft",
+      "to": "agreed",
+      "outcome": "allowed"
+    },
+    {
+      "from": "agreed",
+      "to": "in_progress",
+      "outcome": "allowed"
+    },
+    {
+      "from": "in_progress",
+      "to": "review",
+      "outcome": "allowed",
+      "note": "requires verdict"
+    },
+    {
+      "from": "review",
+      "to": "closed",
+      "outcome": "allowed",
+      "note": "DoD ensured"
+    }
+  ],
+  "invalid_reversals": [
+    {
+      "case": "closed",
+      "from": "closed",
+      "to": "in_progress",
+      "blocked": true,
+      "error": "Transition closed -> in_progress is not allowed"
+    },
+    {
+      "case": "closed",
+      "from": "closed",
+      "to": "draft",
+      "blocked": true,
+      "error": "Transition closed -> draft is not allowed"
+    },
+    {
+      "case": "closed",
+      "from": "closed",
+      "to": "agreed",
+      "blocked": true,
+      "error": "Transition closed -> agreed is not allowed"
+    },
+    {
+      "case": "abandoned",
+      "from": "abandoned",
+      "to": "draft",
+      "blocked": true,
+      "error": "Transition abandoned -> draft is not allowed"
+    },
+    {
+      "case": "review_to_agreed",
+      "from": "review",
+      "to": "agreed",
+      "blocked": true,
+      "error": "Transition review -> agreed is not allowed"
+    },
+    {
+      "case": "review_to_draft",
+      "from": "review",
+      "to": "draft",
+      "blocked": true,
+      "error": "Transition review -> draft is not allowed"
+    },
+    {
+      "case": "in_progress_to_draft",
+      "from": "in_progress",
+      "to": "draft",
+      "blocked": true,
+      "error": "Transition in_progress -> draft is not allowed"
+    },
+    {
+      "case": "in_progress_to_agreed",
+      "from": "in_progress",
+      "to": "agreed",
+      "blocked": true,
+      "error": "Transition in_progress -> agreed is not allowed"
+    },
+    {
+      "case": "agreed_to_draft",
+      "from": "agreed",
+      "to": "draft",
+      "blocked": true,
+      "error": "Transition agreed -> draft is not allowed"
+    },
+    {
+      "case": "draft_to_review_skip",
+      "from": "draft",
+      "to": "review",
+      "blocked": true,
+      "error": "Transition draft -> review is not allowed"
+    },
+    {
+      "case": "draft_to_in_progress_skip",
+      "from": "draft",
+      "to": "in_progress",
+      "blocked": true,
+      "error": "Transition draft -> in_progress is not allowed"
+    }
+  ],
+  "valid_lifecycle_complete": true,
+  "invalid_reversals_all_blocked": true
+}

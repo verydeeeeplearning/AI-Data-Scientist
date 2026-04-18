@@ -1,0 +1,83 @@
+{
+  "stream": "S3",
+  "name": "drift_cleanup",
+  "status": "pass",
+  "finished_at": "2026-04-17T00:00:00Z",
+  "issues_resolved": [
+    "A03-F1",
+    "A03-F2",
+    "A04-F1",
+    "A04-F2"
+  ],
+  "files_changed": [
+    "src/ds_agent/tools/learning_tools.py",
+    "src/ds_agent/tools/portfolio_tools.py",
+    "tests/e2e/test_ws_e2e.py",
+    "tests/integration/infrastructure/test_sqlite_work_object_store.py",
+    "tests/integration/semantic/test_migration_v6.py"
+  ],
+  "files_created": [
+    "Docs/qa_run_2026-04-17/S3_drift_cleanup/START.json",
+    "Docs/qa_run_2026-04-17/S3_drift_cleanup/FINAL.json",
+    "Docs/qa_run_2026-04-17/S3_drift_cleanup/DIFF_SUMMARY.md",
+    "Docs/qa_run_2026-04-17/S3_drift_cleanup/TEST_RESULTS.md",
+    "Docs/qa_run_2026-04-17/S3_drift_cleanup/CHANGELOG.md",
+    "Docs/qa_run_2026-04-17/S3_drift_cleanup/RECOMMENDATIONS.md"
+  ],
+  "verification": {
+    "tools_import_smoke": {
+      "command": "python -c \"from ds_agent.tools import learning_tools, portfolio_tools; print('OK')\"",
+      "result": "pass",
+      "tools_registered": 11,
+      "tool_names": [
+        "list_learning_inbox",
+        "review_learning_item",
+        "get_learning_item",
+        "list_promotions",
+        "list_deprecations",
+        "rollback_promotion",
+        "list_my_portfolio",
+        "pause_task",
+        "resume_task",
+        "set_sla",
+        "request_monitoring"
+      ]
+    },
+    "target_tests": {
+      "command": "pytest tests/e2e/test_ws_e2e.py::TestChatE2E tests/integration/infrastructure/test_sqlite_work_object_store.py tests/integration/semantic/test_migration_v6.py -v",
+      "result": "4 passed",
+      "detail": [
+        "TestChatE2E::test_chat_send_returns_session_and_done PASSED",
+        "TestChatE2E::test_chat_history_after_send PASSED",
+        "test_sqlite_work_object_store_round_trip_and_migration PASSED",
+        "test_semantic_migration_v6_applies_and_is_idempotent PASSED"
+      ]
+    },
+    "all_tools_registered_suite": {
+      "command": "pytest tests/integration/test_all_tools_registered.py -v",
+      "result": "6 passed"
+    },
+    "ruff_touched_files": {
+      "command": "ruff check <5 S3 files>",
+      "result": "All checks passed"
+    },
+    "mypy_tool_files": {
+      "command": "mypy src/ds_agent/tools/learning_tools.py src/ds_agent/tools/portfolio_tools.py",
+      "result": "2 pre-existing errors on _get_*_store helpers (not touched by S3); no new errors introduced"
+    },
+    "full_regression": {
+      "command": "pytest --tb=short",
+      "raw_tally": "41 failed, 2341 passed, 5 skipped",
+      "triage": "every reported failure reproduces ONLY in the aggregate run and passes in isolation; root cause is Windows .tmp/pytest file-handle accumulation and ToolRegistry singleton cross-test interference, both pre-existing. See TEST_RESULTS.md section 6.",
+      "s3_caused_regressions": 0
+    }
+  },
+  "scope_constraints_respected": {
+    "tool_decorator_signature_unchanged": true,
+    "migration_code_unchanged": true,
+    "no_v13_migration_added": true,
+    "no_file_renames": true,
+    "no_other_stream_territory_touched": true
+  },
+  "self_judgment": "not applicable — re-audit by A03/A04 required per work order"
+}

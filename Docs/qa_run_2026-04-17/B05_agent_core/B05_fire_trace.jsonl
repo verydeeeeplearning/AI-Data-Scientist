@@ -1,0 +1,182 @@
+{"event": "registry_snapshot", "hooks": ["audit_log", "session_init", "process_metrics", "problem_type_router", "workflow_tracker", "permission", "policy_approval", "pii_redaction", "semantic_read_guard", "org_policy", "query_cost_guard", "semantic_trust", "semantic_writeback", "budget_guard", "baseline_guard", "temporal_join_guard", "leakage_detection", "self_debug", "overfitting_detector", "backtrack_trigger", "model_sanity_check", "experiment_design", "stage_quality", "profile_results", "experiment_tracker", "lineage_capture", "claim_traceability", "exec_plan_save", "drift_detection", "review_artifact_capture"]}
+{"hook": "audit_log", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "session_init", "event": "on_session_init", "injected_text_len": 893, "returned_text": true, "t": 1776371461.027515}
+{"hook": "process_metrics", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "problem_type_router", "event": "on_session_init", "injected_text_len": 238, "returned_text": true, "t": 1776371461.027515}
+{"hook": "workflow_tracker", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "permission", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "policy_approval", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "pii_redaction", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "semantic_read_guard", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "org_policy", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "query_cost_guard", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "semantic_trust", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "semantic_writeback", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "budget_guard", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "baseline_guard", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "temporal_join_guard", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "leakage_detection", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "self_debug", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "overfitting_detector", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "backtrack_trigger", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "model_sanity_check", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "experiment_design", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "stage_quality", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "profile_results", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "experiment_tracker", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "lineage_capture", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "claim_traceability", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "exec_plan_save", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "drift_detection", "event": "on_session_init", "injected_text_len": 0, "returned_text": false, "t": 1776371461.027515}
+{"hook": "review_artifact_capture", "event": "on_session_init", "injected_text_len": 675, "returned_text": true, "t": 1776371461.027515}
+{"hook": "audit_log", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.030154}
+{"hook": "session_init", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.030154}
+{"hook": "process_metrics", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.030154}
+{"hook": "problem_type_router", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.030154}
+{"hook": "workflow_tracker", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.030154}
+{"hook": "permission", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.030154}
+{"hook": "policy_approval", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "pii_redaction", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "semantic_read_guard", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "org_policy", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "query_cost_guard", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "semantic_trust", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "semantic_writeback", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "budget_guard", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "baseline_guard", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "temporal_join_guard", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "leakage_detection", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "self_debug", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "overfitting_detector", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "backtrack_trigger", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "model_sanity_check", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "experiment_design", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "stage_quality", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "profile_results", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "experiment_tracker", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "lineage_capture", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "claim_traceability", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "exec_plan_save", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "drift_detection", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "review_artifact_capture", "event": "pre_tool_use", "tool": "train_model", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0316691}
+{"hook": "audit_log", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "session_init", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "process_metrics", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "problem_type_router", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "workflow_tracker", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "permission", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "policy_approval", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "pii_redaction", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "semantic_read_guard", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "org_policy", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "query_cost_guard", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "semantic_trust", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "semantic_writeback", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "budget_guard", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "baseline_guard", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "temporal_join_guard", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "leakage_detection", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "self_debug", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "overfitting_detector", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "backtrack_trigger", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "model_sanity_check", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": true, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "experiment_design", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "stage_quality", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "profile_results", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "experiment_tracker", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": true, "t": 1776371461.0321853}
+{"hook": "lineage_capture", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "claim_traceability", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "exec_plan_save", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "drift_detection", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "review_artifact_capture", "event": "post_tool_use", "tool": "train_model", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0321853}
+{"hook": "audit_log", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "session_init", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "process_metrics", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "problem_type_router", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "workflow_tracker", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "permission", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "policy_approval", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "pii_redaction", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "semantic_read_guard", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "org_policy", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "query_cost_guard", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "semantic_trust", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "semantic_writeback", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "budget_guard", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "baseline_guard", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "temporal_join_guard", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "leakage_detection", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "self_debug", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "overfitting_detector", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "backtrack_trigger", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "model_sanity_check", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "experiment_design", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "stage_quality", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "profile_results", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "experiment_tracker", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "lineage_capture", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "claim_traceability", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "exec_plan_save", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "drift_detection", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "review_artifact_capture", "event": "pre_tool_use", "tool": "feature_engineer", "action": "allow", "deny_reason": null, "modified": false, "t": 1776371461.0321853}
+{"hook": "audit_log", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.036149}
+{"hook": "session_init", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "process_metrics", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "problem_type_router", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "workflow_tracker", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "permission", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "policy_approval", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "pii_redaction", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "semantic_read_guard", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "org_policy", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "query_cost_guard", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "semantic_trust", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "semantic_writeback", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "budget_guard", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "baseline_guard", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "temporal_join_guard", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0364828}
+{"hook": "leakage_detection", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": true, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "self_debug", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "overfitting_detector", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "backtrack_trigger", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "model_sanity_check", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "experiment_design", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "stage_quality", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "profile_results", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "experiment_tracker", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "lineage_capture", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "claim_traceability", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "exec_plan_save", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "drift_detection", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "review_artifact_capture", "event": "post_tool_use", "tool": "feature_engineer", "is_error": false, "modified_result": false, "trigger_learning": false, "t": 1776371461.0369997}
+{"hook": "audit_log", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "session_init", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "process_metrics", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "problem_type_router", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "workflow_tracker", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "permission", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "policy_approval", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "pii_redaction", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "semantic_read_guard", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "org_policy", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "query_cost_guard", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "semantic_trust", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "semantic_writeback", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "budget_guard", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "baseline_guard", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "temporal_join_guard", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "leakage_detection", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "self_debug", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "overfitting_detector", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "backtrack_trigger", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "model_sanity_check", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "experiment_design", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "stage_quality", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "profile_results", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "experiment_tracker", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "lineage_capture", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "claim_traceability", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "exec_plan_save", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "drift_detection", "event": "on_final_response", "modified": false, "t": 1776371461.0369997}
+{"hook": "review_artifact_capture", "event": "on_final_response", "modified": true, "t": 1776371461.2463925}
+{"event": "final_response", "length": 5}

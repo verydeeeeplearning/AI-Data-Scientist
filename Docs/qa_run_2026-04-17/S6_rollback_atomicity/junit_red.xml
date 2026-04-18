@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="0.126" timestamp="2026-04-17T10:25:14.972494+09:00" hostname="WIN-LD9DCRP3E9N"><testcase classname="tests.unit.application.test_rollback_atomicity.TestRollbackAtomicity" name="test_use_case_uses_atomic_write" time="0.002"><failure message="AssertionError: assert 0 == 1&#10; +  where 0 = &lt;MagicMock name='mock.save_item_and_deprecation' id='1471212783232'&gt;.call_count&#10; +    where &lt;MagicMock name='mock.save_item_and_deprecation' id='1471212783232'&gt; = &lt;MagicMock id='1471212394720'&gt;.save_item_and_deprecation">tests\unit\application\test_rollback_atomicity.py:90: in test_use_case_uses_atomic_write
+    assert store.save_item_and_deprecation.call_count == 1
+E   AssertionError: assert 0 == 1
+E    +  where 0 = &lt;MagicMock name='mock.save_item_and_deprecation' id='1471212783232'&gt;.call_count
+E    +    where &lt;MagicMock name='mock.save_item_and_deprecation' id='1471212783232'&gt; = &lt;MagicMock id='1471212394720'&gt;.save_item_and_deprecation</failure></testcase><testcase classname="tests.unit.application.test_rollback_atomicity.TestRollbackAtomicity" name="test_atomic_failure_raises_and_does_not_split_writes" time="0.002"><failure message="Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;">tests\unit\application\test_rollback_atomicity.py:124: in test_atomic_failure_raises_and_does_not_split_writes
+    with pytest.raises(RuntimeError, match="injected"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;</failure></testcase></testsuite></testsuites>

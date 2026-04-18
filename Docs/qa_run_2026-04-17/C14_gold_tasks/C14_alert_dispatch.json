@@ -1,0 +1,424 @@
+{
+  "primary_dispatch": {
+    "snapshot": {
+      "generated_at": 1776389343.1215408,
+      "total_records": 6,
+      "recent_window": 3,
+      "baseline_window_days": 14,
+      "axis_kind": "commit",
+      "mode_filter": null,
+      "domain_filter": null,
+      "baseline_source": "frozen",
+      "available_domains": [
+        "finance",
+        "healthcare",
+        "marketing",
+        "ops",
+        "retail",
+        "saas"
+      ],
+      "overall": {
+        "recent": {
+          "record_count": 6,
+          "avg_weighted_score": 0.9899999999999999,
+          "pass_rate": 1.0
+        },
+        "baseline": {
+          "record_count": 6,
+          "avg_weighted_score": 0.99,
+          "pass_rate": 1.0
+        },
+        "delta_score": -1.1102230246251565e-16,
+        "delta_pass_rate": 0.0
+      },
+      "points": [
+        {
+          "axis_key": "c14-baseline-sha",
+          "axis_label": "c14-baseline-sha",
+          "run_count": 6,
+          "pass_rate": 1.0,
+          "weighted_score_mean": 0.9899999999999999,
+          "per_dimension_means": {
+            "approval_judgment": 1.0,
+            "artifact_faithfulness": 1.0,
+            "exec_summary_accuracy": 1.0,
+            "metric_selection_accuracy": 0.9,
+            "operator_satisfaction": 1.0,
+            "scoping_accuracy": 1.0,
+            "session_completeness": 1.0,
+            "temporal_leakage_detection": 1.0,
+            "time_to_decision": 1.0,
+            "tool_trajectory": 1.0
+          },
+          "per_mode_weighted_scores": {
+            "offline": 0.9899999999999999
+          }
+        }
+      ],
+      "mode_summaries": [
+        {
+          "mode": "offline",
+          "record_count": 6,
+          "avg_weighted_score": 0.9899999999999999,
+          "pass_rate": 1.0
+        }
+      ],
+      "task_summaries": [
+        {
+          "task_id": "saas.trial_conversion_scoping.v1",
+          "domain": "saas",
+          "difficulty": "medium",
+          "latest_run_id": "saas.trial_conversion_scoping.v1-c14",
+          "latest_mode": "offline",
+          "latest_recorded_at": 1776389343.091235,
+          "latest_weighted_score": 0.99,
+          "latest_passed": true,
+          "pass_threshold": 0.74,
+          "alert_on_drop_below": 0.69,
+          "recent_record_count": 1,
+          "baseline_record_count": 6,
+          "recent_mean_score": 0.99,
+          "baseline_mean_score": 0.99,
+          "delta_score": 0.0,
+          "status": "healthy"
+        },
+        {
+          "task_id": "retail.churn_scoping.v1",
+          "domain": "retail",
+          "difficulty": "medium",
+          "latest_run_id": "retail.churn_scoping.v1-c14",
+          "latest_mode": "offline",
+          "latest_recorded_at": 1776389343.089715,
+          "latest_weighted_score": 0.99,
+          "latest_passed": true,
+          "pass_threshold": 0.75,
+          "alert_on_drop_below": 0.7,
+          "recent_record_count": 1,
+          "baseline_record_count": 6,
+          "recent_mean_score": 0.99,
+          "baseline_mean_score": 0.99,
+          "delta_score": 0.0,
+          "status": "healthy"
+        },
+        {
+          "task_id": "ops.inventory_restock_risk.v1",
+          "domain": "ops",
+          "difficulty": "medium",
+          "latest_run_id": "ops.inventory_restock_risk.v1-c14",
+          "latest_mode": "offline",
+          "latest_recorded_at": 1776389343.0891964,
+          "latest_weighted_score": 0.99,
+          "latest_passed": true,
+          "pass_threshold": 0.73,
+          "alert_on_drop_below": 0.68,
+          "recent_record_count": 1,
+          "baseline_record_count": 6,
+          "recent_mean_score": 0.99,
+          "baseline_mean_score": 0.99,
+          "delta_score": 0.0,
+          "status": "healthy"
+        },
+        {
+          "task_id": "healthcare.readmission_triage.v1",
+          "domain": "healthcare",
+          "difficulty": "hard",
+          "latest_run_id": "healthcare.readmission_triage.v1-c14",
+          "latest_mode": "offline",
+          "latest_recorded_at": 1776389343.0782878,
+          "latest_weighted_score": 0.99,
+          "latest_passed": true,
+          "pass_threshold": 0.76,
+          "alert_on_drop_below": 0.7,
+          "recent_record_count": 1,
+          "baseline_record_count": 6,
+          "recent_mean_score": 0.99,
+          "baseline_mean_score": 0.99,
+          "delta_score": 0.0,
+          "status": "healthy"
+        },
+        {
+          "task_id": "marketing.lead_scoring_pipeline.v1",
+          "domain": "marketing",
+          "difficulty": "medium",
+          "latest_run_id": "marketing.lead_scoring_pipeline.v1-c14",
+          "latest_mode": "offline",
+          "latest_recorded_at": 1776389343.0782878,
+          "latest_weighted_score": 0.99,
+          "latest_passed": true,
+          "pass_threshold": 0.74,
+          "alert_on_drop_below": 0.69,
+          "recent_record_count": 1,
+          "baseline_record_count": 6,
+          "recent_mean_score": 0.99,
+          "baseline_mean_score": 0.99,
+          "delta_score": 0.0,
+          "status": "healthy"
+        },
+        {
+          "task_id": "finance.fraud_triage.v1",
+          "domain": "finance",
+          "difficulty": "hard",
+          "latest_run_id": "finance.fraud_triage.v1-c14",
+          "latest_mode": "offline",
+          "latest_recorded_at": 1776389343.0767453,
+          "latest_weighted_score": 0.99,
+          "latest_passed": true,
+          "pass_threshold": 0.74,
+          "alert_on_drop_below": 0.68,
+          "recent_record_count": 1,
+          "baseline_record_count": 6,
+          "recent_mean_score": 0.99,
+          "baseline_mean_score": 0.99,
+          "delta_score": 0.0,
+          "status": "healthy"
+        }
+      ],
+      "dimension_summaries": [
+        {
+          "name": "approval_judgment",
+          "label": "Approval Judgment",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 1.0,
+          "baseline_mean_score": 1.0,
+          "delta_score": 0.0
+        },
+        {
+          "name": "artifact_faithfulness",
+          "label": "Artifact Faithfulness",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 1.0,
+          "baseline_mean_score": 1.0,
+          "delta_score": 0.0
+        },
+        {
+          "name": "exec_summary_accuracy",
+          "label": "Exec Summary Accuracy",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 1.0,
+          "baseline_mean_score": 1.0,
+          "delta_score": 0.0
+        },
+        {
+          "name": "metric_selection_accuracy",
+          "label": "Metric Selection Accuracy",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 0.9,
+          "baseline_mean_score": 0.9,
+          "delta_score": 0.0
+        },
+        {
+          "name": "operator_satisfaction",
+          "label": "Operator Satisfaction",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 1.0,
+          "baseline_mean_score": 1.0,
+          "delta_score": 0.0
+        },
+        {
+          "name": "scoping_accuracy",
+          "label": "Scoping Accuracy",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 1.0,
+          "baseline_mean_score": 1.0,
+          "delta_score": 0.0
+        },
+        {
+          "name": "session_completeness",
+          "label": "Session Completeness",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 1.0,
+          "baseline_mean_score": 1.0,
+          "delta_score": 0.0
+        },
+        {
+          "name": "temporal_leakage_detection",
+          "label": "Temporal Leakage Detection",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 1.0,
+          "baseline_mean_score": 1.0,
+          "delta_score": 0.0
+        },
+        {
+          "name": "time_to_decision",
+          "label": "Time To Decision",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 1.0,
+          "baseline_mean_score": 1.0,
+          "delta_score": 0.0
+        },
+        {
+          "name": "tool_trajectory",
+          "label": "Tool Trajectory",
+          "recent_record_count": 6,
+          "baseline_record_count": 6,
+          "recent_mean_score": 1.0,
+          "baseline_mean_score": 1.0,
+          "delta_score": 0.0
+        }
+      ],
+      "alerts": [],
+      "frozen_baseline": {
+        "baseline_id": "baseline-3d6ceb50cba0",
+        "commit_sha": "c14-baseline-sha",
+        "axis_kind": "commit",
+        "mode": null,
+        "domain": null,
+        "task_id": null,
+        "pass_rate": 1.0,
+        "weighted_score_mean": 0.99,
+        "baseline_window_days": 14,
+        "source_point_count": 6,
+        "dimension_mean_scores": {
+          "approval_judgment": 1.0,
+          "artifact_faithfulness": 1.0,
+          "exec_summary_accuracy": 1.0,
+          "metric_selection_accuracy": 0.9,
+          "operator_satisfaction": 1.0,
+          "scoping_accuracy": 1.0,
+          "session_completeness": 1.0,
+          "temporal_leakage_detection": 1.0,
+          "time_to_decision": 1.0,
+          "tool_trajectory": 1.0
+        },
+        "task_mean_scores": {
+          "finance.fraud_triage.v1": 0.99,
+          "healthcare.readmission_triage.v1": 0.99,
+          "marketing.lead_scoring_pipeline.v1": 0.99,
+          "ops.inventory_restock_risk.v1": 0.99,
+          "retail.churn_scoping.v1": 0.99,
+          "saas.trial_conversion_scoping.v1": 0.99
+        },
+        "created_at": 1776389343.1074371
+      },
+      "point_count": 1,
+      "active_alerts": [],
+      "baseline": {
+        "baseline_id": "baseline-3d6ceb50cba0",
+        "commit_sha": "c14-baseline-sha",
+        "axis_kind": "commit",
+        "mode": null,
+        "domain": null,
+        "task_id": null,
+        "pass_rate": 1.0,
+        "weighted_score_mean": 0.99,
+        "baseline_window_days": 14,
+        "source_point_count": 6,
+        "dimension_mean_scores": {
+          "approval_judgment": 1.0,
+          "artifact_faithfulness": 1.0,
+          "exec_summary_accuracy": 1.0,
+          "metric_selection_accuracy": 0.9,
+          "operator_satisfaction": 1.0,
+          "scoping_accuracy": 1.0,
+          "session_completeness": 1.0,
+          "temporal_leakage_detection": 1.0,
+          "time_to_decision": 1.0,
+          "tool_trajectory": 1.0
+        },
+        "task_mean_scores": {
+          "finance.fraud_triage.v1": 0.99,
+          "healthcare.readmission_triage.v1": 0.99,
+          "marketing.lead_scoring_pipeline.v1": 0.99,
+          "ops.inventory_restock_risk.v1": 0.99,
+          "retail.churn_scoping.v1": 0.99,
+          "saas.trial_conversion_scoping.v1": 0.99
+        },
+        "created_at": 1776389343.1074371
+      }
+    },
+    "deliveries": [],
+    "fingerprint": "2be013eca7cd687811a93c9e3ff6258910324ba22bc0b6cdfaf91b67b02536c2",
+    "skipped": false,
+    "skip_reason": null
+  },
+  "mock_slack_captured": [
+    {
+      "snapshot_total_records": 7,
+      "alert_count": 12,
+      "alert_kinds": [
+        "pass_rate_drop",
+        "single_task_hard_fail",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression"
+      ],
+      "alert_severities": [
+        "high",
+        "high",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium"
+      ]
+    }
+  ],
+  "mock_teams_captured": [
+    {
+      "snapshot_total_records": 7,
+      "alert_count": 12,
+      "alert_kinds": [
+        "pass_rate_drop",
+        "single_task_hard_fail",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression",
+        "dimension_regression"
+      ],
+      "alert_severities": [
+        "high",
+        "high",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium",
+        "medium"
+      ]
+    }
+  ],
+  "forced_probe": {
+    "forced_alerts_count": 12,
+    "forced_alert_mock_received": true,
+    "delivery_channels": [
+      "slack",
+      "teams"
+    ],
+    "delivery_summaries": [
+      "mock dispatch | alerts=12 | kinds=dimension_regression,pass_rate_drop,single_task_hard_fail",
+      "mock dispatch | alerts=12 | kinds=dimension_regression,pass_rate_drop,single_task_hard_fail"
+    ],
+    "fingerprint_prefix": "2c43d1d57b9b"
+  }
+}

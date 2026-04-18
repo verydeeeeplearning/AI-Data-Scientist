@@ -1,0 +1,9 @@
+term_id: term.net_revenue_retention
+canonical_form: net revenue retention
+definition: "Share of starting recurring revenue retained after all in-period movements."
+synonyms:
+  - nrr
+linked_metric_ids:
+  - net_revenue_retention
+category: metric
+owner: finance_team

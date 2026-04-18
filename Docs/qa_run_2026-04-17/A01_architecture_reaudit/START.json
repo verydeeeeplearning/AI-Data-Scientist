@@ -1,0 +1,18 @@
+{
+  "agent_id": "A01-reaudit",
+  "agent_name": "Architecture Auditor (re-audit)",
+  "tier": 1,
+  "round": 2,
+  "started_at": "2026-04-16T20:03:41Z",
+  "baseline_path": "Docs/qa_run_2026-04-17/A01_architecture/FINAL.json",
+  "fix_sprint_inputs": [
+    "Docs/qa_run_2026-04-17/S1_clean_arch/FINAL.json",
+    "Docs/qa_run_2026-04-17/S5_sandbox_port/FINAL.json"
+  ],
+  "output_dir": "Docs/qa_run_2026-04-17/A01_architecture_reaudit",
+  "constraints": [
+    "no source modifications",
+    "independent verification; do not rely on fix-sprint self-judgment",
+    "scope-isolated pytest (architecture + application) substitutes for full regression"
+  ]
+}

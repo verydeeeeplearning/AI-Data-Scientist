@@ -1,0 +1,435 @@
+{
+  "count": 86,
+  "tools": [
+    {
+      "module": "ab_test_tools.py",
+      "func": "ab_test",
+      "tool_name": "ab_test"
+    },
+    {
+      "module": "artifact_tools.py",
+      "func": "notebook_generate",
+      "tool_name": "notebook_generate"
+    },
+    {
+      "module": "artifact_tools.py",
+      "func": "slide_generate",
+      "tool_name": "slide_generate"
+    },
+    {
+      "module": "artifact_tools.py",
+      "func": "dashboard_spec",
+      "tool_name": "dashboard_spec"
+    },
+    {
+      "module": "artifact_tools.py",
+      "func": "render_stakeholder_artifact",
+      "tool_name": "render_stakeholder_artifact"
+    },
+    {
+      "module": "code_execution.py",
+      "func": "execute_code",
+      "tool_name": "execute_code"
+    },
+    {
+      "module": "data_loader.py",
+      "func": "data_loader",
+      "tool_name": "data_loader"
+    },
+    {
+      "module": "data_profiler.py",
+      "func": "data_profiler",
+      "tool_name": "data_profiler"
+    },
+    {
+      "module": "decision_os_tools.py",
+      "func": "compare_runs",
+      "tool_name": "compare_runs"
+    },
+    {
+      "module": "decision_os_tools.py",
+      "func": "request_promotion",
+      "tool_name": "request_promotion"
+    },
+    {
+      "module": "decision_os_tools.py",
+      "func": "get_post_deploy_status",
+      "tool_name": "get_post_deploy_status"
+    },
+    {
+      "module": "decision_os_tools.py",
+      "func": "record_review_artifact",
+      "tool_name": "record_review_artifact"
+    },
+    {
+      "module": "decision_os_tools.py",
+      "func": "get_review_artifacts",
+      "tool_name": "get_review_artifacts"
+    },
+    {
+      "module": "deployment.py",
+      "func": "generate_deployment",
+      "tool_name": "generate_deployment"
+    },
+    {
+      "module": "describe_table_trust.py",
+      "func": "describe_table_trust",
+      "tool_name": "describe_table_trust"
+    },
+    {
+      "module": "distributed_tools.py",
+      "func": "distributed_exec",
+      "tool_name": "distributed_exec"
+    },
+    {
+      "module": "drift_tools.py",
+      "func": "drift_monitor",
+      "tool_name": "drift_monitor"
+    },
+    {
+      "module": "eda.py",
+      "func": "run_eda",
+      "tool_name": "run_eda"
+    },
+    {
+      "module": "evaluation.py",
+      "func": "evaluate_model",
+      "tool_name": "evaluate_model"
+    },
+    {
+      "module": "feature_eng.py",
+      "func": "feature_engineer",
+      "tool_name": "feature_engineer"
+    },
+    {
+      "module": "feature_registry_tools.py",
+      "func": "register_feature",
+      "tool_name": "register_feature"
+    },
+    {
+      "module": "file_ops.py",
+      "func": "read_file",
+      "tool_name": "read_file"
+    },
+    {
+      "module": "file_ops.py",
+      "func": "write_file",
+      "tool_name": "write_file"
+    },
+    {
+      "module": "file_ops.py",
+      "func": "list_files",
+      "tool_name": "list_files"
+    },
+    {
+      "module": "governance_tools.py",
+      "func": "policy_check",
+      "tool_name": "policy_check"
+    },
+    {
+      "module": "governance_tools.py",
+      "func": "lineage_capture",
+      "tool_name": "lineage_capture"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "create_work_object",
+      "tool_name": "create_work_object"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "get_work_object",
+      "tool_name": "get_work_object"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "list_work_objects",
+      "tool_name": "list_work_objects"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "link_external_resource",
+      "tool_name": "link_external_resource"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "advance_work_object_phase",
+      "tool_name": "advance_work_object_phase"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "close_work_object",
+      "tool_name": "close_work_object"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "get_work_object_timeline",
+      "tool_name": "get_work_object_timeline"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "send_to_slack",
+      "tool_name": "send_to_slack"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "post_to_slack",
+      "tool_name": "post_to_slack"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "publish_confluence_page",
+      "tool_name": "publish_confluence_page"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "publish_notion_page",
+      "tool_name": "publish_notion_page"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "create_jira_ticket",
+      "tool_name": "create_jira_ticket"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "open_git_pr",
+      "tool_name": "open_git_pr"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "create_git_pr",
+      "tool_name": "create_git_pr"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "send_email",
+      "tool_name": "send_email"
+    },
+    {
+      "module": "integration_tools.py",
+      "func": "create_calendar_event",
+      "tool_name": "create_calendar_event"
+    },
+    {
+      "module": "learning_tools.py",
+      "func": "list_learning_inbox",
+      "tool_name": "list_learning_inbox"
+    },
+    {
+      "module": "learning_tools.py",
+      "func": "review_learning_item",
+      "tool_name": "review_learning_item"
+    },
+    {
+      "module": "learning_tools.py",
+      "func": "get_learning_item",
+      "tool_name": "get_learning_item"
+    },
+    {
+      "module": "learning_tools.py",
+      "func": "list_promotions",
+      "tool_name": "list_promotions"
+    },
+    {
+      "module": "learning_tools.py",
+      "func": "list_deprecations",
+      "tool_name": "list_deprecations"
+    },
+    {
+      "module": "learning_tools.py",
+      "func": "rollback_promotion",
+      "tool_name": "rollback_promotion"
+    },
+    {
+      "module": "load_semantic_pack.py",
+      "func": "load_semantic_pack",
+      "tool_name": "load_semantic_pack"
+    },
+    {
+      "module": "lookup_term.py",
+      "func": "lookup_term",
+      "tool_name": "lookup_term"
+    },
+    {
+      "module": "memory_tools.py",
+      "func": "memory_search",
+      "tool_name": "memory_search"
+    },
+    {
+      "module": "memory_tools.py",
+      "func": "search_sessions",
+      "tool_name": "search_sessions"
+    },
+    {
+      "module": "memory_tools.py",
+      "func": "memory_store",
+      "tool_name": "memory_store"
+    },
+    {
+      "module": "modeling.py",
+      "func": "train_model",
+      "tool_name": "train_model"
+    },
+    {
+      "module": "portfolio_tools.py",
+      "func": "list_my_portfolio",
+      "tool_name": "list_my_portfolio"
+    },
+    {
+      "module": "portfolio_tools.py",
+      "func": "pause_task",
+      "tool_name": "pause_task"
+    },
+    {
+      "module": "portfolio_tools.py",
+      "func": "resume_task",
+      "tool_name": "resume_task"
+    },
+    {
+      "module": "portfolio_tools.py",
+      "func": "set_sla",
+      "tool_name": "set_sla"
+    },
+    {
+      "module": "portfolio_tools.py",
+      "func": "request_monitoring",
+      "tool_name": "request_monitoring"
+    },
+    {
+      "module": "reporting.py",
+      "func": "generate_report",
+      "tool_name": "generate_report"
+    },
+    {
+      "module": "schema_tools.py",
+      "func": "schema_inspect",
+      "tool_name": "schema_inspect"
+    },
+    {
+      "module": "semantic_query.py",
+      "func": "semantic_query",
+      "tool_name": "semantic_query"
+    },
+    {
+      "module": "skill_tools.py",
+      "func": "skill_list",
+      "tool_name": "skill_list"
+    },
+    {
+      "module": "skill_tools.py",
+      "func": "skill_view",
+      "tool_name": "skill_view"
+    },
+    {
+      "module": "skill_tools.py",
+      "func": "skill_search",
+      "tool_name": "skill_search"
+    },
+    {
+      "module": "sql_tools.py",
+      "func": "sql_query",
+      "tool_name": "sql_query"
+    },
+    {
+      "module": "standing_order_tools.py",
+      "func": "standing_order",
+      "tool_name": "standing_order"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "create_task_contract",
+      "tool_name": "create_task_contract"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "update_task_contract",
+      "tool_name": "update_task_contract"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "get_task_contract",
+      "tool_name": "get_task_contract"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "add_assumption",
+      "tool_name": "add_assumption"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "verify_assumption",
+      "tool_name": "verify_assumption"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "list_my_contracts",
+      "tool_name": "list_my_contracts"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "close_task_contract",
+      "tool_name": "close_task_contract"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "record_review_verdict",
+      "tool_name": "record_review_verdict"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "build_delivery_pack",
+      "tool_name": "build_delivery_pack"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "render_delivery_artifact",
+      "tool_name": "render_delivery_artifact"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "dispatch_delivery",
+      "tool_name": "dispatch_delivery"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "list_delivery_log",
+      "tool_name": "list_delivery_log"
+    },
+    {
+      "module": "task_contract_tools.py",
+      "func": "record_delivery_pack",
+      "tool_name": "record_delivery_pack"
+    },
+    {
+      "module": "user_interaction.py",
+      "func": "ask_user",
+      "tool_name": "ask_user"
+    },
+    {
+      "module": "verifier_tool.py",
+      "func": "run_verifier",
+      "tool_name": "run_verifier"
+    },
+    {
+      "module": "verifier_tool.py",
+      "func": "get_review_verdict",
+      "tool_name": "get_review_verdict"
+    },
+    {
+      "module": "verifier_tool.py",
+      "func": "get_verifier_shadow_comparison",
+      "tool_name": "get_verifier_shadow_comparison"
+    },
+    {
+      "module": "verifier_tool.py",
+      "func": "list_verifier_shadow_comparisons",
+      "tool_name": "list_verifier_shadow_comparisons"
+    },
+    {
+      "module": "web_search.py",
+      "func": "web_search",
+      "tool_name": "web_search"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "agent_id": "A01",
+  "agent_name": "Architecture Auditor",
+  "tier": 1,
+  "started_at": "2026-04-17T03:59:35.8318524+09:00",
+  "code_sha": "git-unavailable",
+  "inputs_hash": {
+    "plan_md_sha256": "B8599777DF84348E9C6A8A42F4F2890DC21F598457F365CB2103DFC709479E7E",
+    "pyproject_toml_sha256": "BA70BF7326BCA83CC09D5B57C44EE62FFD0DC008C97B8228458BA6100B2F02A3",
+    "importlinter_sha256": "F206F692620CF06C0D554403DD3211FEE7DA8B18C71BA5C2342688867FBF1D02"
+  }
+}

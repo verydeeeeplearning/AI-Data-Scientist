@@ -1,0 +1,21 @@
+{
+    "agent_id": "A02-reaudit",
+    "round": 2,
+    "started_at_utc": "2026-04-17T20:04:32Z",
+    "baseline_final": "Docs/qa_run_2026-04-17/A02_security/FINAL.json",
+    "baseline_runtime_checks": "Docs/qa_run_2026-04-17/A02_security/A02_runtime_checks.json",
+    "baseline_report": "Docs/qa_run_2026-04-17/A02_security/A02_security_report.md",
+    "fix_sprint_input": "Docs/qa_run_2026-04-17/S2_pii_redaction/FINAL.json",
+    "fix_sprint_inputs_hashed": {
+        "A02_runtime_checks.json_sha256": "76c1b480559dd96a37921ed6fe5a4b19514bfda9263115d99ca4e6b12d7072c3",
+        "A02_security_report.md_sha256": "e0933fa6eb26b90104bbffb244968dd3e185d9ea16128a5a0cb465b7961fa88c"
+    },
+    "scope_targets_hashed": {
+        "src/ds_agent/infrastructure/observability/sentry_backend.py_sha256": "1ead2f5649b392a6f2968ee261217c5dae4d5108e84b1bd88c11bf105f46a0f3",
+        "tests/unit/infrastructure/test_observability.py_sha256": "4e4c811c3dbeebafb53dd908dcccb97abffda1f669d8bbfe296ed62781f101a4"
+    },
+    "code_sha": "nogit:C5CEB225F7C821B036DC03245FF5D625717A6D77D60FCEF7A5A9A87FBDB35C86",
+    "platform": "win32",
+    "procedure_source": "Docs/PRE_RELEASE_AI_TEST_PLAN_2026-04-17.md §4.2 A02",
+    "independence": "A02 re-audit runs independently of S2 self-judgement; procedures re-executed end-to-end."
+}

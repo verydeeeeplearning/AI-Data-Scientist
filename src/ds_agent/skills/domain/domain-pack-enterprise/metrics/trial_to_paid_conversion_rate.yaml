@@ -1,0 +1,26 @@
+metric_id: trial_to_paid_conversion_rate
+display_name: Trial To Paid Conversion Rate
+owner: growth_team
+definition: "Rate of trial accounts that convert to a paid subscription in the measurement month."
+synonyms:
+  - trial conversion
+  - trial to paid
+grain: monthly
+unit: ratio
+direction: higher_is_better
+related_metrics:
+  - customer_acquisition_cost
+  - monthly_active_users
+caveats:
+  - Self-serve and sales-assisted motion should be reviewed separately for funnel diagnostics.
+verified_query_ids:
+  - vq-trial-to-paid-postgres
+calculation:
+  numerator:
+    source: prod.product.trial_funnel_daily
+    filter: converted_flag = TRUE
+    aggregation: COUNT(DISTINCT account_id)
+  denominator:
+    source: prod.product.trial_funnel_daily
+    filter: trial_started_flag = TRUE
+    aggregation: COUNT(DISTINCT account_id)

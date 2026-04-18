@@ -1,0 +1,9 @@
+fqtn: staging.marketing.ad_spend_daily
+grade: silver
+owner: marketing_ops
+description: "Daily paid-media spend staging table by platform, campaign, and source."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Campaign taxonomy is monitored but not fully certified for board reporting."
+last_audited: 2026-04-15

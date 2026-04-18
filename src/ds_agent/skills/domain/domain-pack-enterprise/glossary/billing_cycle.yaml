@@ -1,0 +1,7 @@
+term_id: term.billing_cycle
+canonical_form: billing cycle
+definition: "Recurring billing interval such as monthly or annual invoicing."
+linked_metric_ids:
+  - monthly_recurring_revenue
+category: dimension
+owner: billing_ops

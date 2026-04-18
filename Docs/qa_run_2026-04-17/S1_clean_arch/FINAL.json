@@ -1,0 +1,119 @@
+{
+  "stream": "S1",
+  "name": "clean_arch",
+  "status": "fail",
+  "completed_at": "2026-04-16T19:42:00+00:00",
+  "resumed": true,
+  "interruption_note": "Original S1 interrupted by Anthropic API 500 error after 86 tool uses. Resume agent performed verification and evidence capture only; no new code changes (see DIFF_SUMMARY.md \u00a7'Minor fixes made by Resume agent' and RECOMMENDATIONS.md).",
+  "issues_resolved": [
+    "A01-V1-lineage_capture",
+    "A01-V2-reproducibility_exporter",
+    "A01-V3-scheduler"
+  ],
+  "files_changed": [
+    "src/ds_agent/application/services/lineage_capture_service.py",
+    "src/ds_agent/application/services/reproducibility_exporter.py",
+    "src/ds_agent/application/services/scheduler_service.py",
+    "src/ds_agent/application/ports/lineage_store_port.py",
+    "src/ds_agent/application/ports/notebook_engine_port.py",
+    "src/ds_agent/application/ports/cron_runner_port.py",
+    "src/ds_agent/agent/factory.py",
+    ".importlinter",
+    "scripts/check_import_contracts.py",
+    "tests/unit/architecture/test_application_infrastructure_boundary.py"
+  ],
+  "reproducibility_exporter_wiring": {
+    "status": "deferred",
+    "detail": "ReproducibilityExporter has no production instantiation site in src/. Only tests construct it, and the tests already pass NotebookEngine() where NotebookEnginePort is expected (Protocol = structural subtyping). No wiring change required or performed."
+  },
+  "verification": {
+    "lint_imports": {
+      "contracts_total": 2,
+      "contracts_kept": 1,
+      "contracts_broken": 1,
+      "broken_detail": "application_independence_from_infrastructure broken via transitive chain: ds_agent.application.services.execution_router -> ds_agent.tools.sandbox -> ds_agent.infrastructure.sandbox.preamble",
+      "scope_in_s1": false,
+      "log": "Docs/qa_run_2026-04-17/S1_clean_arch/lint_imports.log"
+    },
+    "check_import_contracts": {
+      "exit_code": 0,
+      "output": "import contracts: ok",
+      "log": "Docs/qa_run_2026-04-17/S1_clean_arch/check_import_contracts.log"
+    },
+    "pytest_architecture": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7,
+      "junit": "Docs/qa_run_2026-04-17/S1_clean_arch/junit_architecture.xml",
+      "log": "Docs/qa_run_2026-04-17/S1_clean_arch/pytest_architecture.log"
+    },
+    "ruff_s1_scope": {
+      "exit_code": 0,
+      "output": "All checks passed!",
+      "log": "Docs/qa_run_2026-04-17/S1_clean_arch/ruff.log"
+    },
+    "mypy_s1_scope": {
+      "exit_code": 1,
+      "errors_total": 3,
+      "errors_introduced_by_s1": 0,
+      "pre_existing_errors": [
+        "src/ds_agent/application/services/lineage_capture_service.py:38 dict invariance (pre-existing)",
+        "src/ds_agent/application/services/lineage_capture_service.py:179 os.sys.version attribute access (pre-existing)",
+        "src/ds_agent/application/services/reproducibility_exporter.py:37 content str/dict reassignment (pre-existing)"
+      ],
+      "log": "Docs/qa_run_2026-04-17/S1_clean_arch/mypy.log"
+    },
+    "ast_application_infrastructure_violations": 0,
+    "ast_scan_log": "Docs/qa_run_2026-04-17/S1_clean_arch/ast_scan.log",
+    "pytest_scope_regression": {
+      "passed": 489,
+      "failed": 5,
+      "failures_in_s1_scope": 0,
+      "failure_notes": "4x test_subagent.py failures due to test-fixture gap (hook constructor now strict about composition-root wiring; tests bypass factory.py). 1x test_semantic_ports.py failure in ds_agent.memory.semantic (unrelated). See TEST_RESULTS.md \u00a73 and RECOMMENDATIONS.md R3.",
+      "log": "Docs/qa_run_2026-04-17/S1_clean_arch/pytest_scope_regression.log"
+    }
+  },
+  "pass_criteria": {
+    "lint_imports_zero_broken": false,
+    "check_import_contracts_exit_zero": true,
+    "architecture_tests_all_pass": true,
+    "ruff_clean": true,
+    "mypy_clean": false,
+    "application_to_infrastructure_violations_zero": true
+  },
+  "scope_constraints_respected": {
+    "no_edits_outside_s1_file_list": true,
+    "no_edits_in_tools": true,
+    "no_edits_in_infrastructure_observability": true,
+    "no_edits_in_infrastructure_migration": true,
+    "no_new_feature_code": true,
+    "full_regression_pytest_skipped_as_instructed": true
+  },
+  "residual_issues_deferred": [
+    {
+      "id": "R1",
+      "title": "Transitive application->tools.sandbox->infrastructure.sandbox.preamble chain breaks lint-imports",
+      "target_stream": "tools refactor (future)",
+      "reason_deferred": "tools/ is outside S1 scope per Resume instructions"
+    },
+    {
+      "id": "R2",
+      "title": "ReproducibilityExporter has no production wiring site",
+      "target_stream": "future feature work",
+      "reason_deferred": "no existing wiring site to upgrade; adding one would be feature work"
+    },
+    {
+      "id": "R3",
+      "title": "Subagent tests fail because LineageCaptureHook now requires prior composition-root wiring",
+      "target_stream": "subagent / test-infra stream",
+      "reason_deferred": "fix belongs in conftest/fixture or in governance_hooks.py, both outside S1 file list"
+    },
+    {
+      "id": "R4",
+      "title": "3 pre-existing mypy errors in S1-touched files",
+      "target_stream": "typing-cleanup task",
+      "reason_deferred": "mechanical type fixes unrelated to port inversion"
+    }
+  ],
+  "self_judgment": "NOT PASS \u2014 final pass/fail reserved for A01 re-auditor. Direct A01 findings (3 violations) are resolved and the new boundary tests pass, but import-linter reports one broken contract via a transitive path through ds_agent.tools.sandbox, which is out of S1 scope."
+}

@@ -1,0 +1,22 @@
+{
+  "agent_id": "B11_reaudit",
+  "tier": 2,
+  "round": 2,
+  "delta_scope": "Path 8 only (Rollback atomicity); regression check on Paths 1-7, 9",
+  "started_at": "2026-04-17T00:00:00Z",
+  "scope_files_under_review": [
+    "src/ds_agent/application/ports/learning_store_port.py",
+    "src/ds_agent/application/learning/rollback_promotion.py",
+    "src/ds_agent/infrastructure/persistence/learning_store.py",
+    "tests/unit/application/test_rollback_atomicity.py",
+    "tests/unit/application/test_rollback_promotion.py"
+  ],
+  "round1_evidence_reference": "Docs/qa_run_2026-04-17/B11_portfolio_learning/B11_rollback_atomicity_sqlite_probe.json",
+  "fix_sprint_reference": "Docs/qa_run_2026-04-17/S6_rollback_atomicity/",
+  "principles": [
+    "auditor != modifier (no source edits)",
+    "self-confirmation bias avoided: own probe, do not rely on S6's B11_probe_simulation.json",
+    "Path 8 primary focus; regression check on Paths 1-7, 9",
+    "stricter pass bar: verify atomicity across 3 adversarial scenarios"
+  ]
+}

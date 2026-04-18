@@ -1,0 +1,26 @@
+metric_id: gross_margin
+display_name: Gross Margin
+owner: finance_team
+definition: "Recognized gross profit divided by recognized revenue within the reporting month."
+synonyms:
+  - gross margin percent
+  - GM
+grain: monthly
+unit: percentage
+direction: higher_is_better
+related_metrics:
+  - monthly_recurring_revenue
+  - lifetime_value
+caveats:
+  - Hosting-cost accrual timing can move the metric by a few basis points near month end.
+verified_query_ids:
+  - vq-gross-margin-postgres
+calculation:
+  numerator:
+    source: prod.finance.invoice_line
+    filter: invoice_status = 'posted'
+    aggregation: SUM(gross_profit_amount)
+  denominator:
+    source: prod.finance.invoice_line
+    filter: invoice_status = 'posted'
+    aggregation: SUM(recognized_revenue_amount)

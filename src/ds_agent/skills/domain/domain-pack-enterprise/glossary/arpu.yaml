@@ -1,0 +1,11 @@
+term_id: term.arpu
+canonical_form: ARPU
+definition: "Average revenue per user for active subscriptions in the month."
+synonyms:
+  - average revenue per user
+abbreviations:
+  - ARPU
+linked_metric_ids:
+  - average_revenue_per_user
+category: metric
+owner: finance_team

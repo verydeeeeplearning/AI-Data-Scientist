@@ -1,0 +1,11 @@
+term_id: term.wau
+canonical_form: WAU
+definition: "Weekly active users measured on a rolling seven-day basis."
+synonyms:
+  - weekly active users
+abbreviations:
+  - WAU
+linked_metric_ids:
+  - weekly_active_users
+category: metric
+owner: product_analytics

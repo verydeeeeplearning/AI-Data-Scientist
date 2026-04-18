@@ -1,0 +1,9 @@
+term_id: term.customer_churn
+canonical_form: customer churn
+definition: "Loss of customers or subscriptions over the reporting window."
+synonyms:
+  - subscriber churn
+linked_metric_ids:
+  - monthly_churn_rate
+category: metric
+owner: growth_team

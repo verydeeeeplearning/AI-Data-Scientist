@@ -1,0 +1,7 @@
+{
+  "exception_raised": true,
+  "item_status_after": "deprecated",
+  "any_deprecation_record_persisted": false,
+  "atomic": false,
+  "verdict": "NON_ATOMIC_PARTIAL (item deprecated without DeprecationRecord)"
+}

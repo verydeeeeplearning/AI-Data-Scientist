@@ -1,0 +1,30 @@
+{
+  "domain_external_import_violations": [],
+  "application_infrastructure_import_violations": [
+    {
+      "file": "src/ds_agent/application/services/lineage_capture_service.py",
+      "line": 11,
+      "import_type": "from",
+      "module": "ds_agent.infrastructure.persistence.lineage_store",
+      "relative_level": 0
+    },
+    {
+      "file": "src/ds_agent/application/services/reproducibility_exporter.py",
+      "line": 9,
+      "import_type": "from",
+      "module": "ds_agent.infrastructure.artifact.notebook_engine",
+      "relative_level": 0
+    },
+    {
+      "file": "src/ds_agent/application/services/scheduler_service.py",
+      "line": 11,
+      "import_type": "from",
+      "module": "ds_agent.infrastructure.cron_runner",
+      "relative_level": 0
+    }
+  ],
+  "summary": {
+    "domain_files_scanned": 97,
+    "application_files_scanned": 64
+  }
+}

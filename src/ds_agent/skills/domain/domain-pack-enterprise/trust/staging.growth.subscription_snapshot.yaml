@@ -1,0 +1,9 @@
+fqtn: staging.growth.subscription_snapshot
+grade: silver
+owner: growth_team
+description: "Pre-curated subscription snapshot used for investigation before promotion to gold marts."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Monitored staging mirror with freshness checks but pending final audit."
+last_audited: 2026-04-15

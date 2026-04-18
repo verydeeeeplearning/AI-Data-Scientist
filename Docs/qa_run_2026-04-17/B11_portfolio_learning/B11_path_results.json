@@ -1,0 +1,500 @@
+{
+  "path1": {
+    "path": "1 Portfolio 4-quadrant transitions",
+    "cases": [
+      {
+        "from": "active",
+        "to": "waiting",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "active",
+        "to": "monitoring",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "active",
+        "to": "completed",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "active",
+        "to": "cancelled",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "waiting",
+        "to": "active",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "waiting",
+        "to": "cancelled",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "monitoring",
+        "to": "active",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "monitoring",
+        "to": "playbook_candidate",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "monitoring",
+        "to": "completed",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "monitoring",
+        "to": "archived",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "playbook_candidate",
+        "to": "archived",
+        "expected": true,
+        "actual": true,
+        "ok": true
+      },
+      {
+        "from": "playbook_candidate",
+        "to": "monitoring",
+        "expected": false,
+        "actual": false,
+        "ok": true
+      },
+      {
+        "from": "playbook_candidate",
+        "to": "active",
+        "expected": false,
+        "actual": false,
+        "ok": true
+      },
+      {
+        "from": "completed",
+        "to": "active",
+        "expected": false,
+        "actual": false,
+        "ok": true
+      },
+      {
+        "from": "cancelled",
+        "to": "active",
+        "expected": false,
+        "actual": false,
+        "ok": true
+      },
+      {
+        "from": "archived",
+        "to": "active",
+        "expected": false,
+        "actual": false,
+        "ok": true
+      },
+      {
+        "from": "waiting",
+        "to": "monitoring",
+        "expected": false,
+        "actual": false,
+        "ok": true
+      }
+    ],
+    "all_ok": true,
+    "spec_vs_impl_terminal_note": {
+      "spec_states": [
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "impl_states": [
+        "completed",
+        "cancelled",
+        "archived"
+      ],
+      "notes": "Spec 09 text mentions 'completed/failed/cancelled'; implementation uses 'completed/cancelled/archived'. 'archived' is terminal for MONITORING/PLAYBOOK_CANDIDATE paths. No 'failed' state exists. This is a spec/impl drift but not a hard-constraint violation."
+    },
+    "illegal_transition_raises": true,
+    "illegal_transition_msg": "transition from playbook_candidate to monitoring is not allowed"
+  },
+  "path2": {
+    "path": "2 max_active_slots hard constraint",
+    "max_slots": 2,
+    "active_count": 2,
+    "available_slots": 0,
+    "refused": true,
+    "refusal_message": "All 2 active slots are occupied. Pause or complete an active task before resuming another.",
+    "informs_llm_active_count": true,
+    "all_ok": true
+  },
+  "path3": {
+    "path": "3 PriorityCalculator formula + informational-only",
+    "score": {
+      "raw": 36.5,
+      "sla_urgency": 10.0,
+      "business_weight": 3.0,
+      "age_factor": 1.0,
+      "expected_from_impl_formula": 36.5,
+      "matches_impl_formula": true
+    },
+    "spec_vs_impl_coeff_note": {
+      "spec_coefficients": {
+        "business_weight": 0.5,
+        "sla_urgency": 1.0,
+        "age_factor": 0.2
+      },
+      "impl_coefficients": {
+        "business_weight": 2.0,
+        "sla_urgency": 3.0,
+        "age_factor": 0.5
+      },
+      "note": "Coefficient numbers differ from the test-plan spec text, but ordering intent (P0>P3, overdue=10.0 boost) is preserved."
+    },
+    "public_api": [
+      "rank",
+      "score"
+    ],
+    "has_transition_or_enforce_methods": false,
+    "rank_output_is_sorted_desc": true,
+    "rank_does_not_call_store": true,
+    "informational_only": true,
+    "all_ok": true
+  },
+  "path4": {
+    "path": "4 WaitCondition 4 kinds",
+    "kinds": {
+      "timer_satisfied": {
+        "satisfied": true,
+        "reason": "timer expired at 2026-04-17T12:00:00+00:00"
+      },
+      "timer_pending": {
+        "satisfied": false,
+        "reason": "timer pending, 3600s remaining"
+      },
+      "approval": {
+        "satisfied": false,
+        "reason": "approval check requires runtime context"
+      },
+      "data_freshness": {
+        "satisfied": false,
+        "reason": "data freshness check requires warehouse adapter"
+      },
+      "external_resource": {
+        "satisfied": false,
+        "reason": "external resource check requires adapter"
+      }
+    },
+    "expected_satisfied_set": [
+      "timer_satisfied"
+    ],
+    "all_ok": true
+  },
+  "path5": {
+    "path": "5 Learning 8-state machine",
+    "cases": [
+      {
+        "from": "proposed",
+        "to": "under_review",
+        "expected_allowed": true,
+        "actual_allowed": true,
+        "ok": true
+      },
+      {
+        "from": "under_review",
+        "to": "approved",
+        "expected_allowed": true,
+        "actual_allowed": true,
+        "ok": true
+      },
+      {
+        "from": "approved",
+        "to": "promoted",
+        "expected_allowed": true,
+        "actual_allowed": true,
+        "ok": true
+      },
+      {
+        "from": "promoted",
+        "to": "monitored",
+        "expected_allowed": true,
+        "actual_allowed": true,
+        "ok": true
+      },
+      {
+        "from": "monitored",
+        "to": "deprecated",
+        "expected_allowed": true,
+        "actual_allowed": true,
+        "ok": true
+      },
+      {
+        "from": "deprecated",
+        "to": "archived",
+        "expected_allowed": true,
+        "actual_allowed": true,
+        "ok": true
+      },
+      {
+        "from": "proposed",
+        "to": "approved",
+        "expected_allowed": false,
+        "actual_allowed": false,
+        "ok": true
+      },
+      {
+        "from": "proposed",
+        "to": "promoted",
+        "expected_allowed": false,
+        "actual_allowed": false,
+        "ok": true
+      },
+      {
+        "from": "approved",
+        "to": "monitored",
+        "expected_allowed": false,
+        "actual_allowed": false,
+        "ok": true
+      },
+      {
+        "from": "promoted",
+        "to": "proposed",
+        "expected_allowed": false,
+        "actual_allowed": false,
+        "ok": true
+      },
+      {
+        "from": "deprecated",
+        "to": "promoted",
+        "expected_allowed": false,
+        "actual_allowed": false,
+        "ok": true
+      },
+      {
+        "from": "archived",
+        "to": "proposed",
+        "expected_allowed": false,
+        "actual_allowed": false,
+        "ok": true
+      },
+      {
+        "from": "archived",
+        "to": "approved",
+        "expected_allowed": false,
+        "actual_allowed": false,
+        "ok": true
+      }
+    ],
+    "happy_walk": [
+      "proposed",
+      "under_review",
+      "approved",
+      "promoted",
+      "monitored",
+      "deprecated",
+      "archived"
+    ],
+    "happy_walk_ok": true,
+    "reverse_rejected": true,
+    "reverse_reject_msg": "transition from promoted to proposed is not allowed",
+    "all_ok": true
+  },
+  "path6": {
+    "path": "6 Promotion thresholds",
+    "cases": [
+      {
+        "label": "just_below",
+        "item_type": "pattern",
+        "eval": 0.99,
+        "promoted": false,
+        "error": "Eval score 0.990 below threshold 1.000 (baseline=1.000 x 1.0)"
+      },
+      {
+        "label": "at_threshold",
+        "item_type": "pattern",
+        "eval": 1.0,
+        "promoted": true,
+        "record_id": "PR-b53580bf"
+      },
+      {
+        "label": "above_threshold",
+        "item_type": "pattern",
+        "eval": 1.01,
+        "promoted": true,
+        "record_id": "PR-c183096e"
+      },
+      {
+        "label": "just_below",
+        "item_type": "kb_entry",
+        "eval": 0.99,
+        "promoted": false,
+        "error": "Eval score 0.990 below threshold 1.000 (baseline=1.000 x 1.0)"
+      },
+      {
+        "label": "at_threshold",
+        "item_type": "kb_entry",
+        "eval": 1.0,
+        "promoted": true,
+        "record_id": "PR-126d3665"
+      },
+      {
+        "label": "above_threshold",
+        "item_type": "kb_entry",
+        "eval": 1.01,
+        "promoted": true,
+        "record_id": "PR-459d2eb5"
+      },
+      {
+        "label": "just_below",
+        "item_type": "custom_skill",
+        "eval": 1.01,
+        "promoted": false,
+        "error": "Eval score 1.010 below threshold 1.020 (baseline=1.000 x 1.02)"
+      },
+      {
+        "label": "at_threshold",
+        "item_type": "custom_skill",
+        "eval": 1.02,
+        "promoted": true,
+        "record_id": "PR-89e1f0e0"
+      },
+      {
+        "label": "above_threshold",
+        "item_type": "custom_skill",
+        "eval": 1.03,
+        "promoted": true,
+        "record_id": "PR-9d7efbee"
+      }
+    ],
+    "thresholds_in_code": {
+      "pattern": 1.0,
+      "kb_entry": 1.0,
+      "custom_skill": 1.02
+    },
+    "thresholds_match_spec": true,
+    "all_ok": true
+  },
+  "path7": {
+    "path": "7 Auto-deprecation on 2nd consecutive failure",
+    "first_fail_returned_none": true,
+    "status_after_first": "promoted",
+    "second_fail_returned_record": true,
+    "status_after_second": "deprecated",
+    "all_ok": true
+  },
+  "path8": {
+    "path": "8 Rollback atomicity",
+    "exception_raised": true,
+    "exception_msg": "simulated mid-rollback failure",
+    "item_saved_before_failure_call": "deprecated",
+    "deprecation_record_saved": false,
+    "atomicity_kind": "non_atomic_partial",
+    "store_uses_single_txn_for_both_methods": false,
+    "note": "RollbackPromotionUseCase performs two independent store writes (save_item then save_deprecation_record). There is NO use-case-level transaction wrapping them, so a mid-operation failure leaves the item in DEPRECATED state without a matching DeprecationRecord. This is a documented atomicity gap.",
+    "all_ok": false,
+    "finding": "FAIL \u2014 Rollback is NOT atomic. LearningItem.save_item succeeded and transitioned status to DEPRECATED in-memory, but save_deprecation_record failed and was not retried/compensated. Audit trail split: item shows deprecated, but no DeprecationRecord exists."
+  },
+  "path9": {
+    "path": "9 Feature flag off (DS_AGENT_PORTFOLIO_ENABLED=false)",
+    "off": {
+      "list_my_portfolio": {
+        "ok": false,
+        "error": {
+          "code": "DISABLED",
+          "message": "Portfolio manager is not enabled. Set DS_AGENT_PORTFOLIO_ENABLED=1."
+        }
+      },
+      "resume_task": {
+        "ok": false,
+        "error": {
+          "code": "DISABLED",
+          "message": "Portfolio manager is not enabled."
+        }
+      },
+      "pause_task": {
+        "ok": false,
+        "error": {
+          "code": "DISABLED",
+          "message": "Portfolio manager is not enabled."
+        }
+      },
+      "request_monitoring": {
+        "ok": false,
+        "error": {
+          "code": "DISABLED",
+          "message": "Portfolio manager is not enabled."
+        }
+      },
+      "set_sla": {
+        "ok": false,
+        "error": {
+          "code": "DISABLED",
+          "message": "Portfolio manager is not enabled."
+        }
+      }
+    },
+    "off_all_disabled": true,
+    "on": {
+      "list_my_portfolio": {
+        "ok": true,
+        "entries": [],
+        "count": 0
+      }
+    },
+    "learning_off": {
+      "list_learning_inbox": {
+        "ok": false,
+        "error": {
+          "code": "DISABLED",
+          "message": "Self-improve governance is not enabled."
+        }
+      },
+      "get_learning_item": {
+        "ok": false,
+        "error": {
+          "code": "DISABLED",
+          "message": "Self-improve governance is not enabled."
+        }
+      },
+      "list_promotions": {
+        "ok": false,
+        "error": {
+          "code": "DISABLED",
+          "message": "Self-improve governance is not enabled."
+        }
+      },
+      "list_deprecations": {
+        "ok": false,
+        "error": {
+          "code": "DISABLED",
+          "message": "Self-improve governance is not enabled."
+        }
+      }
+    },
+    "learning_off_all_disabled": true,
+    "registry_lookup_error": "cannot import name 'get_registry' from 'ds_agent.tools.registry' (C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\src\\ds_agent\\tools\\registry.py)",
+    "registry_tool_names_related": [],
+    "all_ok": true
+  }
+}

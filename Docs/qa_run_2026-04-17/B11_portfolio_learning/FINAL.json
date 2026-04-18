@@ -1,0 +1,64 @@
+{
+  "agent": "B11",
+  "role": "Portfolio / Learning Governance Tester",
+  "specs_tested": ["Spec 09 Portfolio", "Spec 10 Learning Governance"],
+  "date": "2026-04-17",
+  "project_root": "C:/Users/aquap/Desktop/AI_Data_Scientist_Demo",
+  "status": "pending_reviewer_judgement",
+  "self_pass_verdict": false,
+  "reconstruction_note": "FINAL.json was reconstructed by the orchestrator from B11_report.md + B11_path_results.json after the B11 subagent hit the API rate limit during the summary-return step. All underlying evidence files (probe outputs, pytest junit, reports) were already written by the subagent before the limit; no new tests were run to produce this file.",
+  "metrics": {
+    "paths_verified": "8/9",
+    "max_active_slots_enforced": true,
+    "auto_deprecation_enforced": true,
+    "rollback_atomic": false,
+    "priority_is_informational_only": true,
+    "llm_orchestrator_principle_preserved": true,
+    "scope_isolated_pytest": {"collected": 145, "passed": 145, "failed": 0, "skipped": 0}
+  },
+  "paths": {
+    "path1_quadrant_transitions": {"status": "pass", "note": "17/17 matrix cases match; illegal transitions raise ValueError. Doc drift D1 on terminal states."},
+    "path2_max_active_slots": {"status": "pass", "note": "3rd resume refused with SLOT_FULL error, active count info embedded."},
+    "path3_priority_calculator": {"status": "pass", "note": "Informational-only (public API = {score, rank}, no store mutation). Coefficient drift D2 is doc-only."},
+    "path4_wait_condition_kinds": {"status": "pass", "note": "Timer kind functional; Approval/DataFreshness/External return 'requires adapter' pending (maturity gap D3)."},
+    "path5_learning_state_machine": {"status": "pass", "note": "13/13 transition cases correct; invalid reverses raise ValueError."},
+    "path6_promotion_thresholds": {"status": "pass", "note": "pattern=1.00, kb_entry=1.00, custom_skill=1.02 exact match to spec. just_below/at/above cases all correct."},
+    "path7_auto_deprecation": {"status": "pass", "note": "2nd consecutive failure triggers auto-deprecate with DeprecationRecord."},
+    "path8_rollback_atomicity": {
+      "status": "fail",
+      "finding": "RollbackPromotionUseCase performs two independent store writes (save_item then save_deprecation_record) without a use-case-level transaction. Mid-operation failure leaves item in DEPRECATED state without a matching DeprecationRecord. Audit trail split.",
+      "evidence": "B11_rollback_atomicity_sqlite_probe.json",
+      "severity_assessment": "feature-level defect, not a security/auth critical failure per Plan §10.3. Candidate for Fix Sprint Round 3."
+    },
+    "path9_feature_flag_off": {"status": "pass", "note": "All portfolio + learning tools return DISABLED error when flags off; prompt builder hides governance section. Structural caveat D4 on tool registry still listing names (behavior-safe)."}
+  },
+  "drift_log": [
+    {"id": "D1", "severity": "low", "area": "terminal states wording"},
+    {"id": "D2", "severity": "low", "area": "PriorityCalculator coefficients"},
+    {"id": "D3", "severity": "medium", "area": "WaitCondition maturity gap"},
+    {"id": "D4", "severity": "low", "area": "prompt exposure on flag-off"}
+  ],
+  "constraints_observed": {
+    "source_unmodified": true,
+    "real_external_calls": 0,
+    "full_regression_avoided": true,
+    "data_dir_touched": false,
+    "llm_hint_injection": false
+  },
+  "evidence": [
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning/START.json",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning/B11_report.md",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning/B11_path_results.json",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning/B11_state_traces.md",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning/B11_state_transitions.jsonl",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning/B11_flag_on_off_diff.md",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning/B11_max_slots_rejection_sample.json",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning/B11_rollback_atomicity_sqlite_probe.json"
+  ],
+  "recommendations_to_next_tier": [
+    "Path 8 rollback atomicity FAIL → Fix Sprint Round 3 candidate (wrap save_item + save_deprecation_record in single txn, or add compensating revert).",
+    "Add pytest coverage for DISABLED branches of portfolio/learning tools.",
+    "Reconcile plan text with code for D1 (terminal states) and D2 (coefficients).",
+    "Mark D3 (WaitCondition adapter maturity) as v2 gap in spec."
+  ]
+}

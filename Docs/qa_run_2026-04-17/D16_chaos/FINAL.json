@@ -1,0 +1,129 @@
+{
+  "agent_id": "D16",
+  "agent_name": "Chaos / Recovery Engineer",
+  "tier": 4,
+  "solo": true,
+  "status": "pass",
+  "completed_at": "2026-04-17T12:24:10Z",
+  "inputs": {
+    "plan": "Docs/PRE_RELEASE_AI_TEST_PLAN_2026-04-17.md (\u00a77.1)",
+    "handoff": "Docs/qa_run_2026-04-17/HANDOFF_NEXT_AGENT.md",
+    "gate_in": "Docs/qa_run_2026-04-17/TIER3_GATE_DECISION.md (PASS)"
+  },
+  "metrics": {
+    "scenarios": 8,
+    "scenarios_recovered": 8,
+    "silent_failures": 0,
+    "orphan_processes_at_end": 0,
+    "cleanup_confirmed": true,
+    "data_dir_modified": false,
+    "user_config_modified": false,
+    "real_external_service_called": false,
+    "pytest_full_regression_run": false
+  },
+  "scenarios": [
+    {
+      "id": 1,
+      "name": "Mid-session kill + checkpoint resume",
+      "verdict": "pass",
+      "evidence": [
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario1_log.txt",
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario1_recovery.jsonl"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "SQLite write contention (WAL + BEGIN IMMEDIATE)",
+      "verdict": "pass",
+      "evidence": [
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario2_log.txt",
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario2_recovery.jsonl"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Keyring unavailable \u2192 in-memory fallback",
+      "verdict": "pass",
+      "evidence": [
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario3_log.txt",
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario3_recovery.jsonl"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "LLM network drop \u2192 retry \u2192 user-visible error",
+      "verdict": "pass",
+      "evidence": [
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario4_log.txt",
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario4_recovery.jsonl"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Sandbox disk-full ENOSPC \u2192 structured error, backend survives",
+      "verdict": "pass",
+      "evidence": [
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario5_log.txt",
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario5_recovery.jsonl"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Clock drift \u2192 SLA wrap-around protection + correct expiry",
+      "verdict": "pass",
+      "evidence": [
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario6_log.txt",
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario6_recovery.jsonl"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "5 concurrent sessions \u2192 channel identity + checkpoint isolation",
+      "verdict": "pass",
+      "evidence": [
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario7_log.txt",
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario7_recovery.jsonl"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Incident overlay persistence across app restart",
+      "verdict": "pass",
+      "evidence": [
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario8_log.txt",
+        "Docs/qa_run_2026-04-17/D16_chaos/D16_scenario8_recovery.jsonl"
+      ]
+    }
+  ],
+  "evidence": {
+    "report": "Docs/qa_run_2026-04-17/D16_chaos/D16_chaos_report.md",
+    "cleanup_report": "Docs/qa_run_2026-04-17/D16_chaos/D16_cleanup_report.txt",
+    "precheck": "Docs/qa_run_2026-04-17/D16_chaos/D16_precheck.txt",
+    "start_manifest": "Docs/qa_run_2026-04-17/D16_chaos/START.json",
+    "scripts_root": ".tmp/qa_D16/",
+    "orphan_detector": ".tmp/qa_D16/orphan_check.py"
+  },
+  "failures": [],
+  "recommendations": [
+    "D17 Regression Board Operator may proceed with same code snapshot.",
+    "Before D17 starts, confirm pre-existing ds-agent-api.exe pid=193632 on port 18850 is intentionally running or terminated (out of D16 scope; may affect D17 no-change delta).",
+    "No new RC- or PRE- tracker entries raised by D16."
+  ],
+  "constraints_honored": {
+    "no_source_modifications": true,
+    "no_data_directory_touched": true,
+    "no_real_keyring_disabled": true,
+    "no_real_disk_full_induced": true,
+    "no_real_external_service_calls": true,
+    "no_full_regression_pytest": true,
+    "no_self_pass_judgment": true,
+    "orphan_processes_zero_proof": true,
+    "scope_respected": true
+  },
+  "pass_criteria_check": {
+    "all_8_scenarios_recovered_or_clean_error": true,
+    "silent_failures_zero": true,
+    "orphan_processes_zero_at_end": true,
+    "cleanup_complete": true
+  }
+}

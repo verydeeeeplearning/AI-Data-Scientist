@@ -1,0 +1,69 @@
+name: weekly-kpi-triage
+version: 1
+summary: Weekly KPI anomaly triage for growth, sales, and marketing operators.
+authority_default: delegate
+audience_default: senior_staff
+skills_required:
+  - hypothesis-ranking
+  - uncertainty-quantification
+boundary:
+  allowed_data_domains:
+    - growth
+    - sales
+    - marketing
+  required_semantic_metrics:
+    - monthly_churn_rate
+    - revenue_per_user
+    - dau
+  allowed_action_classes:
+    - read_sql_gold
+    - read_sql_bronze
+    - artifact_draft
+    - jira_create
+required_checks:
+  - schema_drift
+  - temporal_leakage
+  - baseline_compare
+  - subgroup_stability
+  - causal_assumption_check
+required_artifacts:
+  - exec_brief
+  - ds_appendix
+  - jira_ticket
+auto_escalate_when:
+  - confidence_low
+  - deploy_needed
+  - sensitive_data_detected
+  - anomaly_severity_critical
+success_criteria:
+  - issue_classified
+  - root_cause_identified
+  - owner_assigned
+  - next_action_proposed
+action_policy_overrides:
+  jira_create:
+    delegate: auto
+certification:
+  current_level: delegate
+  next_target: autopilot
+  autopilot_requirements:
+    shadow_runs_passed: 10
+    critical_violations: 0
+    verifier_avg_score: 0.85
+    rollback_rehearsal: passed
+    owner_approvals: 2
+  history:
+    - date: 2026-03-01
+      level: shadow -> supervised
+      approved_by: operator-park
+      evidence_ref: certification/ev-2026-03-01.md
+    - date: 2026-03-20
+      level: supervised -> delegate
+      approved_by: owner-cho
+      evidence_ref: certification/ev-2026-03-20.md
+  next_review: 2026-06-01
+  deprecation:
+    trigger_conditions:
+      - "critical_violations_in_30d: >=1"
+      - "verifier_avg_score_in_30d: <0.75"
+    action: demote_one_level

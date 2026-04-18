@@ -1,0 +1,73 @@
+{
+  "stream": "S2_pii_redaction",
+  "agent": "fix-sprint-s2-pii-redaction",
+  "status": "pass",
+  "started_at_utc": "2026-04-17T19:21:40Z",
+  "completed_at_utc": "2026-04-17T19:45:00Z",
+  "scope": "Sentry PII redaction: email / phone / card patterns, extended field-name tokens, depth-limited deep redact, false-positive negative guard",
+  "self_judgement_disclaimer": "This status is a self-report for intake only. A02 auditor must re-run to adjudicate Tier 1 gate.",
+  "inputs": {
+    "work_order": "Docs/qa_run_2026-04-17/FIX_SPRINT_WORK_ORDER.md",
+    "A02_security_report.md_sha256": "e0933fa6eb26b90104bbffb244968dd3e185d9ea16128a5a0cb465b7961fa88c",
+    "A02_runtime_checks.json_sha256": "76c1b480559dd96a37921ed6fe5a4b19514bfda9263115d99ca4e6b12d7072c3"
+  },
+  "changed_files": [
+    {
+      "path": "src/ds_agent/infrastructure/observability/sentry_backend.py",
+      "kind": "modify",
+      "notes": "PII regex set, typed masks, Luhn validator, depth-limited deep redact, Callable import"
+    },
+    {
+      "path": "tests/unit/infrastructure/test_observability.py",
+      "kind": "modify",
+      "notes": "10 new tests: 8 PII scenarios + 1 existing-token regression + 1 false-positive negative"
+    }
+  ],
+  "changed_file_count": 2,
+  "evidence": {
+    "runtime_recheck": "Docs/qa_run_2026-04-17/S2_pii_redaction/runtime_recheck.json",
+    "diff_summary": "Docs/qa_run_2026-04-17/S2_pii_redaction/DIFF_SUMMARY.md",
+    "test_results": "Docs/qa_run_2026-04-17/S2_pii_redaction/TEST_RESULTS.md",
+    "changelog": "Docs/qa_run_2026-04-17/S2_pii_redaction/CHANGELOG.md"
+  },
+  "verification": {
+    "targeted_pytest": {
+      "command": "python -m pytest tests/unit/infrastructure/test_observability.py -v",
+      "result": "13 passed, 0 failed (3 pre-existing + 10 new)"
+    },
+    "A02_runtime_recheck": {
+      "message_email_removed": true,
+      "message_phone_removed": true,
+      "message_card_removed": true,
+      "extra_notes_email_removed": true,
+      "extra_notes_phone_removed": true,
+      "extra_notes_card_removed": true,
+      "field_token_redacted": true,
+      "field_customer_email_redacted": true,
+      "all_pass": true
+    },
+    "ruff_check": "clean on both changed files",
+    "ruff_format_check": "clean on both changed files",
+    "mypy_on_changed_file": "0 new errors introduced; 4 pre-existing sentry_sdk stub-not-found warnings remain (optional dependency baseline)",
+    "full_pytest_regression": {
+      "totals": "2339 passed, 42 failed, 5 skipped, 1 error",
+      "attribution": "All failures are outside observability: architecture-boundary (S1 stream scope), runtime-wiring / subagent / semantic-ports (application wiring under concurrent work), file_ops / placeholder / standing_order / startup_recovery / task_contract_api / telegram_runner / workspace_service (Windows temp-dir fixture teardown PermissionError — environmental), tools/test_integration_tools / schedulers / agent_eval_orchestrator (unrelated mock assertions), e2e test_config_get (S3 scope).",
+      "observability_adjacent_isolated_reruns": "tests/unit/application/test_pii_redaction.py (4/4), test_support_bundle_no_secrets (1/1), test_config::test_env_override_observability (1/1), test_config::test_load_migrates_v3_observability_defaults (1/1), test_api::test_set_config_updates_backend_observability (1/1) — all pass."
+    }
+  },
+  "pass_criteria_self_check": {
+    "new_pii_tests_8_pass": true,
+    "existing_token_redaction_no_regression": true,
+    "false_positive_negative_test_pass": true,
+    "ruff_clean": true,
+    "mypy_no_new_errors": true,
+    "observability_full_regression_clean": true
+  },
+  "scope_constraints_respected": {
+    "only_sentry_backend_and_test_observability_modified": true,
+    "no_other_redaction_modules_touched": true,
+    "no_sentry_sdk_version_change": true,
+    "no_cross_stream_files_touched": true
+  },
+  "notes": "Pattern compilation is still module-top cached. Luhn check added specifically to suppress false positives on UUID fragments, SHA-256 hex, and long non-card digit sequences; verified by negative test. Reviewer should treat this FINAL.json as an intake artifact only — final pass/fail belongs to the A02 re-audit."
+}

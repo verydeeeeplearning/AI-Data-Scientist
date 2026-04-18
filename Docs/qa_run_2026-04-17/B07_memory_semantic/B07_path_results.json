@@ -1,0 +1,136 @@
+{
+  "path1_fts5_precision": {
+    "status": "pass",
+    "mean_precision_at_10": 1.0,
+    "per_query": [
+      {
+        "query": "churn",
+        "expected_prefix": "tx-churn-",
+        "returned_count": 10,
+        "correct_count": 10,
+        "precision_at_10": 1.0,
+        "returned_keys": "tx-churn-1|tx-churn-2|tx-churn-4|tx-churn-5|tx-churn-7|tx-churn-8|tx-churn-10|tx-churn-11|tx-churn-13|tx-churn-14"
+      },
+      {
+        "query": "retention cohort",
+        "expected_prefix": "tx-churn-",
+        "returned_count": 10,
+        "correct_count": 10,
+        "precision_at_10": 1.0,
+        "returned_keys": "tx-churn-0|tx-churn-3|tx-churn-6|tx-churn-9|tx-churn-12|tx-churn-15|tx-churn-18|tx-churn-1|tx-churn-2|tx-churn-4"
+      },
+      {
+        "query": "\uc774\ud0c8\ub960",
+        "expected_prefix": "tx-ital-",
+        "returned_count": 10,
+        "correct_count": 10,
+        "precision_at_10": 1.0,
+        "returned_keys": "tx-ital-0|tx-ital-1|tx-ital-2|tx-ital-3|tx-ital-4|tx-ital-5|tx-ital-6|tx-ital-7|tx-ital-8|tx-ital-9"
+      },
+      {
+        "query": "\uace0\uac1d \uc774\ud0c8\ub960",
+        "expected_prefix": "tx-ital-",
+        "returned_count": 10,
+        "correct_count": 10,
+        "precision_at_10": 1.0,
+        "returned_keys": "tx-ital-0|tx-ital-1|tx-ital-2|tx-ital-3|tx-ital-4|tx-ital-5|tx-ital-6|tx-ital-7|tx-ital-8|tx-ital-9"
+      },
+      {
+        "query": "LTV",
+        "expected_prefix": "tx-ltv-",
+        "returned_count": 10,
+        "correct_count": 10,
+        "precision_at_10": 1.0,
+        "returned_keys": "tx-ltv-0|tx-ltv-1|tx-ltv-2|tx-ltv-3|tx-ltv-4|tx-ltv-5|tx-ltv-6|tx-ltv-7|tx-ltv-8|tx-ltv-9"
+      },
+      {
+        "query": "lifetime value",
+        "expected_prefix": "tx-ltv-",
+        "returned_count": 10,
+        "correct_count": 10,
+        "precision_at_10": 1.0,
+        "returned_keys": "tx-ltv-0|tx-ltv-1|tx-ltv-2|tx-ltv-3|tx-ltv-4|tx-ltv-5|tx-ltv-6|tx-ltv-7|tx-ltv-8|tx-ltv-9"
+      },
+      {
+        "query": "\ub9e4\ucd9c",
+        "expected_prefix": "tx-maeul-",
+        "returned_count": 10,
+        "correct_count": 10,
+        "precision_at_10": 1.0,
+        "returned_keys": "tx-maeul-0|tx-maeul-1|tx-maeul-2|tx-maeul-3|tx-maeul-4|tx-maeul-5|tx-maeul-6|tx-maeul-7|tx-maeul-8|tx-maeul-9"
+      },
+      {
+        "query": "\ubd84\uae30\ubcc4 \ub9e4\ucd9c",
+        "expected_prefix": "tx-maeul-",
+        "returned_count": 10,
+        "correct_count": 10,
+        "precision_at_10": 1.0,
+        "returned_keys": "tx-maeul-0|tx-maeul-1|tx-maeul-2|tx-maeul-3|tx-maeul-4|tx-maeul-5|tx-maeul-6|tx-maeul-7|tx-maeul-8|tx-maeul-9"
+      }
+    ],
+    "csv": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_B07\\B07_fts5_precision.csv",
+    "elapsed_sec": 0.616
+  },
+  "path2_unified_aggregate": {
+    "status": "pass",
+    "types_seen": [
+      "code_pattern",
+      "domain_knowledge",
+      "experiment",
+      "project"
+    ],
+    "missing_types": [],
+    "result_count": 4,
+    "elapsed_sec": 0.455
+  },
+  "path3_semantic_first_fallback": {
+    "status": "pass",
+    "present_sources": [
+      "semantic_memory"
+    ],
+    "absent_sources": [
+      "domain_kb_legacy"
+    ],
+    "present_count": 1,
+    "absent_count": 1,
+    "elapsed_sec": 0.062
+  },
+  "path4_dual_write": {
+    "status": "pass",
+    "domain_kb_delta": 1,
+    "pending_delta": 1,
+    "new_proposal_ids": [
+      "SP-auto-79a7aa54"
+    ],
+    "elapsed_sec": 0.171
+  },
+  "path5_semantic_proposal_approve": {
+    "status": "pass",
+    "alias_persisted": true,
+    "approved_status": "approved",
+    "rejected_status": "rejected",
+    "metric_synonyms": [
+      "roas",
+      "roi_ads"
+    ],
+    "elapsed_sec": 0.206
+  },
+  "path6_data_trust_registry": {
+    "status": "pass",
+    "metric_like_warning_emitted": true,
+    "post_tool_warning_appended": true,
+    "untrusted_table_denied": true,
+    "deny_reason_includes_table": true,
+    "deny_reason_includes_untrusted_warning": true,
+    "deny_reason_excerpt": "Semantic trust policy requires confirmation for tables: warehouse.bronze.raw_events. Warnings: untrusted table referenced.",
+    "elapsed_sec": 0.042
+  },
+  "path7_verified_query_store": {
+    "status": "pass",
+    "sql_injected_correctly": true,
+    "vq_id_found": "vq-churn-monthly",
+    "sql_excerpt": "SELECT date_trunc('month', activity_date) AS month, 1 - COUNT(DISTINCT retained_customer_id)::float / NULLIF(COUNT(DISTINCT customer_id),0) AS churn_rate FROM f",
+    "missing_vq_behavior": "empty_dto",
+    "elapsed_sec": 0.126
+  }
+}

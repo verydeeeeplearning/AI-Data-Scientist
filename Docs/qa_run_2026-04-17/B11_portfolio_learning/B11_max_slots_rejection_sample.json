@@ -1,0 +1,22 @@
+{
+  "probe": "max_active_slots hard constraint",
+  "setup": {
+    "env": {"DS_AGENT_MAX_ACTIVE_SLOTS": "2"},
+    "pre_seeded_active_entries": ["PE-a", "PE-b"]
+  },
+  "slot_manager_state": {
+    "max_slots": 2,
+    "active_count": 2,
+    "available_slots": 0
+  },
+  "refusal_message_returned_by_slot_manager": "All 2 active slots are occupied. Pause or complete an active task before resuming another.",
+  "resume_task_tool_json_response": {
+    "ok": false,
+    "error": {
+      "code": "SLOT_FULL",
+      "message": "All 2 active slots are occupied. Pause or complete an active task before resuming another."
+    }
+  },
+  "informs_llm_of_current_active_count": true,
+  "verdict": "ENFORCED — the SlotManager.acquire_or_refuse() hard-constraint blocks the 3rd resume_task. The message includes the configured max (2) and an instructive hint. The LLM cannot override this via prompt."
+}

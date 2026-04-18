@@ -1,0 +1,9 @@
+fqtn: prod.marketing.attribution_touch
+grade: gold
+owner: marketing_ops
+description: "Attributed marketing spend mart aligned to campaign and channel taxonomy."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Certified acquisition-spend mart reconciled to the budget model."
+last_audited: 2026-04-15

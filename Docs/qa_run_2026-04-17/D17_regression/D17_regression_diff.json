@@ -1,0 +1,206 @@
+{
+  "path1_no_change_delta": {
+    "baseline_source": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\Docs\\qa_run_2026-04-17\\C14_gold_tasks\\C14_prior_baseline.json",
+    "baseline_dimension_means": {
+      "scoping_accuracy": 1.0,
+      "metric_selection_accuracy": 0.9,
+      "temporal_leakage_detection": 1.0,
+      "tool_trajectory": 1.0,
+      "artifact_faithfulness": 1.0,
+      "exec_summary_accuracy": 1.0,
+      "approval_judgment": 1.0,
+      "session_completeness": 1.0,
+      "operator_satisfaction": 1.0,
+      "time_to_decision": 1.0
+    },
+    "current_dimension_means": {
+      "scoping_accuracy": 1.0,
+      "metric_selection_accuracy": 0.9,
+      "temporal_leakage_detection": 1.0,
+      "tool_trajectory": 1.0,
+      "artifact_faithfulness": 1.0,
+      "exec_summary_accuracy": 1.0,
+      "approval_judgment": 1.0,
+      "session_completeness": 1.0,
+      "operator_satisfaction": 1.0,
+      "time_to_decision": 1.0
+    },
+    "dimension_deltas": {
+      "scoping_accuracy": 0.0,
+      "metric_selection_accuracy": 0.0,
+      "temporal_leakage_detection": 0.0,
+      "tool_trajectory": 0.0,
+      "artifact_faithfulness": 0.0,
+      "exec_summary_accuracy": 0.0,
+      "approval_judgment": 0.0,
+      "session_completeness": 0.0,
+      "operator_satisfaction": 0.0,
+      "time_to_decision": 0.0
+    },
+    "max_abs_dimension_delta": 0.0,
+    "tolerance": 1e-09,
+    "delta_precisely_zero": true,
+    "per_task": [
+      {
+        "task_id": "finance.fraud_triage.v1",
+        "domain": "finance",
+        "weighted_score": 0.99,
+        "passed": true
+      },
+      {
+        "task_id": "healthcare.readmission_triage.v1",
+        "domain": "healthcare",
+        "weighted_score": 0.99,
+        "passed": true
+      },
+      {
+        "task_id": "marketing.lead_scoring_pipeline.v1",
+        "domain": "marketing",
+        "weighted_score": 0.99,
+        "passed": true
+      },
+      {
+        "task_id": "ops.inventory_restock_risk.v1",
+        "domain": "ops",
+        "weighted_score": 0.99,
+        "passed": true
+      },
+      {
+        "task_id": "retail.churn_scoping.v1",
+        "domain": "retail",
+        "weighted_score": 0.99,
+        "passed": true
+      },
+      {
+        "task_id": "saas.trial_conversion_scoping.v1",
+        "domain": "saas",
+        "weighted_score": 0.99,
+        "passed": true
+      }
+    ],
+    "dataset_path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_D17\\d17_no_change_dataset.jsonl",
+    "status": "pass",
+    "note": "No-change delta = 0 is the PRE_RELEASE plan §10.3 No-Go trigger. Any non-zero delta signals non-determinism in scorers or harness."
+  },
+  "path2_synthetic_regression": {
+    "injected_delta": 0.01,
+    "baseline_dimension_means": {
+      "scoping_accuracy": 1.0,
+      "metric_selection_accuracy": 0.9,
+      "temporal_leakage_detection": 1.0,
+      "tool_trajectory": 1.0,
+      "artifact_faithfulness": 1.0,
+      "exec_summary_accuracy": 1.0,
+      "approval_judgment": 1.0,
+      "session_completeness": 1.0,
+      "operator_satisfaction": 1.0,
+      "time_to_decision": 1.0
+    },
+    "case_headroom": {
+      "dim": "metric_selection_accuracy",
+      "delta": 0.01,
+      "baseline_value": 0.9,
+      "reaches_cap": false,
+      "expected_observed_delta": 0.010000000000000009,
+      "observed_delta": 0.010000000000000009,
+      "exact_match": true,
+      "other_dims_quiet": true,
+      "all_deltas": {
+        "scoping_accuracy": 0.0,
+        "metric_selection_accuracy": 0.010000000000000009,
+        "temporal_leakage_detection": 0.0,
+        "tool_trajectory": 0.0,
+        "artifact_faithfulness": 0.0,
+        "exec_summary_accuracy": 0.0,
+        "approval_judgment": 0.0,
+        "session_completeness": 0.0,
+        "operator_satisfaction": 0.0,
+        "time_to_decision": 0.0
+      },
+      "current_dimension_means": {
+        "scoping_accuracy": 1.0,
+        "metric_selection_accuracy": 0.91,
+        "temporal_leakage_detection": 1.0,
+        "tool_trajectory": 1.0,
+        "artifact_faithfulness": 1.0,
+        "exec_summary_accuracy": 1.0,
+        "approval_judgment": 1.0,
+        "session_completeness": 1.0,
+        "operator_satisfaction": 1.0,
+        "time_to_decision": 1.0
+      },
+      "dataset_path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_D17\\d17_synthetic_headroom.jsonl"
+    },
+    "case_ceiling": {
+      "dim": "tool_trajectory",
+      "delta": 0.01,
+      "baseline_value": 1.0,
+      "reaches_cap": true,
+      "expected_observed_delta": 0.0,
+      "observed_delta": 0.0,
+      "exact_match": true,
+      "other_dims_quiet": true,
+      "all_deltas": {
+        "scoping_accuracy": 0.0,
+        "metric_selection_accuracy": 0.0,
+        "temporal_leakage_detection": 0.0,
+        "tool_trajectory": 0.0,
+        "artifact_faithfulness": 0.0,
+        "exec_summary_accuracy": 0.0,
+        "approval_judgment": 0.0,
+        "session_completeness": 0.0,
+        "operator_satisfaction": 0.0,
+        "time_to_decision": 0.0
+      },
+      "current_dimension_means": {
+        "scoping_accuracy": 1.0,
+        "metric_selection_accuracy": 0.9,
+        "temporal_leakage_detection": 1.0,
+        "tool_trajectory": 1.0,
+        "artifact_faithfulness": 1.0,
+        "exec_summary_accuracy": 1.0,
+        "approval_judgment": 1.0,
+        "session_completeness": 1.0,
+        "operator_satisfaction": 1.0,
+        "time_to_decision": 1.0
+      },
+      "dataset_path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_D17\\d17_synthetic_ceiling.jsonl"
+    },
+    "injected_reflects_single_dim": true,
+    "headroom_case_ok": true,
+    "ceiling_case_ok": true,
+    "status": "pass",
+    "note": "Path 2 runs TWO synthetic cases via _PerturbScorer wrapper (NO source modification): (A) inject +0.01 on a dim with headroom (metric_selection_accuracy, base=0.9) -> delta exactly +0.01; (B) inject +0.01 on a dim at ceiling (tool_trajectory, base=1.0) -> EvalScore.value clamped to 1.0 -> observed delta 0. Both cases MUST leave other dims at 0 delta."
+  },
+  "path3_alert_dispatch": {
+    "alert_count": 12,
+    "fingerprint_len": 64,
+    "slack_captured_count": 1,
+    "teams_captured_count": 1,
+    "slack_received": true,
+    "teams_received": true,
+    "alert_dispatch_ok": true,
+    "delivery_channels": [
+      "slack",
+      "teams"
+    ]
+  },
+  "path4_daemon_schedule": {
+    "daemon_ok": true,
+    "order_present": true,
+    "cron_expr_ok": true,
+    "fired": true,
+    "dispatch_invoked": true,
+    "history_rows": 1
+  },
+  "path5_freeze_rollback": {
+    "sha_before": "ef5054fd2bf8816af8ec86ac9452fe7d996972749b6cf6b047224dc9d58aceee",
+    "sha_candidate": "d4a5abf524ba93926e5f77173260aa4034ec68964c499317ce5e2a71d028a38e",
+    "sha_restored": "ef5054fd2bf8816af8ec86ac9452fe7d996972749b6cf6b047224dc9d58aceee",
+    "mutated_by_candidate": true,
+    "byte_restored": true,
+    "identical_bytes": true,
+    "reloaded_commit_matches": true,
+    "rollback_byte_level_restored": true
+  }
+}

@@ -1,0 +1,9 @@
+fqtn: staging.finance.invoice_raw
+grade: silver
+owner: finance_team
+description: "Raw invoice staging feed prior to revenue-recognition adjustments."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Monitored finance ingest used for reconciliation before gold transforms."
+last_audited: 2026-04-15

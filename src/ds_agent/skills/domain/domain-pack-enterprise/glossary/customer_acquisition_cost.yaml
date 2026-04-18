@@ -1,0 +1,9 @@
+term_id: term.customer_acquisition_cost
+canonical_form: customer acquisition cost
+definition: "Attributed acquisition spend divided by new paying customers."
+synonyms:
+  - cac
+linked_metric_ids:
+  - customer_acquisition_cost
+category: metric
+owner: marketing_ops

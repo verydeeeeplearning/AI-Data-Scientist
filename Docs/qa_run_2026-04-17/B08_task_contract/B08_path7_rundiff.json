@@ -1,0 +1,12 @@
+{
+  "run1_sha256_json": "4b8ce01fb2062836710f41a0c50eb23b618970beea0c28309bf6bbe6b7891238",
+  "run2_sha256_json": "4b8ce01fb2062836710f41a0c50eb23b618970beea0c28309bf6bbe6b7891238",
+  "json_bytes_identical": true,
+  "json_sha_equal": true,
+  "run1_sha256_markdown": "48e6b19a338a316d3e8c1ec7ddbf61abe8a818ada0ba5999a44b6b5d743e9e72",
+  "run2_sha256_markdown": "48e6b19a338a316d3e8c1ec7ddbf61abe8a818ada0ba5999a44b6b5d743e9e72",
+  "markdown_bytes_identical": true,
+  "markdown_sha_equal": true,
+  "json_length_bytes": 1879,
+  "markdown_length_bytes": 783
+}

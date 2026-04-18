@@ -1,0 +1,9 @@
+fqtn: prod.support.ticket
+grade: gold
+owner: support_ops
+description: "Support ticket mart with SLA timestamps and queue ownership metadata."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Certified support operations mart for service-level diagnostics."
+last_audited: 2026-04-15

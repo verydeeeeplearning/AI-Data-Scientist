@@ -1,0 +1,7 @@
+Regression board: records=6, recent score=0.990, baseline score=0.990, 
+delta=-0.000
+  pass rate: recent=100.0%, baseline=100.0%, delta=+0.0pp
+  baseline source: frozen
+  frozen baseline: commit=c14-cli-sha, score=0.990, pass_rate=100.0%
+  alerts: none
+  dispatched alerts: 0 across 0 channel(s)

@@ -1,0 +1,49 @@
+{
+  "port_alloc": {
+    "find_free_port_defined": true,
+    "find_free_port_called_before_run": true,
+    "fallback_range": true,
+    "raises_on_exhaustion": true,
+    "ready_in_lifespan_only": true,
+    "token_generation": true,
+    "ws_token_env_override": true,
+    "ws_auth_reject": true
+  },
+  "electron_backend_launcher": {
+    "env_override_dsgabackendcommand": true,
+    "packaged_binary_path_resolution": true,
+    "preflight_check": true,
+    "max_restarts_3": true,
+    "startup_timeout_30s": true,
+    "health_verify_after_ready": true,
+    "ready_regex": true,
+    "ready_token_redacted_in_log": true,
+    "classifies_failure_reasons": true
+  },
+  "diagnostic_window_routing": {
+    "createDiagnosticWindow_defined": true,
+    "screen_diagnostic_query": true,
+    "startup_result_serialized": true,
+    "sandbox_true": true,
+    "context_isolation_true": true
+  },
+  "main_entry_flow": {
+    "calls_createDiagnosticWindow_on_failure": true,
+    "calls_createMainWindow_on_success": true,
+    "captures_main_exception": true,
+    "stops_backend_on_exit": true,
+    "records_diagnostic_log": true
+  },
+  "playwright_smoke_tests": {
+    "happy_uses_DS_AGENT_BACKEND_COMMAND": true,
+    "happy_checks_for_hero": true,
+    "happy_guards_against_diagnostic": true,
+    "diag_uses_bad_binary_env": true,
+    "diag_checks_binary_not_found_title": true,
+    "both_use_built_renderer_env": true
+  },
+  "_summary": {
+    "total": 33,
+    "passed": 33
+  }
+}

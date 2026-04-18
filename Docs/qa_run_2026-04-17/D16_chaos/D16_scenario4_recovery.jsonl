@@ -1,0 +1,2 @@
+{"step": "network_drop_observation", "default_max_retries": 3, "sdk_client_max_retries": 3, "call_count": 2, "error_type": "_SimNetworkDown", "error_message": "simulated network drop", "user_payload": {"status": "error", "error_class": "_SimNetworkDown", "user_message": "Network issue while calling LLM provider after 3 attempts — please check your connection and retry. (error=_SimNetworkDown)"}}
+{"step": "verdict", "status": "pass"}

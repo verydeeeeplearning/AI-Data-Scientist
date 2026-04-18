@@ -1,0 +1,10 @@
+[2026-04-17T01:57:03Z] Scenario 2 START — SQLite lock contention under WAL + BEGIN IMMEDIATE
+[2026-04-17T01:57:03Z] db_path=C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\.tmp\qa_D16\scenario_2\contention.db
+[2026-04-17T01:57:05Z] writer-A rc=0 stderr=
+[2026-04-17T01:57:05Z] writer-B rc=0 stderr=
+[2026-04-17T01:57:05Z] both writers finished in 1.40s
+[2026-04-17T01:57:05Z] writer-A: inserted=20/20 errors=0
+[2026-04-17T01:57:05Z] writer-B: inserted=20/20 errors=0
+[2026-04-17T01:57:05Z] final_total_rows=40 per_writer={'writer-A': 20, 'writer-B': 20}
+[2026-04-17T01:57:05Z] writer_transitions=1 (>=1 means both writers made progress concurrently)
+[2026-04-17T01:57:05Z] PASS: concurrent writers serialized under BEGIN IMMEDIATE, final consistency OK

@@ -1,0 +1,70 @@
+{
+  "case": "HAPPY_all_layers_pass",
+  "verdict_id": "RV-1776371632971339600",
+  "overall": "pass",
+  "result": "pass",
+  "confidence": {
+    "score": 1.0,
+    "grade": "high"
+  },
+  "layer_results": [
+    {
+      "layer": "statistical",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "statistical_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "stable"
+        }
+      ]
+    },
+    {
+      "layer": "data",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "data_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "clean"
+        }
+      ]
+    },
+    {
+      "layer": "policy",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "policy_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "safe"
+        }
+      ]
+    },
+    {
+      "layer": "narrative",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "narrative_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "aligned"
+        }
+      ]
+    }
+  ],
+  "blocking_issues": [],
+  "recommended_actions": []
+}

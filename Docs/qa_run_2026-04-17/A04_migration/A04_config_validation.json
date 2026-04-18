@@ -1,0 +1,85 @@
+{
+  "cases": {
+    "invalid_agent_mode.yaml": {
+      "path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\Docs\\qa_run_2026-04-17\\A04_migration\\A04_config_fixtures\\invalid_agent_mode.yaml",
+      "raised_validation_error": true,
+      "error_count": 1,
+      "errors": [
+        {
+          "type": "literal_error",
+          "loc": [
+            "agent",
+            "mode"
+          ],
+          "msg": "Input should be 'auto', 'supervised' or 'step-by-step'",
+          "input": "invalid-mode",
+          "ctx": {
+            "expected": "'auto', 'supervised' or 'step-by-step'"
+          },
+          "url": "https://errors.pydantic.dev/2.12/v/literal_error"
+        }
+      ],
+      "message": "1 validation error for DSAgentConfig\nagent.mode\n  Input should be 'auto', 'supervised' or 'step-by-step' [type=literal_error, input_value='invalid-mode', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/literal_error"
+    },
+    "invalid_max_iterations.yaml": {
+      "path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\Docs\\qa_run_2026-04-17\\A04_migration\\A04_config_fixtures\\invalid_max_iterations.yaml",
+      "raised_validation_error": true,
+      "error_count": 1,
+      "errors": [
+        {
+          "type": "int_parsing",
+          "loc": [
+            "agent",
+            "max_iterations"
+          ],
+          "msg": "Input should be a valid integer, unable to parse string as an integer",
+          "input": "not-a-number",
+          "url": "https://errors.pydantic.dev/2.12/v/int_parsing"
+        }
+      ],
+      "message": "1 validation error for DSAgentConfig\nagent.max_iterations\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='not-a-number', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/int_parsing"
+    },
+    "invalid_connector.yaml": {
+      "path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\Docs\\qa_run_2026-04-17\\A04_migration\\A04_config_fixtures\\invalid_connector.yaml",
+      "raised_validation_error": true,
+      "error_count": 1,
+      "errors": [
+        {
+          "type": "value_error",
+          "loc": [
+            "connectors",
+            "warehouse"
+          ],
+          "msg": "Value error, Connector settings require 'database'",
+          "input": {
+            "type": "postgres",
+            "label": "warehouse",
+            "credential_method": "env",
+            "credential_ref": "PG_DSN",
+            "read_only": true,
+            "timeout_seconds": 30,
+            "max_rows": 10000,
+            "options": {
+              "host": "localhost"
+            }
+          },
+          "ctx": {
+            "error": "Connector settings require 'database'"
+          },
+          "url": "https://errors.pydantic.dev/2.12/v/value_error"
+        }
+      ],
+      "message": "1 validation error for DSAgentConfig\nconnectors.warehouse\n  Value error, Connector settings require 'database' [type=value_error, input_value={'type': 'postgres', 'lab...: {'host': 'localhost'}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+    }
+  },
+  "feature_flags": {
+    "DS_AGENT_PORTFOLIO_ENABLED": {
+      "original_value": null,
+      "enabled_with_empty_env": false
+    },
+    "DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1": {
+      "original_value": null,
+      "enabled_with_empty_env": false
+    }
+  }
+}

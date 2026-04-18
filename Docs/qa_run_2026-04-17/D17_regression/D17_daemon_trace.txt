@@ -1,0 +1,16 @@
+D17 Path 4 - daemon schedule trace
+- ds-agent-daemon console_script entry: true (verified via
+  .venv/Lib/site-packages/ds_agent-0.1.0.dist-info/entry_points.txt)
+- regression_alert_scheduler module: present at
+  src/ds_agent/runtime/regression_alert_scheduler.py
+- StandingOrder registered: order_id=evaluation_regression_alerts
+  name='Evaluation Regression Alert Sweep'
+  cron='*/30 * * * *'
+  scope={'system': 'evaluation', 'job': 'regression_alert_dispatch', 'filters': ['mode=offline', 'domain=all', 'channels=slack,teams']}
+- next_run_at after register (epoch): 1776431112.612692
+- run_due(now=t+120s) fired: True
+- fake_dispatch invoked 1 time(s)
+- dispatch kwargs: [{'channels': ('slack', 'teams'), 'mode': 'offline', 'domain': None, 'recent_window': 3, 'baseline_window_days': 14, 'skip_if_unchanged': True, 'dispatch_source': 'schedule'}]
+- scheduler history rows: 1
+  most recent summary: Regression alert sweep found no active board alerts.
+- daemon_ok: True

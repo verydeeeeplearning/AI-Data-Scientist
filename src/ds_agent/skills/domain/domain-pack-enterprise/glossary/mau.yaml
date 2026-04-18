@@ -1,0 +1,11 @@
+term_id: term.mau
+canonical_form: MAU
+definition: "Monthly active users measured from the certified daily activity mart."
+synonyms:
+  - monthly active users
+abbreviations:
+  - MAU
+linked_metric_ids:
+  - monthly_active_users
+category: metric
+owner: product_analytics

@@ -1,0 +1,102 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 1 /Kids [4 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 916 >>
+stream
+BT
+/F1 12 Tf
+14 TL
+54 740 Td
+(executive pdf) Tj
+T*
+(Read-only compliance artifact.) Tj
+T*
+() Tj
+T*
+(Artifact: exec_brief) Tj
+T*
+(Audience: executive) Tj
+T*
+(Theme: default_v1) Tj
+T*
+(Task: TC-2026-207) Tj
+T*
+(Pack: DP-1042) Tj
+T*
+(Generated At: 2026-04-17T09:00:00+00:00) Tj
+T*
+(Tenant: default) Tj
+T*
+(Analysis: fa-99) Tj
+T*
+(Signed by: ds-agent-prerelease) Tj
+T*
+() Tj
+T*
+(Summary) Tj
+T*
+(B10 audit doc) Tj
+T*
+() Tj
+T*
+(?? ??) Tj
+T*
+(* ???? 3?? ???? ???? ????.) Tj
+T*
+(* ?? KPI ???: ?? 2.1% ??.) Tj
+T*
+(* ??? ?? ?? ??? ???.) Tj
+T*
+(Citations: lineage://dataset/snapshot_2026_04_10) Tj
+T*
+() Tj
+T*
+(?? ??) Tj
+T*
+(* ?? ?? ??: ? 24?? ?? ??.) Tj
+T*
+(* ?? OKR ?? ???.) Tj
+T*
+(Citations: lineage://dataset/snapshot_2026_04_10) Tj
+T*
+() Tj
+T*
+(??) Tj
+T*
+(* ??? ??? A/B ???? 4? ? ??? ?? ?????.) Tj
+T*
+(Citations: lineage://dataset/snapshot_2026_04_10) Tj
+T*
+() Tj
+T*
+(Verifier Flags) Tj
+T*
+(- needs_secondary_review) Tj
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000191 00000 n 
+0000000317 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1284
+%%EOF

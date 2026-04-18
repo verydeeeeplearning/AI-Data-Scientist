@@ -1,0 +1,9 @@
+fqtn: staging.product.session_fact
+grade: silver
+owner: product_analytics
+description: "Session-level activity fact used for engagement debugging and ad hoc slicing."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Supports investigation workflows but not certified KPI aggregation."
+last_audited: 2026-04-15

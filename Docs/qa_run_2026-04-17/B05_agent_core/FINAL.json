@@ -1,0 +1,46 @@
+{
+  "agent_id": "B05",
+  "tier": 2,
+  "status": "pass",
+  "started_at": "2026-04-17T00:00:00Z",
+  "finished_at": "2026-04-17T00:00:00Z",
+  "duration_sec": 1200,
+  "code_sha": "git-unavailable",
+  "evidence": [
+    "Docs/qa_run_2026-04-17/B05_agent_core/START.json",
+    "Docs/qa_run_2026-04-17/B05_agent_core/junit.xml",
+    "Docs/qa_run_2026-04-17/B05_agent_core/B05_fire_trace.jsonl",
+    "Docs/qa_run_2026-04-17/B05_agent_core/B05_targeted_results.json",
+    "Docs/qa_run_2026-04-17/B05_agent_core/B05_hook_matrix.md",
+    "Docs/qa_run_2026-04-17/B05_agent_core/B05_report.md",
+    ".tmp/qa_B05/hook_fire_trace.py",
+    ".tmp/qa_B05/targeted_checks.py"
+  ],
+  "metrics": {
+    "hooks_registered": 30,
+    "hooks_fired": 30,
+    "dead_hooks": [],
+    "budget_guard_verified": true,
+    "iteration_budget_boundary_verified": true,
+    "prompt_builder_token_budget_verified": true,
+    "session_init_single_injection_verified": true,
+    "review_artifact_capture_verified": true,
+    "scoped_pytest_passed": 212,
+    "scoped_pytest_failed": 0,
+    "hooks_with_deny_tested": 6,
+    "hooks_with_modify_tested": 13,
+    "hooks_with_session_init_injection": 3,
+    "hooks_with_final_response_mutation": 1
+  },
+  "notes": [
+    "All 30 hooks registered by build_hook_registry fired during one mocked DSAgent.run() session.",
+    "BudgetGuardHook DENY boundary verified exactly at 95% and beyond; IterationBudget terminates at max_iterations=3 (no 4th LLM call).",
+    "PromptBuilder drops optional sections (memory, project, portfolio, learning) under tight token budget and preserves required identity/authority/safety sections.",
+    "SessionInitHook injects DS methodology + safety rules exactly once per session invocation; ProblemTypeRouterHook and ReviewArtifactCaptureHook also emit session-init text.",
+    "ReviewArtifactCaptureHook correctly parses the actual on-wire marker <!-- DS_REVIEW_ARTIFACTS {...} --> (not <ds:review_artifacts> as the plan suggested), strips it from cleaned response, and invokes DecisionOsContainer.record_review_artifact.",
+    "No source modifications performed; no real external adapters invoked; no full-regression pytest (HANDOFF §4.5 Windows flake avoidance).",
+    "Pre-existing items out of scope and untouched: test_semantic_ports_are_runtime_checkable, mypy 3-count."
+  ],
+  "self_pass_declaration": false,
+  "final_pass_authority": "D18"
+}

@@ -1,0 +1,29 @@
+{
+  "scenario_id": "gemini-P01",
+  "recorded_with_model": "gemini-3-flash-preview",
+  "prompt_system": "You are a concise assistant. Answer in one short sentence.",
+  "prompt_user": "What is the capital of France?",
+  "response_preview": "The capital of France is Paris.",
+  "response_model": "gemini-3-flash-preview",
+  "usage": {
+    "input_tokens": 5564,
+    "output_tokens": 7,
+    "reasoning_tokens": 33
+  },
+  "subprocess": {
+    "cmd": [
+      "cmd.exe",
+      "/c",
+      "C:\\Users\\aquap\\AppData\\Roaming\\npm\\gemini.CMD",
+      "-p",
+      "<PROMPT>",
+      "-o",
+      "json",
+      "-m",
+      "gemini-3-flash-preview"
+    ],
+    "returncode": 0,
+    "stdout": "{\n  \"session_id\": \"b2119c45-7716-4666-98e0-42151d9ef850\",\n  \"response\": \"The capital of France is Paris.\",\n  \"stats\": {\n    \"models\": {\n      \"gemini-3-flash-preview\": {\n        \"api\": {\n          \"totalRequests\": 1,\n          \"totalErrors\": 0,\n          \"totalLatencyMs\": 1795\n        },\n        \"tokens\": {\n          \"input\": 5564,\n          \"prompt\": 5564,\n          \"candidates\": 7,\n          \"total\": 5604,\n          \"cached\": 0,\n          \"thoughts\": 33,\n          \"tool\": 0\n        },\n        \"roles\": {\n          \"main\": {\n            \"totalRequests\": 1,\n            \"totalErrors\": 0,\n            \"totalLatencyMs\": 1795,\n            \"tokens\": {\n              \"input\": 5564,\n              \"prompt\": 5564,\n              \"candidates\": 7,\n              \"total\": 5604,\n              \"cached\": 0,\n              \"thoughts\": 33,\n              \"tool\": 0\n            }\n          }\n        }\n      }\n    },\n    \"tools\": {\n      \"totalCalls\": 0,\n      \"totalSuccess\": 0,\n      \"totalFail\": 0,\n      \"totalDurationMs\": 0,\n      \"totalDecisions\": {\n        \"accept\": 0,\n        \"reject\": 0,\n        \"modify\": 0,\n        \"auto_accept\": 0\n      },\n      \"byName\": {}\n    },\n    \"files\": {\n      \"totalLinesAdded\": 0,\n      \"totalLinesRemoved\": 0\n    }\n  }\n}",
+    "stderr": ""
+  }
+}

@@ -1,0 +1,12 @@
+[2026-04-17T01:56:03Z] Scenario 1 START — mid-session kill / resume
+[2026-04-17T01:56:03Z] workspace=C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\.tmp\qa_D16\scenario_1
+[2026-04-17T01:56:03Z] Spawning crash-child subprocess...
+[2026-04-17T01:56:03Z] Child exited in 0.23s with returncode=9
+[2026-04-17T01:56:03Z] Child stdout: CHECKPOINT_SAVED_STEP=3
+[2026-04-17T01:56:03Z] Simulating Electron auto-respawn: calling StartupRecovery...
+[2026-04-17T01:56:03Z] checkpoints_on_disk=1 (expected 1)
+[2026-04-17T01:56:03Z] recovery_records=1
+[2026-04-17T01:56:03Z]   session=mid-kill-session action=resume_recommended step=3
+[2026-04-17T01:56:03Z] resume_event=SensorEvent(event_id='20a2e1980361', sensor='startup_recovery', kind='recovery.resume', session_id='mid-kill-session', surface='daemon', message='Resume previously interrupted session after startup recovery.', metadata={'dispatch': True, 'checkpointStep': 3}, created_at=1776390963.7721248)
+[2026-04-17T01:56:03Z] working_memory_recovery_note=Recovered after restart from checkpoint step 3 at 10:56:03.
+[2026-04-17T01:56:03Z] PASS: mid-session kill recovered from step=3 with resume event

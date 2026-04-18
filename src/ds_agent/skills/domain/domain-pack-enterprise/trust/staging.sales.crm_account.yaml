@@ -1,0 +1,9 @@
+fqtn: staging.sales.crm_account
+grade: silver
+owner: revops_team
+description: "CRM account staging table with ownership and lifecycle signals."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Operationally useful staging dimension with limited audit coverage."
+last_audited: 2026-04-15

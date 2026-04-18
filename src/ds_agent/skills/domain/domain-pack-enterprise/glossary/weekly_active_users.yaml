@@ -1,0 +1,9 @@
+term_id: term.weekly_active_users
+canonical_form: weekly active users
+definition: "Distinct users active at least once within the current rolling week."
+synonyms:
+  - wau
+linked_metric_ids:
+  - weekly_active_users
+category: metric
+owner: product_analytics

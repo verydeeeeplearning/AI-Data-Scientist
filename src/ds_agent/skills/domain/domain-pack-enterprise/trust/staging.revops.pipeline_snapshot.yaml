@@ -1,0 +1,9 @@
+fqtn: staging.revops.pipeline_snapshot
+grade: silver
+owner: revops_team
+description: "Pipeline snapshot staging mart for forecast and conversion investigations."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Monitored revops staging mart awaiting full semantic certification."
+last_audited: 2026-04-15

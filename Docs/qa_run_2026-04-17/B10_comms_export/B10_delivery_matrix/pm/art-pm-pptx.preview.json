@@ -1,0 +1,39 @@
+{
+  "artifact_id": "art-pm-pptx",
+  "artifact_type": "pm_action_memo",
+  "audience": "pm",
+  "template_ref": "tpl/pm_action_memo/v1",
+  "slide_count": 3,
+  "slides": [
+    {
+      "index": 1,
+      "section": "summary",
+      "title": "이번 스프린트 요약",
+      "bullets": [
+        "온보딩 퍼널 이탈 지점: 3단계에서 38%."
+      ],
+      "excerpt": "온보딩 퍼널 이탈 지점: 3단계에서 38%.",
+      "chart_count": 0
+    },
+    {
+      "index": 2,
+      "section": "next_actions",
+      "title": "다음 실행 항목",
+      "bullets": [
+        "PR-142: 개인화 추천 배치 적용 (담당: 김민지)."
+      ],
+      "excerpt": "PR-142: 개인화 추천 배치 적용 (담당: 김민지).",
+      "chart_count": 0
+    },
+    {
+      "index": 3,
+      "section": "eta",
+      "title": "완료 예정",
+      "bullets": [
+        "2026-05-10까지 롤아웃 예정."
+      ],
+      "excerpt": "2026-05-10까지 롤아웃 예정.",
+      "chart_count": 0
+    }
+  ]
+}

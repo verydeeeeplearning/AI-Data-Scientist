@@ -1,0 +1,9 @@
+term_id: term.logo_churn
+canonical_form: logo churn
+definition: "Count-based churn focused on losing customer accounts instead of revenue."
+synonyms:
+  - account churn
+linked_metric_ids:
+  - monthly_churn_rate
+category: metric
+owner: growth_team

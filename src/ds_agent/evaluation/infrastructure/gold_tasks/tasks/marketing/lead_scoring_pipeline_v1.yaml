@@ -1,0 +1,57 @@
+id: marketing.lead_scoring_pipeline.v1
+task_version: 1
+domain: marketing
+difficulty: medium
+tags: [lead-scoring, prioritization, pipeline]
+prompt: |
+  Marketing volume grew, but sales-accepted leads fell sharply. Identify the
+  most promising accounts, define the right optimization metric, and prepare a
+  concise recommendation for which leads should be synced into the next SDR wave.
+input:
+  datasets:
+    - name: leads
+      source: fixtures/marketing/leads_2025q1.parquet
+      schema_ref: schemas/marketing/leads.schema.json
+    - name: crm_outcomes
+      source: fixtures/marketing/crm_outcomes_2025q1.parquet
+  snapshot_date: 2025-03-31
+  budget_usd: 19.0
+  time_budget_min: 30
+expected_deliverables:
+  - type: goal_brief
+    must_contain: [problem_framing, kpi_definition, segment_definition]
+  - type: model_artifact
+    kind: classifier
+    target: sales_accepted_lead_30d
+  - type: ranked_account_list
+    top_k: 300
+  - type: executive_summary
+validation_points:
+  temporal:
+    snapshot_date: 2025-03-31
+    features_cutoff_before_days: 1
+    forbid_future_leakage: true
+  metric_selection:
+    acceptable_primary: [pr_auc, precision_at_20pct, lift_at_20pct]
+    forbidden_primary: [accuracy]
+  approval_required:
+    syncing_to_crm: true
+baseline:
+  human_expert_time_min: 60
+  human_expert_rubric:
+    scoping_accuracy: 0.88
+    metric_selection_accuracy: 0.9
+    session_completeness: 0.9
+scoring_rubric:
+  scoping_accuracy: {weight: 0.15, judge: llm}
+  metric_selection_accuracy: {weight: 0.1, judge: hybrid}
+  temporal_leakage_detection: {weight: 0.15, judge: deterministic}
+  tool_trajectory: {weight: 0.05, judge: deterministic}
+  artifact_faithfulness: {weight: 0.15, judge: llm}
+  exec_summary_accuracy: {weight: 0.1, judge: llm}
+  approval_judgment: {weight: 0.1, judge: hybrid}
+  session_completeness: {weight: 0.1, judge: hybrid}
+  operator_satisfaction: {weight: 0.05, judge: human_or_proxy}
+  time_to_decision: {weight: 0.05, judge: deterministic}
+pass_threshold: 0.74
+alert_on_drop_below: 0.69

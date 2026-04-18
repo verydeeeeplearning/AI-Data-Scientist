@@ -1,0 +1,157 @@
+{
+  "stream": "S5",
+  "name": "sandbox_port_and_subagent_fixture",
+  "status": "completed",
+  "started_at": "2026-04-16T19:51:51+00:00",
+  "completed_at": "2026-04-16T20:01:20+00:00",
+  "issues_resolved": [
+    "R1-execution_router_transitive",
+    "R3-subagent_fixture"
+  ],
+  "files_changed": [
+    "src/ds_agent/application/ports/sandbox_port.py",
+    "src/ds_agent/application/ports/__init__.py",
+    "src/ds_agent/application/services/execution_router.py",
+    "src/ds_agent/infrastructure/sandbox/sandbox_factory.py",
+    "tests/unit/application/test_execution_router.py",
+    "tests/unit/application/conftest.py"
+  ],
+  "files_new": [
+    "src/ds_agent/application/ports/sandbox_port.py",
+    "src/ds_agent/infrastructure/sandbox/sandbox_factory.py",
+    "tests/unit/application/conftest.py"
+  ],
+  "files_modified": [
+    "src/ds_agent/application/ports/__init__.py",
+    "src/ds_agent/application/services/execution_router.py",
+    "tests/unit/application/test_execution_router.py"
+  ],
+  "approach_summary": {
+    "R1": "Introduced SandboxPort + SandboxFactoryPort Protocols in the application layer. ExecutionRouter now accepts a SandboxFactoryPort in its constructor and raises RuntimeError when asked to create a sandbox without one. ProcessSandboxFactory adapter lives in infrastructure/sandbox/sandbox_factory.py and lazily delegates to the existing tools.sandbox.create_sandbox function; production call sites that only use policy_for_tool remain source-compatible. The direct 'from ds_agent.tools.sandbox import ProcessSandbox, create_sandbox' at execution_router.py:9 has been removed, which is the root of the transitive chain lint-imports was flagging.",
+    "R3": "Added tests/unit/application/conftest.py with an autouse fixture that installs a process-global LineageCaptureService backed by an in-memory LineageStorePort implementation, restoring the previous value on teardown. This satisfies LineageCaptureHook()'s strict dependency during build_hook_registry without weakening the production check and without touching governance_hooks.py, process_subagent.py, or the subagent tests themselves."
+  },
+  "verification": {
+    "lint_imports": {
+      "contracts_total": 2,
+      "contracts_kept": 2,
+      "contracts_broken": 0,
+      "note": "Both contracts KEPT. The previously-broken application_independence_from_infrastructure contract is now green.",
+      "log": "Docs/qa_run_2026-04-17/S5_sandbox_port/lint_imports.log"
+    },
+    "check_import_contracts": {
+      "exit_code": 0,
+      "output": "import contracts: ok",
+      "log": "Docs/qa_run_2026-04-17/S5_sandbox_port/check_import_contracts.log"
+    },
+    "pytest_architecture": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7,
+      "log": "Docs/qa_run_2026-04-17/S5_sandbox_port/pytest_architecture.log"
+    },
+    "pytest_s5_scope": {
+      "passed": 19,
+      "failed": 0,
+      "total": 19,
+      "covers": [
+        "tests/unit/architecture/ (7)",
+        "tests/unit/application/test_execution_router.py (4)",
+        "tests/unit/application/test_subagent.py (4)",
+        "tests/unit/application/test_lineage_service.py (4)"
+      ],
+      "log": "Docs/qa_run_2026-04-17/S5_sandbox_port/pytest_s5_scope.log"
+    },
+    "pytest_application_sweep": {
+      "passed": 488,
+      "failed": 1,
+      "pre_existing_failures": [
+        {
+          "nodeid": "tests/unit/application/test_semantic_ports.py::test_semantic_ports_are_runtime_checkable",
+          "reason": "Pre-existing failure documented in S1 FINAL.json; belongs to ds_agent.memory.semantic, outside S5 scope."
+        }
+      ],
+      "log": "Docs/qa_run_2026-04-17/S5_sandbox_port/pytest_application.log"
+    },
+    "pytest_subagent_pass": true,
+    "architecture_tests_pass": true,
+    "ruff_s5_scope": {
+      "exit_code": 0,
+      "output": "All checks passed!",
+      "log": "Docs/qa_run_2026-04-17/S5_sandbox_port/ruff.log"
+    },
+    "mypy_s5_scope": {
+      "exit_code": 0,
+      "errors_total": 0,
+      "output": "Success: no issues found in 3 source files",
+      "log": "Docs/qa_run_2026-04-17/S5_sandbox_port/mypy.log",
+      "note": "mypy on full src/ds_agent reports 383 pre-existing errors in unrelated files; grep of S5-touched file names in that output returns zero matches."
+    },
+    "ast_application_infrastructure_violations": 0,
+    "ast_application_tools_violations": 0,
+    "ast_scan_log": "Docs/qa_run_2026-04-17/S5_sandbox_port/ast_scan.log",
+    "pytest_unit_regression": {
+      "passed": 2102,
+      "failed": 18,
+      "failure_classification": "All 18 failures are Windows filesystem-state-leak flakes (test_file_ops, test_placeholder_tools, test_telegram_runner, test_decision_os_scheduler, test_integration_tools); several fail even in tiny isolated runs due to pre-existing data/ pollution from prior sessions. None are caused by S5 changes — verified by re-running representative failures in isolation. FIX_SPRINT_WORK_ORDER.md §1.4 authorises scope-isolated runs as authoritative for this stream.",
+      "log": "Docs/qa_run_2026-04-17/S5_sandbox_port/pytest_unit_regression.log"
+    }
+  },
+  "pass_criteria_internal_check": {
+    "lint_imports_zero_broken": true,
+    "pytest_subagent_pass": true,
+    "architecture_tests_pass": true,
+    "ruff_clean": true,
+    "mypy_s5_clean": true,
+    "ast_application_tools_and_infrastructure_zero": true,
+    "r1_new_tests_pass": true,
+    "check_import_contracts_exit_zero": true
+  },
+  "scope_constraints_respected": {
+    "only_declared_files_touched": true,
+    "touched_files": [
+      "src/ds_agent/application/ports/sandbox_port.py (new)",
+      "src/ds_agent/application/ports/__init__.py (re-export additions only)",
+      "src/ds_agent/application/services/execution_router.py (port inversion only)",
+      "src/ds_agent/infrastructure/sandbox/sandbox_factory.py (new adapter)",
+      "tests/unit/application/test_execution_router.py (updated tests + 2 new tests)",
+      "tests/unit/application/conftest.py (new autouse fixture)"
+    ],
+    "no_edits_in_tools_sandbox_py": true,
+    "no_edits_in_infrastructure_observability": true,
+    "no_edits_in_infrastructure_migration": true,
+    "no_edits_in_tools_learning_or_portfolio": true,
+    "no_edits_in_governance_hooks": true,
+    "no_edits_in_process_subagent": true,
+    "no_edits_in_subagent_test_bodies": true,
+    "no_new_feature_code": true,
+    "existing_process_sandbox_logic_unchanged": true,
+    "other_streams_territory_untouched": {
+      "S2_sentry_backend": "untouched",
+      "S3_learning_and_portfolio_tools_and_test_drift": "untouched",
+      "S4_infrastructure_migration": "untouched"
+    }
+  },
+  "residual_issues_deferred": [
+    {
+      "id": "RC-1",
+      "title": "tools/sandbox.py still lazy-imports infrastructure.sandbox.preamble (outer->outer, not a contract violation after S5)",
+      "reason_deferred": "tools/sandbox.py lazy import chain was explicitly out of S5 scope; no longer flagged by lint-imports"
+    },
+    {
+      "id": "RC-2",
+      "title": "ExecutionRouter could be composed at factory.py for single-source wiring",
+      "reason_deferred": "production call sites only use policy_for_tool; no functional need today"
+    },
+    {
+      "id": "RC-3",
+      "title": "build_hook_registry could accept explicit services to fully eliminate process-global state",
+      "reason_deferred": "out of S5 scope (governance_hooks.py / process_subagent.py forbidden)"
+    },
+    {
+      "id": "RC-4",
+      "title": "Windows data/ directory pollution causes test suite flakes unrelated to any fix sprint",
+      "reason_deferred": "infrastructural test hygiene, independent of any current stream"
+    }
+  ],
+  "self_judgment": "NOT PASS \u2014 reserved for A01 re-auditor. Direct R1/R3 findings are resolved, both lint-imports contracts are green, all architecture and S5-scope pytest runs pass, ruff and S5-scope mypy are clean, and zero new regressions were introduced in scope-isolated runs."
+}

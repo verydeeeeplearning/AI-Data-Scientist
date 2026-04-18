@@ -1,0 +1,59 @@
+id: ops.inventory_restock_risk.v1
+task_version: 1
+domain: ops
+difficulty: medium
+tags: [forecasting, inventory, prioritization]
+prompt: |
+  Stockout incidents increased across three regional distribution centers.
+  Identify which SKUs should be expedited first, quantify the operational risk,
+  and prepare an executive-ready restock recommendation.
+input:
+  datasets:
+    - name: inventory_snapshots
+      source: fixtures/ops/inventory_snapshots_2025q1.parquet
+      schema_ref: schemas/ops/inventory_snapshots.schema.json
+    - name: purchase_orders
+      source: fixtures/ops/purchase_orders_2025q1.parquet
+  snapshot_date: 2025-02-28
+  budget_usd: 16.0
+  time_budget_min: 30
+expected_deliverables:
+  - type: goal_brief
+    must_contain: [problem_framing, kpi_definition, segment_definition]
+  - type: eda_report
+    must_cover: [stockout_by_dc, lead_time_by_supplier]
+  - type: model_artifact
+    kind: forecaster
+    target: stockout_risk_14d
+  - type: ranked_sku_list
+    top_k: 250
+  - type: executive_summary
+validation_points:
+  temporal:
+    snapshot_date: 2025-02-28
+    features_cutoff_before_days: 1
+    forbid_future_leakage: true
+  metric_selection:
+    acceptable_primary: [wape, mae, recall_at_10pct]
+    forbidden_primary: [accuracy]
+  approval_required:
+    placing_expedite_order: true
+baseline:
+  human_expert_time_min: 65
+  human_expert_rubric:
+    scoping_accuracy: 0.87
+    metric_selection_accuracy: 0.88
+    session_completeness: 0.9
+scoring_rubric:
+  scoping_accuracy: {weight: 0.15, judge: llm}
+  metric_selection_accuracy: {weight: 0.1, judge: hybrid}
+  temporal_leakage_detection: {weight: 0.15, judge: deterministic}
+  tool_trajectory: {weight: 0.05, judge: deterministic}
+  artifact_faithfulness: {weight: 0.15, judge: llm}
+  exec_summary_accuracy: {weight: 0.1, judge: llm}
+  approval_judgment: {weight: 0.1, judge: hybrid}
+  session_completeness: {weight: 0.1, judge: hybrid}
+  operator_satisfaction: {weight: 0.05, judge: human_or_proxy}
+  time_to_decision: {weight: 0.05, judge: deterministic}
+pass_threshold: 0.73
+alert_on_drop_below: 0.68

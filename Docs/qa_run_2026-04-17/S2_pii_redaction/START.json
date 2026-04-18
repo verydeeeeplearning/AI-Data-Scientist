@@ -1,0 +1,27 @@
+{
+  "stream": "S2_pii_redaction",
+  "agent": "fix-sprint-s2-pii-redaction",
+  "started_at_utc": "2026-04-17T19:21:40Z",
+  "scope": "Sentry PII redaction: email/phone/card patterns + extended field tokens + deep redact regression tests",
+  "inputs": {
+    "work_order": "Docs/qa_run_2026-04-17/FIX_SPRINT_WORK_ORDER.md",
+    "report": {
+      "path": "Docs/qa_run_2026-04-17/A02_security/A02_security_report.md",
+      "sha256": "e0933fa6eb26b90104bbffb244968dd3e185d9ea16128a5a0cb465b7961fa88c"
+    },
+    "runtime_checks": {
+      "path": "Docs/qa_run_2026-04-17/A02_security/A02_runtime_checks.json",
+      "sha256": "76c1b480559dd96a37921ed6fe5a4b19514bfda9263115d99ca4e6b12d7072c3"
+    }
+  },
+  "target_files": [
+    "src/ds_agent/infrastructure/observability/sentry_backend.py",
+    "tests/unit/infrastructure/test_observability.py"
+  ],
+  "plan": [
+    "RED: add 8+ PII redaction tests + negative tests (UUID/SHA) to test_observability.py",
+    "GREEN: extend _SECRET_PATTERNS (email/phone/card) and _SECRET_FIELD_TOKENS (email/phone/ssn/card variants), add type-preserving masks (***EMAIL***, ***PHONE***, ***CARD***) and Luhn post-check for card regex",
+    "REFACTOR: keep _deep_redact depth-limited to 8 and preserve existing token redaction behavior",
+    "Run ruff + mypy + full pytest regression"
+  ]
+}

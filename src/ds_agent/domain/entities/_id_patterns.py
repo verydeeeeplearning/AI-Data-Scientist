@@ -1,0 +1,12 @@
+"""Shared identifier regexes for task contract artifacts."""
+
+TASK_CONTRACT_ID_PATTERN = r"^TC-\d{4}-\d{3,}$"
+WORK_OBJECT_ID_PATTERN = r"^WO-\d{4}-\d{3,}$"
+GOAL_BRIEF_ID_PATTERN = r"^GB-\d+$"
+METRIC_SPEC_ID_PATTERN = r"^MS-[a-z0-9_]+$"
+DATASET_MANIFEST_ID_PATTERN = r"^DM-\d+$"
+ASSUMPTION_LOG_ID_PATTERN = r"^AL-\d+$"
+ASSUMPTION_ENTRY_ID_PATTERN = r"^AS-\d+$"
+REVIEW_VERDICT_ID_PATTERN = r"^RV-\d+$"
+SHADOW_COMPARISON_ID_PATTERN = r"^SC-\d+$"
+DELIVERY_PACK_ID_PATTERN = r"^DP-\d+$"

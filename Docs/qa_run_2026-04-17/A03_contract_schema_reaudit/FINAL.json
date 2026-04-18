@@ -1,0 +1,129 @@
+{
+  "agent_id": "A03-reaudit",
+  "agent_name": "Contract & Schema Auditor (Round 2 Re-audit)",
+  "tier": 1,
+  "round": 2,
+  "baseline_final": "Docs/qa_run_2026-04-17/A03_contract_schema/FINAL.json",
+  "baseline_status": "fail",
+  "fix_sprint_source": "Docs/qa_run_2026-04-17/S3_drift_cleanup/FINAL.json",
+  "status": "pass",
+  "started_at": "2026-04-16T20:04:46Z",
+  "finished_at": "2026-04-16T20:08:40Z",
+  "duration_sec": 234,
+  "code_sha": null,
+  "code_snapshot_id": "855dbf1da5fc0ca74af04d759d3976daf9f773d8a69ca350dd7029c37f06d880",
+  "evidence": [
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/START.json",
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/A03_report_reaudit.md",
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/A03_contract_matrix.csv",
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/A03_contract_summary.json",
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/pytest_import_tools.log",
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/junit_import_tools.xml",
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/pytest_contract_suite.log",
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/junit_contract_suite.xml",
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/pytest_agent_session_registry.log",
+    "Docs/qa_run_2026-04-17/A03_contract_schema_reaudit/junit_agent_session_registry.xml"
+  ],
+  "metrics": {
+    "contract_rows": 352,
+    "tool_rows": 86,
+    "tool_pass": 86,
+    "tool_fail": 0,
+    "registered_tool_entries": 86,
+    "hook_rows": 30,
+    "hook_fail": 0,
+    "ws_rpc_rows": 80,
+    "ws_rpc_fail": 0,
+    "pydantic_rows": 156,
+    "pydantic_fail": 0,
+    "pytest_import_tools": {
+      "tests": 12,
+      "passed": 12,
+      "failed": 0
+    },
+    "pytest_contract_suite": {
+      "tests": 273,
+      "passed": 273,
+      "failed": 0
+    },
+    "pytest_agent_session_registry": {
+      "tests": 14,
+      "passed": 14,
+      "failed": 0
+    }
+  },
+  "prior_failures_resolved": [
+    {
+      "id": "F1-bare-tool",
+      "title": "Bare @tool usage breaks 11 tool imports in learning_tools.py and portfolio_tools.py",
+      "resolved": true,
+      "affected_count": 11,
+      "now_all_pass": true,
+      "evidence": [
+        "A03_contract_summary.json.tool.failing_tool_contracts=[]",
+        "A03_contract_summary.json.tool.registered_tool_entries=86",
+        "pytest_import_tools.log: 12 passed"
+      ],
+      "tools_now_registered": [
+        "list_learning_inbox",
+        "review_learning_item",
+        "get_learning_item",
+        "list_promotions",
+        "list_deprecations",
+        "rollback_promotion",
+        "list_my_portfolio",
+        "pause_task",
+        "resume_task",
+        "set_sla",
+        "request_monitoring"
+      ],
+      "safety_levels_verified": {
+        "safe": ["list_learning_inbox", "get_learning_item", "list_promotions", "list_deprecations", "list_my_portfolio"],
+        "caution": ["review_learning_item", "rollback_promotion", "pause_task", "resume_task", "set_sla", "request_monitoring"]
+      }
+    },
+    {
+      "id": "F2-ws-monkeypatch",
+      "title": "WebSocket chat E2E tests use outdated _create_agent monkeypatch that does not accept authority_mode",
+      "resolved": true,
+      "evidence": [
+        "pytest_contract_suite.log: 273 passed (was 271 passed / 2 failed)",
+        "tests/e2e/test_ws_e2e.py now defines _fake_create_agent(... *, authority_mode=None, **kwargs)",
+        "pytest tests/e2e/test_ws_e2e.py::TestChatE2E: 2 passed"
+      ]
+    }
+  ],
+  "regression_check": {
+    "hook_30": "unchanged: 30/30 pass",
+    "ws_rpc_80": "unchanged: 80/80 pass",
+    "pydantic_156": "unchanged: 156/156 pass",
+    "agent_session_registry_14": "unchanged: 14/14 pass",
+    "cli_bootstrap": "ds-agent REPL banner boots successfully"
+  },
+  "new_regressions": [],
+  "scope_respected": true,
+  "scope_check": {
+    "registry_py_signature_unchanged": true,
+    "tool_decorator_inspected_signature": "(name: str, description: str, category: str = 'general', parameters: dict | None = None, timeout: int = 120, prompt: str = '', safety_level: str = 'safe') -> Callable",
+    "registry_py_sha256": "f722f958bae632e110528ea1c68e1bf966f9be0546cab6f36955a4dd351fcf02",
+    "migration_code_unchanged": true,
+    "s3_files_changed_in_scope": [
+      "src/ds_agent/tools/learning_tools.py",
+      "src/ds_agent/tools/portfolio_tools.py",
+      "tests/e2e/test_ws_e2e.py"
+    ],
+    "s3_files_changed_out_of_a03_scope_but_allowed_by_work_order": [
+      "tests/integration/infrastructure/test_sqlite_work_object_store.py",
+      "tests/integration/semantic/test_migration_v6.py"
+    ]
+  },
+  "recommendations": [
+    "Sync Docs/PRE_RELEASE_AI_TEST_PLAN_2026-04-17.md tool count (76 → 86) to match canonical registered tool inventory.",
+    "Add an architectural unit test asserting every tools/*.py module imports cleanly and registers at least one tool."
+  ],
+  "notes": [
+    "Tier 1 A03 hard gate: PASS on re-audit.",
+    "Git metadata unavailable in workspace; composite SHA-256 used for snapshot traceability.",
+    "Isolated run of tests/e2e/test_ws_e2e.py::TestChatE2E initially hit a pre-existing Windows .tmp/pytest file-handle contention; after clearing .tmp/pytest it ran green in isolation (2 passed). Within the prescribed multi-suite run (273 tests) it passed on first attempt without cleanup."
+  ]
+}

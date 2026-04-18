@@ -1,0 +1,29 @@
+{
+  "agent_id": "D17",
+  "tier": 4,
+  "role": "Regression Board Operator",
+  "started_at": "2026-04-17T00:00:00Z",
+  "scope": [
+    "src/ds_agent/evaluation/**",
+    "src/ds_agent/runtime/regression_alert_scheduler.py",
+    "src/ds_agent/gateway/daemon.py"
+  ],
+  "workspace_dir": ".tmp/qa_D17",
+  "output_dir": "Docs/qa_run_2026-04-17/D17_regression",
+  "paths": {
+    "no_change_delta": "Path 1 \u2014 0-byte code delta, 10-dim delta must equal 0",
+    "synthetic_regression": "Path 2 \u2014 \u00b11% monkeypatch injection, delta reflects injected dim only",
+    "alert_dispatch": "Path 3 \u2014 synthetic low-score \u2192 mock Slack/Teams webhook received",
+    "daemon_schedule": "Path 4 \u2014 RegressionAlertScheduler cron-like trigger",
+    "baseline_freeze_rollback": "Path 5 \u2014 freeze \u2192 candidate \u2192 rollback \u2192 byte-level restore"
+  },
+  "constraints": [
+    "No source modifications (Path 2 uses monkeypatch only).",
+    "No real Slack/Teams webhooks.",
+    "No real LLM calls (judge=None deterministic fallback).",
+    "No full regression pytest.",
+    "No data/ mutation; everything under .tmp/qa_D17.",
+    "No self pass declaration."
+  ],
+  "no_go_trigger": "PRE_RELEASE_AI_TEST_PLAN \u00a710.3 \u2014 no-change delta \u2260 0 \u21d2 blocking No-Go."
+}

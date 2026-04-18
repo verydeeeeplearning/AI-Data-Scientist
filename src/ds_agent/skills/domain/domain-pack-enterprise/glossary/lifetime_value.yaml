@@ -1,0 +1,9 @@
+term_id: term.lifetime_value
+canonical_form: lifetime value
+definition: "Average net revenue expected from a customer across the retained lifetime window."
+synonyms:
+  - ltv
+linked_metric_ids:
+  - lifetime_value
+category: metric
+owner: finance_team

@@ -1,0 +1,39 @@
+{
+  "provider": "gemini_cli_oauth",
+  "transport": "subprocess",
+  "entries": [
+    {
+      "scenario_id": "gemini-P01",
+      "fixture": "tests/fixtures/llm_cassettes/gemini_cli/gemini-P01.json",
+      "recorded": true,
+      "response_sha256": "a1b7eb2ee7a6aded8dda4e6cf30826f5afffb28a5597ee9389e91eb326d4e319",
+      "usage": {
+        "input_tokens": 5564,
+        "output_tokens": 7,
+        "reasoning_tokens": 33
+      }
+    },
+    {
+      "scenario_id": "gemini-P02",
+      "fixture": "tests/fixtures/llm_cassettes/gemini_cli/gemini-P02.json",
+      "recorded": true,
+      "response_sha256": "6559cd55050b0a12ba5ef496b379a9493ad515b8b1bd49a47c92e7a8b4cf2b6a",
+      "usage": {
+        "input_tokens": 5563,
+        "output_tokens": 11,
+        "reasoning_tokens": 61
+      }
+    },
+    {
+      "scenario_id": "gemini-P03",
+      "fixture": "tests/fixtures/llm_cassettes/gemini_cli/gemini-P03.json",
+      "recorded": true,
+      "response_sha256": "208308a05395ae5b2517add08a9a301a1248b8cc587a648948ec407b90a4bba5",
+      "usage": {
+        "input_tokens": 5560,
+        "output_tokens": 32,
+        "reasoning_tokens": 49
+      }
+    }
+  ]
+}

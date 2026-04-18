@@ -1,0 +1,4 @@
+{"auth_url_head": "https://example/authorize", "code_challenge_len": 43, "code_verifier_len": 64, "derivation_ok": true, "provider": "codex", "state_len": 64, "step": "pkce_primitives"}
+{"auth_url_base": "https://accounts.google.com/o/oauth2/v2/auth", "code_challenge_len": 43, "code_challenge_method_in_url": true, "code_verifier_len": 64, "provider": "gemini", "state_in_url": true, "step": "auth_url_built"}
+{"access_token_present": true, "email": "tester@example.com", "expires_future": true, "provider": "gemini", "refresh_token_present": true, "step": "token_exchange_complete", "stored_at": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_B12\\auth_profiles.json"}
+{"events": ["provider.fallback", "runtime.alert"], "fallback_event_emitted": true, "from": "anthropic/claude-opus-4-6", "provider": "router_failover", "step": "primary_503_secondary_served", "to": "openai/gpt-5.4"}

@@ -1,0 +1,30 @@
+metric_id: monthly_churn_rate
+display_name: Monthly Churn Rate
+owner: growth_team
+definition: "Monthly customer churn rate for active subscriptions."
+synonyms:
+  - customer churn
+  - churn rate
+  - logo churn
+  - 이탈률
+grain: monthly
+unit: ratio
+direction: lower_is_better
+related_metrics:
+  - net_revenue_retention
+  - lifetime_value
+caveats:
+  - Exclude promotional cohorts when comparing against baseline retention.
+  - Review B2B and B2C segments separately for board reporting.
+verified_query_ids:
+  - vq-monthly-churn-postgres
+  - vq-monthly-churn-bigquery
+calculation:
+  numerator:
+    source: prod.growth.subscription
+    filter: event_type = 'cancel'
+    aggregation: COUNT(*)
+  denominator:
+    source: prod.growth.subscription
+    filter: status = 'active'
+    aggregation: COUNT(*)

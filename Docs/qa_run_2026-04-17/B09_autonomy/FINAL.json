@@ -1,0 +1,136 @@
+{
+  "agent_id": "B09",
+  "tier": 2,
+  "status": "pending_reviewer_judgement",
+  "completed_at": "2026-04-17T00:00:00Z",
+  "code_sha": "git-unavailable",
+  "scope": "autonomy control plane: Authority / Audience / Mission / ActionMatrix / ActionClassifier / incident override / freeze / certification / PolicyStudio",
+  "metrics": {
+    "pytest": {
+      "modules": 20,
+      "collected": 130,
+      "passed": 130,
+      "failed": 0,
+      "pre_existing_fail": 0,
+      "junit": "Docs/qa_run_2026-04-17/B09_autonomy/B09_pytest_junit.xml"
+    },
+    "authority_matrix_cells": 84,
+    "authority_matrix_authorities": 6,
+    "authority_matrix_actions": 14,
+    "matrix_pass_strict": 81,
+    "matrix_fail_strict": 3,
+    "matrix_pass_runtime_compensated": 83,
+    "matrix_fail_runtime_compensated": 1,
+    "matrix_failing_cells": [
+      {
+        "authority": "freeze",
+        "action": "read_sensitive_table",
+        "risk": "CAUTION",
+        "static_verdict": "approve",
+        "expected_strict": "skip",
+        "runtime_compensated": false,
+        "note": "Matrix returns approve (requires human gate). Not auto-executed; not blocked. Spec-vs-code semantic gap."
+      },
+      {
+        "authority": "freeze",
+        "action": "feature_engineering",
+        "risk": "CAUTION",
+        "static_verdict": "auto",
+        "expected_strict": "skip",
+        "runtime_compensated": true,
+        "note": "Blocked at runtime by AutonomyPolicy.evaluate freeze_mode_blocks_writes overlay."
+      },
+      {
+        "authority": "freeze",
+        "action": "artifact_draft",
+        "risk": "CAUTION",
+        "static_verdict": "auto",
+        "expected_strict": "skip",
+        "runtime_compensated": true,
+        "note": "Blocked at runtime by AutonomyPolicy.evaluate freeze_mode_blocks_writes overlay."
+      }
+    ],
+    "incident_expiry_correct": true,
+    "incident_boundary_probes": [
+      {"t_offset": "0h",       "mode": "incident", "expired": false, "effective": "incident"},
+      {"t_offset": "23h59m",   "mode": "incident", "expired": false, "effective": "incident"},
+      {"t_offset": "24h exact","mode": null,       "expired": true,  "effective": "delegate"},
+      {"t_offset": "24h01m",   "mode": null,       "expired": true,  "effective": "delegate"}
+    ],
+    "freeze_deny_all_writes": true,
+    "freeze_deny_all_tools": false,
+    "freeze_write_block_stats": {"writes_blocked": 9, "writes_total": 9, "reads_allowed": 3, "reads_total": 4},
+    "policystudio_presets": "4/4",
+    "policystudio_preset_results": {
+      "delegated_peer": "PASS",
+      "executive_review": "PASS",
+      "audit_guard": "PASS",
+      "mentor_walkthrough": "PASS"
+    },
+    "policystudio_preset_source_inventory": "NOT_FOUND (runtime contract only; no src/**/policy_studio_presets YAML located)",
+    "action_classifier_probes": 22,
+    "action_classifier_correct": 22,
+    "action_classifier_strategy_hits": {"sql": 4, "deployment": 2, "governance": 8, "python": 4, "tool-map": 3, "fallback": 1},
+    "audience_personas_distinct": "5/5",
+    "audience_personas": ["junior_mentor", "peer_ds", "senior_staff", "executive", "auditor"],
+    "mission_pack_prompt_has_goal_section": true,
+    "mission_pack_prompt_has_constraint_section": true,
+    "mission_pack_field_name": "summary",
+    "mission_pack_field_name_matches_plan": false,
+    "certification_persistence_across_restart": true,
+    "autopilot_certification_gate_enforced": true
+  },
+  "findings": [
+    {
+      "id": "B09-F1",
+      "severity": "low",
+      "area": "action_matrix.default",
+      "summary": "FREEZE × CAUTION cells read_sensitive_table=approve, feature_engineering=auto, artifact_draft=auto deviate from strict 'all skip' expectation.",
+      "runtime_compensation": "AutonomyPolicy.evaluate freeze_mode_blocks_writes overlay blocks the two write cases at runtime; read_sensitive_table still gated via approve but not skipped.",
+      "recommendation": "Tighten static matrix for FREEZE row to skip (defense-in-depth) or document overlay reliance in-code."
+    },
+    {
+      "id": "B09-F2",
+      "severity": "info",
+      "area": "spec_wording",
+      "summary": "Plan §5.5 #6 says 'Freeze 모드에서 SAFE 도구조차 DENY'. Implementation allows read-only SAFE reads (read_sql_gold, read_sql_bronze) under FREEZE.",
+      "recommendation": "Product decision: tighten code to deny reads OR update plan wording to 'all writes DENY, diagnostic reads allowed'."
+    },
+    {
+      "id": "B09-F3",
+      "severity": "info",
+      "area": "mission_schema_naming",
+      "summary": "Plan §5.5 #3 names sections 'goal/constraint'. Mission YAML uses 'summary' + 'success_criteria' + 'boundary.*'. Semantics preserved, vocabulary diverges.",
+      "recommendation": "Optional: add explicit 'goal' field or document mapping in plan."
+    },
+    {
+      "id": "B09-F4",
+      "severity": "info",
+      "area": "policy_studio_inventory",
+      "summary": "No policy_studio preset YAML files found under src/. B09 tested runtime override contract only.",
+      "recommendation": "C15/packaging agent or dedicated PolicyStudio agent to verify electron UI wiring and bundled preset presence."
+    }
+  ],
+  "llm_orchestrator_principle_holds": true,
+  "llm_orchestrator_notes": "Only hard constraints (FREEZE write-block, 24h incident expiry, autopilot certification gate) are coded. All other axes (authority verdict family, persona, mission boundary) produce prompt information; no step-by-step workflow coercion observed.",
+  "evidence": [
+    "Docs/qa_run_2026-04-17/B09_autonomy/B09_pytest_junit.xml",
+    "Docs/qa_run_2026-04-17/B09_autonomy/B09_authority_matrix.csv",
+    "Docs/qa_run_2026-04-17/B09_autonomy/B09_audience_diffs/junior_mentor.md",
+    "Docs/qa_run_2026-04-17/B09_autonomy/B09_audience_diffs/peer_ds.md",
+    "Docs/qa_run_2026-04-17/B09_autonomy/B09_audience_diffs/senior_staff.md",
+    "Docs/qa_run_2026-04-17/B09_autonomy/B09_audience_diffs/executive.md",
+    "Docs/qa_run_2026-04-17/B09_autonomy/B09_audience_diffs/auditor.md",
+    "Docs/qa_run_2026-04-17/B09_autonomy/B09_report.md",
+    ".tmp/qa_B09/build_authority_matrix.py",
+    ".tmp/qa_B09/test_b09_scenarios.py"
+  ],
+  "scope_constraints_respected": {
+    "no_source_edits": true,
+    "no_real_external_calls": true,
+    "full_regression_skipped": true,
+    "scope_isolated_pytest_only": true,
+    "data_dir_untouched": true,
+    "self_pass_judgement_suspended": true
+  }
+}

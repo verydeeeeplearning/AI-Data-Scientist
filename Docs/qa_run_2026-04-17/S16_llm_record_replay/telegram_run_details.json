@@ -1,0 +1,146 @@
+[
+  {
+    "scenario_id": "P-01",
+    "result": {
+      "channel": "Telegram",
+      "scenario_id": "P-01",
+      "session_id": "telegram:555777:7:P-01-045205",
+      "status": "ok",
+      "goal_echo": "tips.csv의 total_bill 예측 — 데이터 로드와 프로파일링, baseline 선형 회귀 모델, 평가, 최종 DeliveryPack(PDF)을 생성하세요.",
+      "final_verdict": "",
+      "delivery_pack_body_hash": "fc0f9f256fab13e4d14ffe22d61d6e7c77aa8ec83bacdf9945ffd61415461152",
+      "delivery_pack_body_preview": "접수 확인했습니다. 데이터 로드와 프로파일링을 시작한 후, baseline 선형 회귀 모델을 구축하고 평가를 진행하겠습니다. 마지막으로 최종 DeliveryPack을 PDF 형식으로 생성하겠습니다.",
+      "metric_spec": {},
+      "error_code": "",
+      "channel_origin": "live:ptb_app+fake_bot+subprocess:218928:uv_source",
+      "timestamp_utc": "2026-04-18T04:52:19Z",
+      "raw_final_content": "접수 확인했습니다. 데이터 로드와 프로파일링을 시작한 후, baseline 선형 회귀 모델을 구축하고 평가를 진행하겠습니다. 마지막으로 최종 DeliveryPack을 PDF 형식으로 생성하겠습니다.",
+      "raw_event_count": 11,
+      "raw_event_types": [
+        "event",
+        "res"
+      ],
+      "fallback_notes": [
+        "S16 telegram live harness: Update.de_json → TelegramPlugin._on_text → InboundMessage → telegram_session_id → WS chat.send → await task.completed"
+      ]
+    },
+    "cleanup": {
+      "pid": 218928,
+      "exit_code": 1,
+      "killed": true,
+      "already_exited": false
+    },
+    "harness": {
+      "chat_id": 555777,
+      "user_id": 8881,
+      "thread_id": 7,
+      "base_session_id": "telegram:555777:7",
+      "session_id": "telegram:555777:7:P-01-045205",
+      "fake_bot": {
+        "fake_bot_calls_total": 0,
+        "fake_bot_call_methods": []
+      },
+      "inbound_text_len": 92,
+      "inbound_channel_id": "telegram",
+      "inbound_conversation_id": "555777",
+      "inbound_thread_id": "7",
+      "plugin_class": "TelegramPlugin"
+    }
+  },
+  {
+    "scenario_id": "P-02",
+    "result": {
+      "channel": "Telegram",
+      "scenario_id": "P-02",
+      "session_id": "telegram:555778:P-02-045219",
+      "status": "ok",
+      "goal_echo": "현재 세션의 Authority를 Supervised에서 Delegate로 전환하고, 실험 기록 삭제(가상) CAUTION 도구를 호출해 승인 플로우를 트리거하세요.",
+      "final_verdict": "",
+      "delivery_pack_body_hash": "29b14f7944f59dd666e5149381de9d2c3978187824cf8f3919e31d9a8660e57f",
+      "delivery_pack_body_preview": "요청하신 세션의 Authority 전환과 실험 기록 삭제를 확인했습니다. 다음 단계로 승인 플로우를 진행하겠습니다.",
+      "metric_spec": {},
+      "error_code": "",
+      "channel_origin": "live:ptb_app+fake_bot+subprocess:228108:uv_source",
+      "timestamp_utc": "2026-04-18T04:52:33Z",
+      "raw_final_content": "요청하신 세션의 Authority 전환과 실험 기록 삭제를 확인했습니다. 다음 단계로 승인 플로우를 진행하겠습니다.",
+      "raw_event_count": 11,
+      "raw_event_types": [
+        "event",
+        "res"
+      ],
+      "fallback_notes": [
+        "S16 telegram live harness: Update.de_json → TelegramPlugin._on_text → InboundMessage → telegram_session_id → WS chat.send → await task.completed"
+      ]
+    },
+    "cleanup": {
+      "pid": 228108,
+      "exit_code": 1,
+      "killed": true,
+      "already_exited": false
+    },
+    "harness": {
+      "chat_id": 555778,
+      "user_id": 8882,
+      "thread_id": null,
+      "base_session_id": "telegram:555778",
+      "session_id": "telegram:555778:P-02-045219",
+      "fake_bot": {
+        "fake_bot_calls_total": 0,
+        "fake_bot_call_methods": []
+      },
+      "inbound_text_len": 91,
+      "inbound_channel_id": "telegram",
+      "inbound_conversation_id": "555778",
+      "inbound_thread_id": null,
+      "plugin_class": "TelegramPlugin"
+    }
+  },
+  {
+    "scenario_id": "P-03",
+    "result": {
+      "channel": "Telegram",
+      "scenario_id": "P-03",
+      "session_id": "telegram:555779:7:P-03-045234",
+      "status": "ok",
+      "goal_echo": "세션에서 관찰한 반복 패턴을 LearningInbox 항목으로 추출하고, 하나를 review·approve 후 promote. 이후 2회 eval 실패 → auto-deprecate를 시뮬레이션하세요.",
+      "final_verdict": "",
+      "delivery_pack_body_hash": "82431745bd62ec99856d29a4afa888a0361d044927b0f03b773758f194f2e4ea",
+      "delivery_pack_body_preview": "접수하신 요청을 확인했습니다. LearningInbox 항목을 추출하고, review·approve 후 promote 단계를 진행한 뒤, eval 실패 시뮬레이션을 진행하겠습니다. 다음 단계로 진행하겠습니다.",
+      "metric_spec": {},
+      "error_code": "",
+      "channel_origin": "live:ptb_app+fake_bot+subprocess:177528:uv_source",
+      "timestamp_utc": "2026-04-18T04:52:48Z",
+      "raw_final_content": "접수하신 요청을 확인했습니다. LearningInbox 항목을 추출하고, review·approve 후 promote 단계를 진행한 뒤, eval 실패 시뮬레이션을 진행하겠습니다. 다음 단계로 진행하겠습니다.",
+      "raw_event_count": 11,
+      "raw_event_types": [
+        "event",
+        "res"
+      ],
+      "fallback_notes": [
+        "S16 telegram live harness: Update.de_json → TelegramPlugin._on_text → InboundMessage → telegram_session_id → WS chat.send → await task.completed"
+      ]
+    },
+    "cleanup": {
+      "pid": 177528,
+      "exit_code": 1,
+      "killed": true,
+      "already_exited": false
+    },
+    "harness": {
+      "chat_id": 555779,
+      "user_id": 8883,
+      "thread_id": 7,
+      "base_session_id": "telegram:555779:7",
+      "session_id": "telegram:555779:7:P-03-045234",
+      "fake_bot": {
+        "fake_bot_calls_total": 0,
+        "fake_bot_call_methods": []
+      },
+      "inbound_text_len": 112,
+      "inbound_channel_id": "telegram",
+      "inbound_conversation_id": "555779",
+      "inbound_thread_id": "7",
+      "plugin_class": "TelegramPlugin"
+    }
+  }
+]

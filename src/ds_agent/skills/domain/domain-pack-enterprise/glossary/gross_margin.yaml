@@ -1,0 +1,7 @@
+term_id: term.gross_margin
+canonical_form: gross margin
+definition: "Recognized gross profit divided by recognized revenue."
+linked_metric_ids:
+  - gross_margin
+category: metric
+owner: finance_team

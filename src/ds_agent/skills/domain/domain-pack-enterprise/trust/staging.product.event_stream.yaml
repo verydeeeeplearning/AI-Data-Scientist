@@ -1,0 +1,9 @@
+fqtn: staging.product.event_stream
+grade: silver
+owner: product_analytics
+description: "Sessionized product event staging feed with standard deduplication applied."
+refresh:
+  cadence: hourly
+  max_staleness_minutes: 180
+grade_rationale: "Trusted for debugging and intermediate rollups, not for executive KPI publication."
+last_audited: 2026-04-15

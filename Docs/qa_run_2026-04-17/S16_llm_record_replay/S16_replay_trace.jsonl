@@ -1,0 +1,32 @@
+{"ts": "2026-04-18T04:51:23.009987Z", "event": "harness_start", "binary": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\dist\\ds-agent-backend\\ds-agent-api.exe", "cassette_dir": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\tests\\fixtures\\llm_cassettes", "scenarios": ["P-01", "P-02", "P-03"]}
+{"ts": "2026-04-18T04:51:23.032927Z", "event": "replay_proxy_started", "base_url": "http://127.0.0.1:60808/v1", "loaded": ["scenario_P01.yaml", "scenario_P02.yaml", "scenario_P03.yaml"]}
+{"ts": "2026-04-18T04:51:36.723190Z", "event": "cli_run_complete", "scenario_id": "P-01", "status": "ok", "error_code": "", "hash16": "fc0f9f256fab13e4", "cleanup": {"pid": 221632, "exit_code": 1, "killed": true, "already_exited": false}}
+{"ts": "2026-04-18T04:51:50.302359Z", "event": "cli_run_complete", "scenario_id": "P-02", "status": "ok", "error_code": "", "hash16": "29b14f7944f59dd6", "cleanup": {"pid": 214796, "exit_code": 1, "killed": true, "already_exited": false}}
+{"ts": "2026-04-18T04:52:04.198115Z", "event": "cli_run_complete", "scenario_id": "P-03", "status": "ok", "error_code": "", "hash16": "82431745bd62ec99", "cleanup": {"pid": 210376, "exit_code": 1, "killed": true, "already_exited": false}}
+{"ts": "2026-04-18T04:52:19.279403Z", "event": "telegram_run_complete", "scenario_id": "P-01", "status": "ok", "error_code": "", "hash16": "fc0f9f256fab13e4", "cleanup": {"pid": 218928, "exit_code": 1, "killed": true, "already_exited": false}, "fake_bot_calls": 0}
+{"ts": "2026-04-18T04:52:33.798181Z", "event": "telegram_run_complete", "scenario_id": "P-02", "status": "ok", "error_code": "", "hash16": "29b14f7944f59dd6", "cleanup": {"pid": 228108, "exit_code": 1, "killed": true, "already_exited": false}, "fake_bot_calls": 0}
+{"ts": "2026-04-18T04:52:48.460625Z", "event": "telegram_run_complete", "scenario_id": "P-03", "status": "ok", "error_code": "", "hash16": "82431745bd62ec99", "cleanup": {"pid": 177528, "exit_code": 1, "killed": true, "already_exited": false}, "fake_bot_calls": 0}
+{"ts": "2026-04-18T04:52:48.477924Z", "event": "electron_row_synthesised", "scenario_id": "P-01", "cli_source_session": "cli-s16-P-01-045123", "hash16": "fc0f9f256fab13e4"}
+{"ts": "2026-04-18T04:52:48.477924Z", "event": "electron_row_synthesised", "scenario_id": "P-02", "cli_source_session": "cli-s16-P-02-045136", "hash16": "29b14f7944f59dd6"}
+{"ts": "2026-04-18T04:52:48.479303Z", "event": "electron_row_synthesised", "scenario_id": "P-03", "cli_source_session": "cli-s16-P-03-045150", "hash16": "82431745bd62ec99"}
+{"ts": "2026-04-18T04:52:48.483082Z", "event": "replay_proxy_stats_final", "requests_received": 6, "served": 6, "rejected_no_match": 0, "rejected_unknown_path": 0, "served_by_cassette": {"scenario_P01.yaml": 2, "scenario_P02.yaml": 2, "scenario_P03.yaml": 2}, "cassette_dir": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\tests\\fixtures\\llm_cassettes", "loaded_cassettes": ["scenario_P01.yaml", "scenario_P02.yaml", "scenario_P03.yaml"]}
+4-18T04:52:19.293993Z", "event": "scenario_start", "scenario_id": "P-02", "goal_preview": "현재 세션의 Authority를 Supervised에서 Delegate로 전환하고, 실험 기록 삭제(가상) CAUTION 도구를 호출해 승인 플로우를 트리거하세요."}
+{"ts": "2026-04-18T04:52:19.958810Z", "event": "fake_application_built", "token_prefix": "1", "bot_type": "ExtBot", "updater": "None"}
+{"ts": "2026-04-18T04:52:19.958810Z", "event": "plugin_instantiated", "plugin_class": "TelegramPlugin", "fake_app_spliced": true}
+{"ts": "2026-04-18T04:52:19.959324Z", "event": "update_constructed", "scenario_id": "P-02", "update_id": 555778779, "message_id": 555778779, "chat_id": 555778, "thread_id": null, "text_preview": "현재 세션의 Authority를 Supervised에서 Delegate로 전환하고, 실험 기록 삭제(가상) CAUTION 도구를 호출해 승인 플"}
+{"ts": "2026-04-18T04:52:19.959324Z", "event": "plugin_on_text_invoked", "handler": "_on_text"}
+{"ts": "2026-04-18T04:52:19.959324Z", "event": "inbound_message_dequeued", "channel_id": "telegram", "conversation_id": "555778", "thread_id": null, "sender_id": "8882", "text_len": 91}
+{"ts": "2026-04-18T04:52:19.960330Z", "event": "session_id_derived", "base_session_id": "telegram:555778", "full_session_id": "telegram:555778:P-02-045219", "helper": "ds_agent.runtime.channel_identity.telegram_session_id"}
+{"ts": "2026-04-18T04:52:21.752369Z", "event": "backend_spawned", "pid": 228108, "port": 18981}
+{"ts": "2026-04-18T04:52:33.796132Z", "event": "backend_cleanup", "pid": 228108, "cleanup": {"pid": 228108, "exit_code": 1, "killed": true, "already_exited": false}}
+{"ts": "2026-04-18T04:52:33.797642Z", "event": "scenario_complete", "status": "ok", "hash_prefix": "29b14f7944f59dd6"}
+{"ts": "2026-04-18T04:52:33.813242Z", "event": "scenario_start", "scenario_id": "P-03", "goal_preview": "세션에서 관찰한 반복 패턴을 LearningInbox 항목으로 추출하고, 하나를 review·approve 후 promote. 이후 2회 eval 실패 → auto-deprecat"}
+{"ts": "2026-04-18T04:52:34.611263Z", "event": "fake_application_built", "token_prefix": "1", "bot_type": "ExtBot", "updater": "None"}
+{"ts": "2026-04-18T04:52:34.611263Z", "event": "plugin_instantiated", "plugin_class": "TelegramPlugin", "fake_app_spliced": true}
+{"ts": "2026-04-18T04:52:34.611263Z", "event": "update_constructed", "scenario_id": "P-03", "update_id": 555779810, "message_id": 555779810, "chat_id": 555779, "thread_id": 7, "text_preview": "세션에서 관찰한 반복 패턴을 LearningInbox 항목으로 추출하고, 하나를 review·approve 후 promote. 이후 2회 eva"}
+{"ts": "2026-04-18T04:52:34.612270Z", "event": "plugin_on_text_invoked", "handler": "_on_text"}
+{"ts": "2026-04-18T04:52:34.612270Z", "event": "inbound_message_dequeued", "channel_id": "telegram", "conversation_id": "555779", "thread_id": "7", "sender_id": "8883", "text_len": 112}
+{"ts": "2026-04-18T04:52:34.612792Z", "event": "session_id_derived", "base_session_id": "telegram:555779:7", "full_session_id": "telegram:555779:7:P-03-045234", "helper": "ds_agent.runtime.channel_identity.telegram_session_id"}
+{"ts": "2026-04-18T04:52:36.405858Z", "event": "backend_spawned", "pid": 177528, "port": 18982}
+{"ts": "2026-04-18T04:52:48.457551Z", "event": "backend_cleanup", "pid": 177528, "cleanup": {"pid": 177528, "exit_code": 1, "killed": true, "already_exited": false}}
+{"ts": "2026-04-18T04:52:48.459615Z", "event": "scenario_complete", "status": "ok", "hash_prefix": "82431745bd62ec99"}

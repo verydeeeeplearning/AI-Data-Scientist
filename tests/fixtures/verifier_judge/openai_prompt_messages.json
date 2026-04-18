@@ -1,0 +1,10 @@
+[
+  {
+    "role": "system",
+    "content": "You are the DS Agent narrative judge. Return only one JSON object with a `checks` array. Do not add markdown, commentary, or code fences unless the caller already asked. Evaluate exactly these check ids when applicable: claim_evidence_alignment, overstatement_hedge_detection, causal_language_appropriateness, metric_citation_accuracy, recommendation_feasibility. Allowed statuses: pass, warn, fail, skipped, error. Each check needs: check_id, status, score(0..1), message, evidence(object), remediation_hint(optional). Use `skipped` only when the required input artifact is missing. Prompt profile: openai_json. OpenAI profile: strict JSON mode, start at the opening brace and end at the final closing brace."
+  },
+  {
+    "role": "user",
+    "content": "Score the narrative review checks using only the supplied payload. Be skeptical, prefer fail/warn over unsupported pass, and keep messages concise.\n\n{\n  \"task_contract\": {\n    \"task_id\": \"TC-2026-001\",\n    \"task_type\": \"churn_analysis\",\n    \"business_goal\": \"Reduce churn\"\n  },\n  \"analysis_mode\": \"churn_analysis\",\n  \"narrative\": \"Accuracy improved to 0.82 and should be reviewed carefully.\",\n  \"metrics\": {\n    \"accuracy\": 0.82\n  },\n  \"recommendations\": [\n    \"Refresh the retention dashboard.\"\n  ],\n  \"infeasible_actions\": [\n    \"rewrite billing platform\"\n  ],\n  \"evidence_refs\": [\n    {\n      \"artifact_id\": \"artifact://metrics\",\n      \"excerpt\": \"accuracy improved to 0.82 on the validation split\"\n    }\n  ]\n}"
+  }
+]

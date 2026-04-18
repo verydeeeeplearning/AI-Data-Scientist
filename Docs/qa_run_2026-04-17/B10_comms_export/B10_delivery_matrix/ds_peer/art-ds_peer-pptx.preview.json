@@ -1,0 +1,39 @@
+{
+  "artifact_id": "art-ds_peer-pptx",
+  "artifact_type": "ds_experiment_note",
+  "audience": "ds_peer",
+  "template_ref": "tpl/ds_experiment_note/v1",
+  "slide_count": 3,
+  "slides": [
+    {
+      "index": 1,
+      "section": "hypothesis",
+      "title": "가설",
+      "bullets": [
+        "기능 X의 제거가 주 원인 가설."
+      ],
+      "excerpt": "기능 X의 제거가 주 원인 가설.",
+      "chart_count": 0
+    },
+    {
+      "index": 2,
+      "section": "methodology",
+      "title": "분석 방법",
+      "bullets": [
+        "인과 추정: 디디(DID) 모형, 샘플 N=18,402."
+      ],
+      "excerpt": "인과 추정: 디디(DID) 모형, 샘플 N=18,402.",
+      "chart_count": 0
+    },
+    {
+      "index": 3,
+      "section": "results",
+      "title": "결과",
+      "bullets": [
+        "ATT = -0.032 (95% CI [-0.041, -0.023])."
+      ],
+      "excerpt": "ATT = -0.032 (95% CI [-0.041, -0.023]).",
+      "chart_count": 0
+    }
+  ]
+}

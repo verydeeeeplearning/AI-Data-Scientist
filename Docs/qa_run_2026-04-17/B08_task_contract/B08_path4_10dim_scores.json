@@ -1,0 +1,67 @@
+{
+  "dimension_count": 10,
+  "per_dimension": {
+    "scoping_accuracy": {
+      "good": 1.0,
+      "bad": 0.13333333333333333,
+      "delta": 0.8666666666666667
+    },
+    "metric_selection_accuracy": {
+      "good": 0.85,
+      "bad": 0.0,
+      "delta": 0.85
+    },
+    "temporal_leakage_detection": {
+      "good": 1.0,
+      "bad": 0.5,
+      "delta": 0.5
+    },
+    "tool_trajectory": {
+      "good": 1.0,
+      "bad": 0.65,
+      "delta": 0.35
+    },
+    "artifact_faithfulness": {
+      "good": 0.6000000000000001,
+      "bad": 0.5,
+      "delta": 0.10000000000000009
+    },
+    "exec_summary_accuracy": {
+      "good": 1.0,
+      "bad": 0.5,
+      "delta": 0.5
+    },
+    "approval_judgment": {
+      "good": 1.0,
+      "bad": 0.19999999999999996,
+      "delta": 0.8
+    },
+    "session_completeness": {
+      "good": 1.0,
+      "bad": 0.1,
+      "delta": 0.9
+    },
+    "operator_satisfaction": {
+      "good": 1.0,
+      "bad": 0.0,
+      "delta": 1.0
+    },
+    "time_to_decision": {
+      "good": 1.0,
+      "bad": 0.0,
+      "delta": 1.0
+    }
+  },
+  "weighted_score": {
+    "good": 0.925,
+    "bad": 0.28250000000000003,
+    "delta": 0.6425000000000001,
+    "good_passed": true,
+    "bad_passed": false
+  },
+  "all_deltas_positive": true,
+  "min_delta": 0.10000000000000009,
+  "max_delta": 1.0,
+  "weighted_delta_ge_0_5": true,
+  "per_dim_delta_ge_0_5_count": 8
+}

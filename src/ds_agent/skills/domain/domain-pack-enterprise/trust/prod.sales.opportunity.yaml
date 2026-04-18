@@ -1,0 +1,9 @@
+fqtn: prod.sales.opportunity
+grade: gold
+owner: revops_team
+description: "Closed-won opportunity mart aligned to ARR and new-logo booking policy."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Certified CRM opportunity mart for acquisition and conversion metrics."
+last_audited: 2026-04-15

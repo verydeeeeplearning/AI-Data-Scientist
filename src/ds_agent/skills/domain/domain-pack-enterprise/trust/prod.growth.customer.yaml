@@ -1,0 +1,9 @@
+fqtn: prod.growth.customer
+grade: gold
+owner: growth_team
+description: "Canonical customer dimension with lifecycle status, segment, and region attributes."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Certified customer dimension for board and finance metrics."
+last_audited: 2026-04-15

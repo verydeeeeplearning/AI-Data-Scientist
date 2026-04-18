@@ -1,0 +1,46 @@
+{
+  "provider": "codex_oauth",
+  "model": "gpt-5.4",
+  "auth_mode": "chatgpt",
+  "entries": [
+    {
+      "scenario_id": "codex-P01",
+      "fixture": "tests/fixtures/llm_cassettes/codex/codex-P01.json",
+      "recorded": true,
+      "response_sha256": "bdff8c417ab50e95e95cce16035a3799c7e00104de4a7b3453f06728c620faf7",
+      "usage": {
+        "input_tokens": 29,
+        "output_tokens": 6,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "reasoning_tokens": 0
+      }
+    },
+    {
+      "scenario_id": "codex-P02",
+      "fixture": "tests/fixtures/llm_cassettes/codex/codex-P02.json",
+      "recorded": true,
+      "response_sha256": "4539813cc1223b62148e0600f8f891e7fb0fd955513bfa46cb2b103b6668805d",
+      "usage": {
+        "input_tokens": 27,
+        "output_tokens": 9,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "reasoning_tokens": 0
+      }
+    },
+    {
+      "scenario_id": "codex-P03",
+      "fixture": "tests/fixtures/llm_cassettes/codex/codex-P03.json",
+      "recorded": true,
+      "response_sha256": "a4055bb83c78ea31ed35fcb5bc8e29519c90b0e22ef6a1b9686a1b280c870062",
+      "usage": {
+        "input_tokens": 27,
+        "output_tokens": 39,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "reasoning_tokens": 0
+      }
+    }
+  ]
+}

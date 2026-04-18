@@ -1,0 +1,7 @@
+{
+  "agent_id": "C14",
+  "tier": 3,
+  "started_at": "2026-04-17T00:00:00Z",
+  "code_sha": "git-unavailable",
+  "scope": "Evaluation Harness Offline Gold Tasks (6 domains) + regression board baseline + alert dispatch (mocked)"
+}

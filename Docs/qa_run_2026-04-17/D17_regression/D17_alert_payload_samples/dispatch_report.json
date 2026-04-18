@@ -1,0 +1,616 @@
+{
+  "snapshot": {
+    "generated_at": 1776430932.6105657,
+    "total_records": 7,
+    "recent_window": 3,
+    "baseline_window_days": 14,
+    "axis_kind": "commit",
+    "mode_filter": null,
+    "domain_filter": null,
+    "baseline_source": "rolling",
+    "available_domains": [
+      "finance",
+      "healthcare",
+      "marketing",
+      "ops",
+      "retail",
+      "saas"
+    ],
+    "overall": {
+      "recent": {
+        "record_count": 1,
+        "avg_weighted_score": 0.1,
+        "pass_rate": 0.0
+      },
+      "baseline": {
+        "record_count": 4,
+        "avg_weighted_score": 0.99,
+        "pass_rate": 1.0
+      },
+      "delta_score": -0.89,
+      "delta_pass_rate": -1.0
+    },
+    "points": [
+      {
+        "axis_key": "c14-baseline-sha",
+        "axis_label": "c14-baseline-sha",
+        "run_count": 6,
+        "pass_rate": 1.0,
+        "weighted_score_mean": 0.9899999999999999,
+        "per_dimension_means": {
+          "approval_judgment": 1.0,
+          "artifact_faithfulness": 1.0,
+          "exec_summary_accuracy": 1.0,
+          "metric_selection_accuracy": 0.9,
+          "operator_satisfaction": 1.0,
+          "scoping_accuracy": 1.0,
+          "session_completeness": 1.0,
+          "temporal_leakage_detection": 1.0,
+          "time_to_decision": 1.0,
+          "tool_trajectory": 1.0
+        },
+        "per_mode_weighted_scores": {
+          "offline": 0.9899999999999999
+        }
+      },
+      {
+        "axis_key": "d17-probe-sha",
+        "axis_label": "d17-probe-sha",
+        "run_count": 1,
+        "pass_rate": 0.0,
+        "weighted_score_mean": 0.1,
+        "per_dimension_means": {
+          "approval_judgment": 0.1,
+          "artifact_faithfulness": 0.1,
+          "exec_summary_accuracy": 0.1,
+          "metric_selection_accuracy": 0.1,
+          "operator_satisfaction": 0.1,
+          "scoping_accuracy": 0.1,
+          "session_completeness": 0.1,
+          "temporal_leakage_detection": 0.1,
+          "time_to_decision": 0.1,
+          "tool_trajectory": 0.1
+        },
+        "per_mode_weighted_scores": {
+          "offline": 0.1
+        }
+      }
+    ],
+    "mode_summaries": [
+      {
+        "mode": "offline",
+        "record_count": 7,
+        "avg_weighted_score": 0.8628571428571429,
+        "pass_rate": 0.8571428571428571
+      }
+    ],
+    "task_summaries": [
+      {
+        "task_id": "finance.fraud_triage.v1",
+        "domain": "finance",
+        "difficulty": "hard",
+        "latest_run_id": "d17-probe-low",
+        "latest_mode": "offline",
+        "latest_recorded_at": 1776430932.5885117,
+        "latest_weighted_score": 0.1,
+        "latest_passed": false,
+        "pass_threshold": 0.74,
+        "alert_on_drop_below": 0.68,
+        "recent_record_count": 2,
+        "baseline_record_count": 0,
+        "recent_mean_score": 0.545,
+        "baseline_mean_score": null,
+        "delta_score": null,
+        "status": "failing"
+      },
+      {
+        "task_id": "ops.inventory_restock_risk.v1",
+        "domain": "ops",
+        "difficulty": "medium",
+        "latest_run_id": "ops.inventory_restock_risk.v1-d17",
+        "latest_mode": "offline",
+        "latest_recorded_at": 1776430932.5863168,
+        "latest_weighted_score": 0.99,
+        "latest_passed": true,
+        "pass_threshold": 0.73,
+        "alert_on_drop_below": 0.68,
+        "recent_record_count": 1,
+        "baseline_record_count": 0,
+        "recent_mean_score": 0.99,
+        "baseline_mean_score": null,
+        "delta_score": null,
+        "status": "insufficient_baseline"
+      },
+      {
+        "task_id": "retail.churn_scoping.v1",
+        "domain": "retail",
+        "difficulty": "medium",
+        "latest_run_id": "retail.churn_scoping.v1-d17",
+        "latest_mode": "offline",
+        "latest_recorded_at": 1776430932.5863168,
+        "latest_weighted_score": 0.99,
+        "latest_passed": true,
+        "pass_threshold": 0.75,
+        "alert_on_drop_below": 0.7,
+        "recent_record_count": 1,
+        "baseline_record_count": 0,
+        "recent_mean_score": 0.99,
+        "baseline_mean_score": null,
+        "delta_score": null,
+        "status": "insufficient_baseline"
+      },
+      {
+        "task_id": "saas.trial_conversion_scoping.v1",
+        "domain": "saas",
+        "difficulty": "medium",
+        "latest_run_id": "saas.trial_conversion_scoping.v1-d17",
+        "latest_mode": "offline",
+        "latest_recorded_at": 1776430932.5863168,
+        "latest_weighted_score": 0.99,
+        "latest_passed": true,
+        "pass_threshold": 0.74,
+        "alert_on_drop_below": 0.69,
+        "recent_record_count": 1,
+        "baseline_record_count": 0,
+        "recent_mean_score": 0.99,
+        "baseline_mean_score": null,
+        "delta_score": null,
+        "status": "insufficient_baseline"
+      },
+      {
+        "task_id": "healthcare.readmission_triage.v1",
+        "domain": "healthcare",
+        "difficulty": "hard",
+        "latest_run_id": "healthcare.readmission_triage.v1-d17",
+        "latest_mode": "offline",
+        "latest_recorded_at": 1776430932.5817811,
+        "latest_weighted_score": 0.99,
+        "latest_passed": true,
+        "pass_threshold": 0.76,
+        "alert_on_drop_below": 0.7,
+        "recent_record_count": 1,
+        "baseline_record_count": 0,
+        "recent_mean_score": 0.99,
+        "baseline_mean_score": null,
+        "delta_score": null,
+        "status": "insufficient_baseline"
+      },
+      {
+        "task_id": "marketing.lead_scoring_pipeline.v1",
+        "domain": "marketing",
+        "difficulty": "medium",
+        "latest_run_id": "marketing.lead_scoring_pipeline.v1-d17",
+        "latest_mode": "offline",
+        "latest_recorded_at": 1776430932.5817811,
+        "latest_weighted_score": 0.99,
+        "latest_passed": true,
+        "pass_threshold": 0.74,
+        "alert_on_drop_below": 0.69,
+        "recent_record_count": 1,
+        "baseline_record_count": 0,
+        "recent_mean_score": 0.99,
+        "baseline_mean_score": null,
+        "delta_score": null,
+        "status": "insufficient_baseline"
+      }
+    ],
+    "dimension_summaries": [
+      {
+        "name": "approval_judgment",
+        "label": "Approval Judgment",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 1.0,
+        "delta_score": -0.9
+      },
+      {
+        "name": "artifact_faithfulness",
+        "label": "Artifact Faithfulness",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 1.0,
+        "delta_score": -0.9
+      },
+      {
+        "name": "exec_summary_accuracy",
+        "label": "Exec Summary Accuracy",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 1.0,
+        "delta_score": -0.9
+      },
+      {
+        "name": "operator_satisfaction",
+        "label": "Operator Satisfaction",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 1.0,
+        "delta_score": -0.9
+      },
+      {
+        "name": "scoping_accuracy",
+        "label": "Scoping Accuracy",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 1.0,
+        "delta_score": -0.9
+      },
+      {
+        "name": "session_completeness",
+        "label": "Session Completeness",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 1.0,
+        "delta_score": -0.9
+      },
+      {
+        "name": "temporal_leakage_detection",
+        "label": "Temporal Leakage Detection",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 1.0,
+        "delta_score": -0.9
+      },
+      {
+        "name": "time_to_decision",
+        "label": "Time To Decision",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 1.0,
+        "delta_score": -0.9
+      },
+      {
+        "name": "tool_trajectory",
+        "label": "Tool Trajectory",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 1.0,
+        "delta_score": -0.9
+      },
+      {
+        "name": "metric_selection_accuracy",
+        "label": "Metric Selection Accuracy",
+        "recent_record_count": 1,
+        "baseline_record_count": 4,
+        "recent_mean_score": 0.1,
+        "baseline_mean_score": 0.9,
+        "delta_score": -0.8
+      }
+    ],
+    "alerts": [
+      {
+        "kind": "pass_rate_drop",
+        "severity": "high",
+        "scope": "overall",
+        "scope_key": null,
+        "dimension": null,
+        "task_id": null,
+        "message": "Gold-suite pass rate dropped below the rolling baseline by more than 3pp.",
+        "delta": -1.0,
+        "current_value": 0.0,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "single_task_hard_fail",
+        "severity": "high",
+        "scope": "task",
+        "scope_key": "finance.fraud_triage.v1",
+        "dimension": null,
+        "task_id": "finance.fraud_triage.v1",
+        "message": "finance.fraud_triage.v1 fell below its task pass threshold.",
+        "delta": null,
+        "current_value": 0.1,
+        "baseline_value": 0.74
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "approval_judgment",
+        "dimension": "approval_judgment",
+        "task_id": null,
+        "message": "Approval Judgment dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "artifact_faithfulness",
+        "dimension": "artifact_faithfulness",
+        "task_id": null,
+        "message": "Artifact Faithfulness dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "exec_summary_accuracy",
+        "dimension": "exec_summary_accuracy",
+        "task_id": null,
+        "message": "Exec Summary Accuracy dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "operator_satisfaction",
+        "dimension": "operator_satisfaction",
+        "task_id": null,
+        "message": "Operator Satisfaction dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "scoping_accuracy",
+        "dimension": "scoping_accuracy",
+        "task_id": null,
+        "message": "Scoping Accuracy dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "session_completeness",
+        "dimension": "session_completeness",
+        "task_id": null,
+        "message": "Session Completeness dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "temporal_leakage_detection",
+        "dimension": "temporal_leakage_detection",
+        "task_id": null,
+        "message": "Temporal Leakage Detection dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "time_to_decision",
+        "dimension": "time_to_decision",
+        "task_id": null,
+        "message": "Time To Decision dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "tool_trajectory",
+        "dimension": "tool_trajectory",
+        "task_id": null,
+        "message": "Tool Trajectory dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "metric_selection_accuracy",
+        "dimension": "metric_selection_accuracy",
+        "task_id": null,
+        "message": "Metric Selection Accuracy dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.8,
+        "current_value": 0.1,
+        "baseline_value": 0.9
+      }
+    ],
+    "frozen_baseline": null,
+    "point_count": 2,
+    "active_alerts": [
+      {
+        "kind": "pass_rate_drop",
+        "severity": "high",
+        "scope": "overall",
+        "scope_key": null,
+        "dimension": null,
+        "task_id": null,
+        "message": "Gold-suite pass rate dropped below the rolling baseline by more than 3pp.",
+        "delta": -1.0,
+        "current_value": 0.0,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "single_task_hard_fail",
+        "severity": "high",
+        "scope": "task",
+        "scope_key": "finance.fraud_triage.v1",
+        "dimension": null,
+        "task_id": "finance.fraud_triage.v1",
+        "message": "finance.fraud_triage.v1 fell below its task pass threshold.",
+        "delta": null,
+        "current_value": 0.1,
+        "baseline_value": 0.74
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "approval_judgment",
+        "dimension": "approval_judgment",
+        "task_id": null,
+        "message": "Approval Judgment dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "artifact_faithfulness",
+        "dimension": "artifact_faithfulness",
+        "task_id": null,
+        "message": "Artifact Faithfulness dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "exec_summary_accuracy",
+        "dimension": "exec_summary_accuracy",
+        "task_id": null,
+        "message": "Exec Summary Accuracy dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "operator_satisfaction",
+        "dimension": "operator_satisfaction",
+        "task_id": null,
+        "message": "Operator Satisfaction dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "scoping_accuracy",
+        "dimension": "scoping_accuracy",
+        "task_id": null,
+        "message": "Scoping Accuracy dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "session_completeness",
+        "dimension": "session_completeness",
+        "task_id": null,
+        "message": "Session Completeness dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "temporal_leakage_detection",
+        "dimension": "temporal_leakage_detection",
+        "task_id": null,
+        "message": "Temporal Leakage Detection dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "time_to_decision",
+        "dimension": "time_to_decision",
+        "task_id": null,
+        "message": "Time To Decision dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "tool_trajectory",
+        "dimension": "tool_trajectory",
+        "task_id": null,
+        "message": "Tool Trajectory dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.9,
+        "current_value": 0.1,
+        "baseline_value": 1.0
+      },
+      {
+        "kind": "dimension_regression",
+        "severity": "medium",
+        "scope": "dimension",
+        "scope_key": "metric_selection_accuracy",
+        "dimension": "metric_selection_accuracy",
+        "task_id": null,
+        "message": "Metric Selection Accuracy dropped below the rolling baseline by more than 5pp.",
+        "delta": -0.8,
+        "current_value": 0.1,
+        "baseline_value": 0.9
+      }
+    ],
+    "baseline": null
+  },
+  "deliveries": [
+    {
+      "channel": "slack",
+      "alert_count": 12,
+      "delivered_at": 1776430932.6105657,
+      "target": "mock://slack",
+      "summary": "mock dispatch | alerts=12 | kinds=dimension_regression,pass_rate_drop,single_task_hard_fail",
+      "alert_kinds": [
+        "dimension_regression",
+        "pass_rate_drop",
+        "single_task_hard_fail"
+      ],
+      "response": "mocked-200"
+    },
+    {
+      "channel": "teams",
+      "alert_count": 12,
+      "delivered_at": 1776430932.6105657,
+      "target": "mock://teams",
+      "summary": "mock dispatch | alerts=12 | kinds=dimension_regression,pass_rate_drop,single_task_hard_fail",
+      "alert_kinds": [
+        "dimension_regression",
+        "pass_rate_drop",
+        "single_task_hard_fail"
+      ],
+      "response": "mocked-200"
+    }
+  ],
+  "fingerprint": "2c43d1d57b9b2ee165af5393ea451a11b962bc2afea98d10861d0629fd8459a1",
+  "skipped": false,
+  "skip_reason": null
+}

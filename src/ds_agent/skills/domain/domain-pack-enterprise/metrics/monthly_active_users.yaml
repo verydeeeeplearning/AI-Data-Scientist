@@ -1,0 +1,23 @@
+metric_id: monthly_active_users
+display_name: Monthly Active Users
+owner: product_analytics
+definition: "Distinct active users with at least one qualifying session in a month."
+synonyms:
+  - MAU
+  - active users monthly
+grain: monthly
+unit: count
+direction: higher_is_better
+related_metrics:
+  - weekly_active_users
+  - trial_to_paid_conversion_rate
+caveats:
+  - Bot traffic and internal QA traffic must be filtered before executive reporting.
+verified_query_ids:
+  - vq-mau-postgres
+  - vq-mau-bigquery
+calculation:
+  numerator:
+    source: prod.product.user_activity_daily
+    filter: activity_flag = TRUE
+    aggregation: COUNT(DISTINCT user_id)

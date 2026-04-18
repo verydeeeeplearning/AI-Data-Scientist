@@ -1,0 +1,21 @@
+metric_id: weekly_active_users
+display_name: Weekly Active Users
+owner: product_analytics
+definition: "Distinct active users with at least one qualifying session in a rolling seven-day window."
+synonyms:
+  - WAU
+  - weekly active users
+grain: weekly
+unit: count
+direction: higher_is_better
+related_metrics:
+  - monthly_active_users
+caveats:
+  - Weekend-only products should be compared using trailing four-week seasonality.
+verified_query_ids:
+  - vq-wau-postgres
+calculation:
+  numerator:
+    source: prod.product.user_activity_daily
+    filter: activity_flag = TRUE
+    aggregation: COUNT(DISTINCT user_id)

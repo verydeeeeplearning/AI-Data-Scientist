@@ -1,0 +1,48 @@
+[
+  {
+    "snapshot_total_records": 7,
+    "alert_count": 12,
+    "alert_kinds": [
+      "pass_rate_drop",
+      "single_task_hard_fail",
+      "dimension_regression",
+      "dimension_regression",
+      "dimension_regression",
+      "dimension_regression",
+      "dimension_regression",
+      "dimension_regression",
+      "dimension_regression",
+      "dimension_regression",
+      "dimension_regression",
+      "dimension_regression"
+    ],
+    "alert_severities": [
+      "high",
+      "high",
+      "medium",
+      "medium",
+      "medium",
+      "medium",
+      "medium",
+      "medium",
+      "medium",
+      "medium",
+      "medium",
+      "medium"
+    ],
+    "alert_messages": [
+      "Gold-suite pass rate dropped below the rolling baseline by more than 3pp.",
+      "finance.fraud_triage.v1 fell below its task pass threshold.",
+      "Approval Judgment dropped below the rolling baseline by more than 5pp.",
+      "Artifact Faithfulness dropped below the rolling baseline by more than 5pp.",
+      "Exec Summary Accuracy dropped below the rolling baseline by more than 5pp.",
+      "Operator Satisfaction dropped below the rolling baseline by more than 5pp.",
+      "Scoping Accuracy dropped below the rolling baseline by more than 5pp.",
+      "Session Completeness dropped below the rolling baseline by more than 5pp.",
+      "Temporal Leakage Detection dropped below the rolling baseline by more than 5pp.",
+      "Time To Decision dropped below the rolling baseline by more than 5pp.",
+      "Tool Trajectory dropped below the rolling baseline by more than 5pp.",
+      "Metric Selection Accuracy dropped below the rolling baseline by more than 5pp."
+    ]
+  }
+]

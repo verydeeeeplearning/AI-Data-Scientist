@@ -1,0 +1,83 @@
+{
+  "baseline_source": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\Docs\\qa_run_2026-04-17\\C14_gold_tasks\\C14_prior_baseline.json",
+  "baseline_dimension_means": {
+    "scoping_accuracy": 1.0,
+    "metric_selection_accuracy": 0.9,
+    "temporal_leakage_detection": 1.0,
+    "tool_trajectory": 1.0,
+    "artifact_faithfulness": 1.0,
+    "exec_summary_accuracy": 1.0,
+    "approval_judgment": 1.0,
+    "session_completeness": 1.0,
+    "operator_satisfaction": 1.0,
+    "time_to_decision": 1.0
+  },
+  "current_dimension_means": {
+    "scoping_accuracy": 1.0,
+    "metric_selection_accuracy": 0.9,
+    "temporal_leakage_detection": 1.0,
+    "tool_trajectory": 1.0,
+    "artifact_faithfulness": 1.0,
+    "exec_summary_accuracy": 1.0,
+    "approval_judgment": 1.0,
+    "session_completeness": 1.0,
+    "operator_satisfaction": 1.0,
+    "time_to_decision": 1.0
+  },
+  "dimension_deltas": {
+    "scoping_accuracy": 0.0,
+    "metric_selection_accuracy": 0.0,
+    "temporal_leakage_detection": 0.0,
+    "tool_trajectory": 0.0,
+    "artifact_faithfulness": 0.0,
+    "exec_summary_accuracy": 0.0,
+    "approval_judgment": 0.0,
+    "session_completeness": 0.0,
+    "operator_satisfaction": 0.0,
+    "time_to_decision": 0.0
+  },
+  "max_abs_dimension_delta": 0.0,
+  "tolerance": 1e-09,
+  "delta_precisely_zero": true,
+  "per_task": [
+    {
+      "task_id": "finance.fraud_triage.v1",
+      "domain": "finance",
+      "weighted_score": 0.99,
+      "passed": true
+    },
+    {
+      "task_id": "healthcare.readmission_triage.v1",
+      "domain": "healthcare",
+      "weighted_score": 0.99,
+      "passed": true
+    },
+    {
+      "task_id": "marketing.lead_scoring_pipeline.v1",
+      "domain": "marketing",
+      "weighted_score": 0.99,
+      "passed": true
+    },
+    {
+      "task_id": "ops.inventory_restock_risk.v1",
+      "domain": "ops",
+      "weighted_score": 0.99,
+      "passed": true
+    },
+    {
+      "task_id": "retail.churn_scoping.v1",
+      "domain": "retail",
+      "weighted_score": 0.99,
+      "passed": true
+    },
+    {
+      "task_id": "saas.trial_conversion_scoping.v1",
+      "domain": "saas",
+      "weighted_score": 0.99,
+      "passed": true
+    }
+  ],
+  "dataset_path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_D17\\d17_no_change_dataset.jsonl",
+  "status": "pass",
+  "note": "No-change delta = 0 is the PRE_RELEASE plan §10.3 No-Go trigger. Any non-zero delta signals non-determinism in scorers or harness."
+}

@@ -1,0 +1,7 @@
+{
+  "agent_id": "B07",
+  "tier": 2,
+  "started_at": "2026-04-17T00:00:00Z",
+  "code_sha": "git-unavailable",
+  "scope": "5-layer memory + semantic memory + semantic proposal + DataTrustRegistry + VerifiedQueryStore + dual-write"
+}

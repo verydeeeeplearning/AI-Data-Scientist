@@ -1,0 +1,628 @@
+{
+  "central_migration_package": {
+    "path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\src\\ds_agent\\infrastructure\\migration",
+    "python_files": [
+      "__init__.py",
+      "config_migrations.py"
+    ],
+    "has_explicit_sqlite_v13_runner": false
+  },
+  "stores": {
+    "learning_store": {
+      "path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_A04\\learning_inventory.db",
+      "schema_version": 1,
+      "tables": [
+        "deprecation_records",
+        "learning_items",
+        "promotion_records",
+        "review_events",
+        "schema_migrations"
+      ],
+      "columns": {
+        "deprecation_records": [
+          "record_id",
+          "item_id",
+          "reason",
+          "mode",
+          "failure_count",
+          "grace_until",
+          "deprecated_at",
+          "deprecated_by",
+          "notes"
+        ],
+        "learning_items": [
+          "item_id",
+          "item_type",
+          "status",
+          "title",
+          "content",
+          "signature",
+          "source_json",
+          "evidence_json",
+          "conflict_refs_json",
+          "tags_json",
+          "scope",
+          "review_count",
+          "created_at",
+          "updated_at",
+          "metadata_json"
+        ],
+        "promotion_records": [
+          "record_id",
+          "item_id",
+          "item_type",
+          "eval_score",
+          "eval_threshold",
+          "promoted_asset_ref",
+          "rollback_ref",
+          "promoted_at",
+          "promoted_by",
+          "metadata_json"
+        ],
+        "review_events": [
+          "event_id",
+          "item_id",
+          "decision",
+          "reviewer",
+          "checklist_json",
+          "comment",
+          "modifications_json",
+          "created_at"
+        ],
+        "schema_migrations": [
+          "version",
+          "applied_at"
+        ]
+      }
+    },
+    "task_contract_store": {
+      "path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_A04\\task_contract_inventory.db",
+      "schema_version": 10,
+      "tables": [
+        "assumption_logs",
+        "dataset_manifests",
+        "delivery_log",
+        "delivery_packs",
+        "goal_briefs",
+        "metric_specs",
+        "review_verdicts",
+        "schema_migrations",
+        "sqlite_sequence",
+        "task_contract_events",
+        "task_contracts",
+        "v_delivery_summary"
+      ],
+      "columns": {
+        "assumption_logs": [
+          "log_id",
+          "task_id",
+          "payload_json"
+        ],
+        "dataset_manifests": [
+          "manifest_id",
+          "task_id",
+          "payload_json",
+          "generated_at"
+        ],
+        "delivery_log": [
+          "log_id",
+          "task_id",
+          "pack_id",
+          "artifact_id",
+          "channel",
+          "status",
+          "attempted_at",
+          "reason",
+          "receipt_ref",
+          "adapter_name",
+          "idempotency_key"
+        ],
+        "delivery_packs": [
+          "pack_id",
+          "task_id",
+          "payload_json",
+          "generated_at"
+        ],
+        "goal_briefs": [
+          "brief_id",
+          "task_id",
+          "payload_json",
+          "created_at",
+          "updated_at"
+        ],
+        "metric_specs": [
+          "metric_id",
+          "task_id",
+          "name",
+          "is_primary_kpi",
+          "payload_json",
+          "created_at"
+        ],
+        "review_verdicts": [
+          "verdict_id",
+          "task_id",
+          "category",
+          "result",
+          "reviewer",
+          "payload_json",
+          "created_at"
+        ],
+        "schema_migrations": [
+          "version",
+          "applied_at"
+        ],
+        "task_contract_events": [
+          "event_id",
+          "task_id",
+          "event_type",
+          "payload_json",
+          "created_at"
+        ],
+        "task_contracts": [
+          "task_id",
+          "session_id",
+          "type",
+          "status",
+          "business_goal",
+          "primary_kpi_id",
+          "decision_owner",
+          "decision_deadline",
+          "budget_json",
+          "autonomy_json",
+          "allowed_sources_json",
+          "forbidden_patterns_json",
+          "required_deliverables_json",
+          "definition_of_done_json",
+          "goal_brief_id",
+          "dataset_manifest_id",
+          "assumption_log_id",
+          "delivery_pack_id",
+          "metric_spec_ids_json",
+          "review_verdict_ids_json",
+          "secondary_kpi_ids_json",
+          "created_at",
+          "updated_at",
+          "created_by",
+          "version",
+          "authority",
+          "audience",
+          "mission"
+        ],
+        "v_delivery_summary": [
+          "pack_id",
+          "task_id",
+          "status",
+          "artifact_count",
+          "rendered_count",
+          "last_attempt"
+        ]
+      }
+    },
+    "work_object_store": {
+      "path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_A04\\work_object_inventory.db",
+      "schema_version": 12,
+      "tables": [
+        "assumption_logs",
+        "dataset_manifests",
+        "delivery_log",
+        "delivery_packs",
+        "external_reference",
+        "goal_briefs",
+        "integration_credentials",
+        "integration_event_log",
+        "metric_specs",
+        "review_verdicts",
+        "schema_migrations",
+        "sqlite_sequence",
+        "task_contract_events",
+        "task_contracts",
+        "v_delivery_summary",
+        "work_objects"
+      ],
+      "columns": {
+        "assumption_logs": [
+          "log_id",
+          "task_id",
+          "payload_json"
+        ],
+        "dataset_manifests": [
+          "manifest_id",
+          "task_id",
+          "payload_json",
+          "generated_at"
+        ],
+        "delivery_log": [
+          "log_id",
+          "task_id",
+          "pack_id",
+          "artifact_id",
+          "channel",
+          "status",
+          "attempted_at",
+          "reason",
+          "receipt_ref",
+          "adapter_name",
+          "idempotency_key"
+        ],
+        "delivery_packs": [
+          "pack_id",
+          "task_id",
+          "payload_json",
+          "generated_at"
+        ],
+        "external_reference": [
+          "reference_id",
+          "work_object_id",
+          "system",
+          "resource_type",
+          "resource_id",
+          "url",
+          "metadata_json",
+          "idempotency_key",
+          "created_at"
+        ],
+        "goal_briefs": [
+          "brief_id",
+          "task_id",
+          "payload_json",
+          "created_at",
+          "updated_at"
+        ],
+        "integration_credentials": [
+          "credential_id",
+          "system",
+          "label",
+          "auth_type",
+          "encrypted_blob",
+          "scopes_json",
+          "expires_at",
+          "rotated_at",
+          "created_at"
+        ],
+        "integration_event_log": [
+          "event_id",
+          "work_object_id",
+          "system",
+          "action",
+          "idempotency_key",
+          "request_payload_hash",
+          "status",
+          "external_ref_json",
+          "attempt",
+          "error_code",
+          "error_message",
+          "policy_decision_id",
+          "started_at",
+          "finished_at",
+          "latency_ms",
+          "request_payload_json"
+        ],
+        "metric_specs": [
+          "metric_id",
+          "task_id",
+          "name",
+          "is_primary_kpi",
+          "payload_json",
+          "created_at"
+        ],
+        "review_verdicts": [
+          "verdict_id",
+          "task_id",
+          "category",
+          "result",
+          "reviewer",
+          "payload_json",
+          "created_at"
+        ],
+        "schema_migrations": [
+          "version",
+          "applied_at"
+        ],
+        "task_contract_events": [
+          "event_id",
+          "task_id",
+          "event_type",
+          "payload_json",
+          "created_at"
+        ],
+        "task_contracts": [
+          "task_id",
+          "session_id",
+          "type",
+          "status",
+          "business_goal",
+          "primary_kpi_id",
+          "decision_owner",
+          "decision_deadline",
+          "budget_json",
+          "autonomy_json",
+          "allowed_sources_json",
+          "forbidden_patterns_json",
+          "required_deliverables_json",
+          "definition_of_done_json",
+          "goal_brief_id",
+          "dataset_manifest_id",
+          "assumption_log_id",
+          "delivery_pack_id",
+          "metric_spec_ids_json",
+          "review_verdict_ids_json",
+          "secondary_kpi_ids_json",
+          "created_at",
+          "updated_at",
+          "created_by",
+          "version",
+          "authority",
+          "audience",
+          "mission"
+        ],
+        "v_delivery_summary": [
+          "pack_id",
+          "task_id",
+          "status",
+          "artifact_count",
+          "rendered_count",
+          "last_attempt"
+        ],
+        "work_objects": [
+          "work_object_id",
+          "task_contract_id",
+          "parent_work_object_id",
+          "title",
+          "request_source",
+          "requestor_id",
+          "current_phase",
+          "payload_json",
+          "tags_json",
+          "created_at",
+          "updated_at"
+        ]
+      }
+    },
+    "semantic_store": {
+      "path": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_A04\\semantic_inventory.db",
+      "schema_version": 7,
+      "tables": [
+        "schema_migrations",
+        "semantic_calendar_event",
+        "semantic_decision_log",
+        "semantic_glossary",
+        "semantic_glossary_fts",
+        "semantic_glossary_fts_config",
+        "semantic_glossary_fts_content",
+        "semantic_glossary_fts_data",
+        "semantic_glossary_fts_docsize",
+        "semantic_glossary_fts_idx",
+        "semantic_metric",
+        "semantic_metric_fts",
+        "semantic_metric_fts_config",
+        "semantic_metric_fts_content",
+        "semantic_metric_fts_data",
+        "semantic_metric_fts_docsize",
+        "semantic_metric_fts_idx",
+        "semantic_metric_synonym",
+        "semantic_negative_knowledge",
+        "semantic_proposal",
+        "semantic_proposal_evidence",
+        "semantic_snapshot_manifest",
+        "semantic_snapshot_row",
+        "semantic_table_trust",
+        "semantic_team_ownership",
+        "semantic_verified_query",
+        "semantic_verified_query_audit",
+        "sqlite_sequence"
+      ],
+      "columns": {
+        "schema_migrations": [
+          "version",
+          "applied_at"
+        ],
+        "semantic_calendar_event": [
+          "event_id",
+          "type",
+          "name",
+          "start_date",
+          "end_date",
+          "description",
+          "impact_hint"
+        ],
+        "semantic_decision_log": [
+          "decision_id",
+          "date",
+          "summary",
+          "context",
+          "metrics_used_json",
+          "verified_query_ids_json",
+          "outcome",
+          "rationale"
+        ],
+        "semantic_glossary": [
+          "term_id",
+          "canonical_form",
+          "definition",
+          "synonyms_json",
+          "abbreviations_json",
+          "translations_json",
+          "linked_metric_ids_json",
+          "category",
+          "owner",
+          "variants_text"
+        ],
+        "semantic_glossary_fts": [
+          "term_id",
+          "canonical_form",
+          "definition",
+          "variants"
+        ],
+        "semantic_glossary_fts_config": [
+          "k",
+          "v"
+        ],
+        "semantic_glossary_fts_content": [
+          "id",
+          "c0",
+          "c1",
+          "c2",
+          "c3"
+        ],
+        "semantic_glossary_fts_data": [
+          "id",
+          "block"
+        ],
+        "semantic_glossary_fts_docsize": [
+          "id",
+          "sz"
+        ],
+        "semantic_glossary_fts_idx": [
+          "segid",
+          "term",
+          "pgno"
+        ],
+        "semantic_metric": [
+          "metric_id",
+          "display_name",
+          "owner",
+          "owner_contact",
+          "definition",
+          "synonyms_json",
+          "synonyms_text",
+          "grain",
+          "unit",
+          "direction",
+          "typical_range_min",
+          "typical_range_max",
+          "calculation_json",
+          "related_metrics_json",
+          "approved_by_json",
+          "caveats_json",
+          "verified_query_ids_json",
+          "version",
+          "last_reviewed"
+        ],
+        "semantic_metric_fts": [
+          "metric_id",
+          "display_name",
+          "definition",
+          "synonyms"
+        ],
+        "semantic_metric_fts_config": [
+          "k",
+          "v"
+        ],
+        "semantic_metric_fts_content": [
+          "id",
+          "c0",
+          "c1",
+          "c2",
+          "c3"
+        ],
+        "semantic_metric_fts_data": [
+          "id",
+          "block"
+        ],
+        "semantic_metric_fts_docsize": [
+          "id",
+          "sz"
+        ],
+        "semantic_metric_fts_idx": [
+          "segid",
+          "term",
+          "pgno"
+        ],
+        "semantic_metric_synonym": [
+          "metric_id",
+          "synonym"
+        ],
+        "semantic_negative_knowledge": [
+          "nk_id",
+          "topic",
+          "wrong_approach",
+          "why_wrong",
+          "correct_approach",
+          "recorded_at",
+          "recorded_by",
+          "references_json"
+        ],
+        "semantic_proposal": [
+          "proposal_id",
+          "proposal_type",
+          "status",
+          "source_run_id",
+          "source_session_id",
+          "source_tool_name",
+          "target_id",
+          "summary",
+          "payload_json",
+          "confidence",
+          "risk",
+          "proposed_by",
+          "auto_apply_eligible",
+          "created_at",
+          "expires_at",
+          "reviewed_by",
+          "reviewed_at"
+        ],
+        "semantic_proposal_evidence": [
+          "evidence_id",
+          "proposal_id",
+          "evidence_type",
+          "evidence_ref",
+          "note"
+        ],
+        "semantic_snapshot_manifest": [
+          "snapshot_id",
+          "source_name",
+          "created_at",
+          "note",
+          "table_counts_json"
+        ],
+        "semantic_snapshot_row": [
+          "snapshot_id",
+          "table_name",
+          "row_key",
+          "payload_json"
+        ],
+        "semantic_table_trust": [
+          "fqtn",
+          "grade",
+          "owner",
+          "description",
+          "refresh_json",
+          "columns_json",
+          "approved_joins_json",
+          "grade_rationale",
+          "last_audited"
+        ],
+        "semantic_team_ownership": [
+          "team",
+          "contact",
+          "owned_metrics_json",
+          "owned_tables_json",
+          "approver_chain_json"
+        ],
+        "semantic_verified_query": [
+          "vq_id",
+          "metric_id",
+          "dialect",
+          "description",
+          "sql_template",
+          "parameters_json",
+          "referenced_tables_json",
+          "verified_by",
+          "last_verified",
+          "verification_evidence",
+          "failure_modes_json",
+          "tags_json"
+        ],
+        "semantic_verified_query_audit": [
+          "audit_id",
+          "vq_id",
+          "verified_by",
+          "verification_evidence",
+          "verified_at"
+        ]
+      }
+    }
+  },
+  "observed_max_schema_version": 12,
+  "plan_claim_v13_satisfied": false
+}

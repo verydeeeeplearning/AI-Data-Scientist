@@ -1,0 +1,23 @@
+metric_id: monthly_recurring_revenue
+display_name: Monthly Recurring Revenue
+owner: finance_team
+definition: "Ending monthly recurring subscription revenue for the measurement month."
+synonyms:
+  - MRR
+  - recurring revenue
+grain: monthly
+unit: amount
+direction: higher_is_better
+related_metrics:
+  - average_revenue_per_user
+  - net_revenue_retention
+caveats:
+  - Non-recurring services revenue is excluded from the certified MRR definition.
+verified_query_ids:
+  - vq-mrr-postgres
+  - vq-mrr-bigquery
+calculation:
+  numerator:
+    source: prod.finance.mrr_ledger
+    filter: revenue_type = 'subscription'
+    aggregation: SUM(mrr_amount)

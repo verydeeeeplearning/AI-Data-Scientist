@@ -1,0 +1,41 @@
+{
+  "agent_id": "B06",
+  "agent_name": "Tools Registry Fuzz Tester",
+  "tier": 2,
+  "started_at": "2026-04-17T00:00:00Z",
+  "code_sha": "git-unavailable",
+  "scope": {
+    "modules": 40,
+    "expected_tools": 86,
+    "expected_cells": 430,
+    "source_dir": "src/ds_agent/tools/",
+    "test_dirs": ["tests/unit/tools/", "tests/integration/tools/"]
+  },
+  "inputs": [
+    "normal",
+    "schema_violation",
+    "timeout",
+    "sandbox_violation",
+    "workspace_path_bound_or_idempotency"
+  ],
+  "sandbox_payloads": [
+    "import socket",
+    "open('/etc/passwd')",
+    "os.system",
+    "urllib.request.urlopen",
+    "__import__('os').system"
+  ],
+  "dependencies": [
+    "A01_architecture_reaudit PASS",
+    "A02_security_reaudit PASS",
+    "A03_contract_schema_reaudit PASS (86 tool confirmed)",
+    "A04_migration_reaudit PASS"
+  ],
+  "constraints": [
+    "no source modification",
+    "sandbox-only execution for run_python/run_sql/run_bash",
+    "scope-isolated pytest only (no full regression)",
+    "touch only .tmp/qa_B06/",
+    "no self pass judgment"
+  ]
+}

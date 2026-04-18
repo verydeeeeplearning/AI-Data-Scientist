@@ -1,0 +1,89 @@
+{
+  "agent": "B10",
+  "role": "Comms / Workflow / Export Tester",
+  "specs_tested": ["Spec 07 DeliveryRouter/Exporters", "Spec 08 Integration Hub/Connectors/Workflow"],
+  "date": "2026-04-17",
+  "project_root": "C:/Users/aquap/Desktop/AI_Data_Scientist_Demo",
+  "status": "pass_evidence_recorded",
+  "self_pass_verdict": false,
+  "notes": "Self pass not claimed. All 8 paths exercised with evidence captured; downstream verifier to confirm gate.",
+  "metrics": {
+    "matrix_cells": 30,
+    "matrix_pass": 30,
+    "roundtrip_equal": true,
+    "real_adapter_calls": 0,
+    "real_adapter_call_attempts_blocked": 5,
+    "dlq_replay_ok": true,
+    "quiet_hours_pass": true,
+    "rate_limiter_pass": true,
+    "connectors_pass": true,
+    "ml_handoff_pass": true,
+    "workflow_lifecycle_pass": true,
+    "scope_isolated_pytest": {"collected": 135, "passed": 135, "failed": 0, "skipped": 0}
+  },
+  "evidence": {
+    "start": "Docs/qa_run_2026-04-17/B10_comms_export/START.json",
+    "report": "Docs/qa_run_2026-04-17/B10_comms_export/B10_report.md",
+    "harness_output": "Docs/qa_run_2026-04-17/B10_comms_export/B10_harness_result.json",
+    "matrix_dir": "Docs/qa_run_2026-04-17/B10_comms_export/B10_delivery_matrix/",
+    "matrix_csv": "Docs/qa_run_2026-04-17/B10_comms_export/B10_delivery_matrix/matrix_result.csv",
+    "dlq_trace": "Docs/qa_run_2026-04-17/B10_comms_export/B10_dlq_trace.jsonl",
+    "pytest_junit": "Docs/qa_run_2026-04-17/B10_comms_export/B10_pytest.xml",
+    "harness_source": ".tmp/qa_B10/harness.py"
+  },
+  "paths": {
+    "path1_matrix_5x6": {
+      "status": "pass",
+      "note": "All 30 cells (5 audience × 6 format) rendered with structurally valid output. See CSV for per-cell details."
+    },
+    "path2_korean_roundtrip": {
+      "status": "pass",
+      "note": "Markdown round-trip: every Korean title and line appears verbatim in the rendered file across all 5 audiences."
+    },
+    "path3_quiet_hours": {
+      "status": "pass",
+      "window": "[22:00, 08:00) UTC",
+      "note": "Boundary probes at 21/22/23/07:59/08/09 all correct. Critical-severity events bypass the window; warning/info events queued and released at 08:00 boundary."
+    },
+    "path4_rate_limiter": {
+      "status": "pass",
+      "note": "10/min config: first 10 accepted, next 5 denied. Exponential backoff monotonic."
+    },
+    "path5_connectors": {
+      "status": "pass",
+      "simulated_mode_all_7_ok": true,
+      "forced_real_mode_attempts": 7,
+      "network_egress_actual": 0,
+      "in_adapter_kill_switch": ["email", "calendar"],
+      "deferred_to_hub_policy_gate": ["slack", "jira", "confluence", "notion", "git"],
+      "note": "Slack/Jira/Confluence/Notion/Git do NOT have an in-adapter _is_configured() guard; real-mode egress is gated at the IntegrationHub/DeliveryRouter policy layer. Harness urllib monkeypatch intercepted all 5 attempted egresses. Recorded as architectural finding RC-5 in the report."
+    },
+    "path6_dlq_replay": {
+      "status": "pass",
+      "note": "_REPLAY_REQUEST_TYPES maps 9 system keys correctly. Failing dispatch → DLQ → replay_event() reconstructs payload and succeeds on retry (attempt=2, status=success)."
+    },
+    "path7_ml_handoff": {
+      "status": "pass",
+      "note": "ml_engineer handoff renders to markdown with model_version/owner/rollback_plan/monitoring/serving fields. Dispatch count=2 to {confluence, jira_ticket}. No real egress."
+    },
+    "path8_workflow_lifecycle": {
+      "status": "pass",
+      "note": "Full forward path Intake→Executing→Review→Documenting→Followup→Closed. All 7 reverse transitions from CLOSED/REVIEW blocked. Close-with-pending-policy-action also blocked."
+    }
+  },
+  "constraints_observed": {
+    "source_unmodified": true,
+    "real_external_adapter_calls_made": 0,
+    "full_regression_pytest_avoided": true,
+    "out_of_scope_file_edits": 0,
+    "data_dir_touched": false
+  },
+  "deferred_issues": [
+    {
+      "id": "RC-5",
+      "summary": "Slack/Jira/Confluence/Notion/Git connectors lack in-adapter _is_configured() kill-switch; rely on hub policy layer for real-mode gating.",
+      "recommendation": "Confirm production wiring never passes dry_run=False with real credentials outside the policy-gated flow.",
+      "block_b10_pass": false
+    }
+  ]
+}

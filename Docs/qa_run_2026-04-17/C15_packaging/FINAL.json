@@ -1,0 +1,133 @@
+{
+  "agent_id": "C15",
+  "role": "Packaging & Diagnostic Tester",
+  "tier": 3,
+  "status": "pass",
+  "self_pass_claim": false,
+  "verdict_note": "This agent does not self-pass. Orchestrator decides the Tier 3 gate. 5/6 paths live-PASS + 1 PARTIAL (Path 1 script cleanup race on Windows file lock; core PyInstaller output is valid). READY race 10/10 unique ports and tokens — zero collision, zero token leak.",
+  "code_sha": "git-unavailable",
+  "start_timestamp_utc": "2026-04-17T10:35:00Z",
+  "end_timestamp_utc": "2026-04-17T10:55:00Z",
+  "metrics": {
+    "build_success": true,
+    "build_partial_note": "PyInstaller EXE + COLLECT completed successfully (46 MB + 248 MB). Script's post-build copytree to build/ failed with WinError 5 (file lock on aiohttp _websocket pyd); downstream paths consumed dist/ directly without issue.",
+    "binary_size_mb": 46,
+    "binary_total_bundle_mb": 248,
+    "smoke_endpoints_ok": "5/5",
+    "smoke_details": {
+      "ready_emit": true,
+      "health_200": true,
+      "api_status_200": true,
+      "ws_handshake": true,
+      "ws_round_trip": true,
+      "token_length": 64,
+      "token_prefix_example": "f772a207"
+    },
+    "ready_race_unique": true,
+    "ready_race_detail": {
+      "processes": 10,
+      "unique_ports": true,
+      "unique_tokens": true,
+      "all_health_200": true,
+      "total_seconds": 1.968,
+      "errors": 0
+    },
+    "electron_paths_verified": true,
+    "electron_happy_path_pass": true,
+    "electron_diagnostic_path_pass": true,
+    "diagnostic_path_ok": true,
+    "autoupdater_config_valid": true,
+    "autoupdater_static_checks": "8/8",
+    "supporting_static_checks": "33/33",
+    "fallback_used": true,
+    "fallback_scope": [
+      "Path 6 live feed injection: static audit + drafted dev-app-update.yml template (requires P0-05 signed build for live injection)",
+      "Real Sentry DSN kept empty per P0-07 external gating",
+      "Real code signing not attempted per P0-05 external gating"
+    ]
+  },
+  "six_paths": {
+    "1_binary_build": "PARTIAL (PyInstaller complete; script post-copy race)",
+    "2_backend_smoke": "PASS (5/5)",
+    "3_ready_race": "PASS (10/10 unique)",
+    "4_electron_happy_path": "PASS",
+    "5_electron_diagnostic_path": "PASS",
+    "6_autoupdater_mock": "PASS (8/8 static; live feed deferred to P0-05)"
+  },
+  "pass_criteria_alignment": {
+    "plan_6_paths_all_succeed": "5 PASS + 1 PARTIAL (cleanup-only, not artefact)",
+    "plan_ready_race_zero_collision": "satisfied (0 port collision, 0 token leak)"
+  },
+  "open_issues": [
+    {
+      "id": "C15-O1",
+      "severity": "low",
+      "area": "scripts/build_backend.py",
+      "summary": "Windows file-lock race when recopying dist → build",
+      "recommendation": "Retry-with-backoff or onerror handler in shutil.rmtree",
+      "blocking": false
+    },
+    {
+      "id": "C15-O2",
+      "severity": "low",
+      "area": "plan wording",
+      "summary": "Plan says 'single-file binary ≈43.5 MB' but spec is COLLECT one-dir (46 MB launcher + 248 MB bundle)",
+      "recommendation": "Reword plan: 'one-dir bundle, 46 MB launcher EXE, 248 MB total'",
+      "blocking": false
+    },
+    {
+      "id": "C15-O3",
+      "severity": "low",
+      "area": "WS liveness",
+      "summary": "No built-in ws.ping op — synthetic ping returned INVALID_TYPE (expected per schema)",
+      "recommendation": "Consider adding a server-side ws.ping op for ops tooling",
+      "blocking": false
+    },
+    {
+      "id": "C15-O4",
+      "severity": "info",
+      "area": "auto-updater",
+      "summary": "Live feed injection deferred (needs signed build)",
+      "recommendation": "Schedule packaged-build rehearsal with fake feed once P0-05 certificate lands",
+      "blocking": false
+    },
+    {
+      "id": "C15-O5",
+      "severity": "info",
+      "area": "diagnostic coverage",
+      "summary": "Only BINARY_NOT_FOUND live-tested; 7 other reasons covered by static REASON_COPY map audit",
+      "recommendation": "Optional: parametrise diagnostic-window.spec.ts over all 8 reasons",
+      "blocking": false
+    }
+  ],
+  "environment": {
+    "os": "Windows 11",
+    "python": "3.12.10",
+    "pyinstaller": "6.19.0",
+    "node": "v22.20.0",
+    "npm": "10.9.3",
+    "playwright": "1.59.1",
+    "electron_updater_declared": "^6.8.3"
+  },
+  "evidence": {
+    "report": "Docs/qa_run_2026-04-17/C15_packaging/C15_report.md",
+    "smoke_log": "Docs/qa_run_2026-04-17/C15_packaging/C15_package_smoke.log",
+    "diagnostic_trace": "Docs/qa_run_2026-04-17/C15_packaging/C15_diagnostic_trace.md",
+    "ready_race_csv": "Docs/qa_run_2026-04-17/C15_packaging/C15_ready_race.csv",
+    "backend_smoke_json": "Docs/qa_run_2026-04-17/C15_packaging/C15_backend_smoke.json",
+    "autoupdater_json": "Docs/qa_run_2026-04-17/C15_packaging/autoupdater_verify.json",
+    "static_paths_json": "Docs/qa_run_2026-04-17/C15_packaging/static_paths.json",
+    "start_manifest": "Docs/qa_run_2026-04-17/C15_packaging/START.json",
+    "pyinstaller_build_log": ".tmp/qa_C15/logs/build.log",
+    "race_log": ".tmp/qa_C15/logs/race.log",
+    "happy_log": ".tmp/qa_C15/logs/happy.log",
+    "diag_log": ".tmp/qa_C15/logs/diag_smoke.log",
+    "fake_feed_template": ".tmp/qa_C15/fake_update_feed.yml",
+    "scripts_used": [
+      ".tmp/qa_C15/backend_smoke.py",
+      ".tmp/qa_C15/ready_race.py",
+      ".tmp/qa_C15/autoupdater_mock_verify.py",
+      ".tmp/qa_C15/static_path_verify.py"
+    ]
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "agent_id": "A01-reaudit",
+  "agent_name": "Architecture Auditor (re-audit)",
+  "tier": 1,
+  "round": 2,
+  "baseline_final": "Docs/qa_run_2026-04-17/A01_architecture/FINAL.json",
+  "fix_sprint_inputs": [
+    "Docs/qa_run_2026-04-17/S1_clean_arch/FINAL.json",
+    "Docs/qa_run_2026-04-17/S5_sandbox_port/FINAL.json"
+  ],
+  "status": "pass",
+  "started_at": "2026-04-16T20:03:41Z",
+  "finished_at": "2026-04-16T20:05:30Z",
+  "code_sha": "git-unavailable",
+  "evidence": [
+    "Docs/qa_run_2026-04-17/A01_architecture_reaudit/START.json",
+    "Docs/qa_run_2026-04-17/A01_architecture_reaudit/A01_arch_report_reaudit.md",
+    "Docs/qa_run_2026-04-17/A01_architecture_reaudit/A01_ast_scan.json",
+    "Docs/qa_run_2026-04-17/A01_architecture_reaudit/junit_architecture.xml",
+    ".tmp/qa_A01_reaudit/check_import_contracts.log",
+    ".tmp/qa_A01_reaudit/lint_imports.log",
+    ".tmp/qa_A01_reaudit/pytest_architecture.log",
+    ".tmp/qa_A01_reaudit/pytest_application.log",
+    ".tmp/qa_A01_reaudit/ast_scan.py"
+  ],
+  "prior_failures_resolved": [
+    {
+      "id": "V1-lineage",
+      "resolved": true,
+      "evidence": "src/ds_agent/application/services/lineage_capture_service.py:10 now imports LineageStorePort (application/ports/lineage_store_port.py); no ds_agent.infrastructure import remains. AST scan 0 violations."
+    },
+    {
+      "id": "V2-repro",
+      "resolved": true,
+      "evidence": "src/ds_agent/application/services/reproducibility_exporter.py:9 now imports NotebookEnginePort; no ds_agent.infrastructure import remains. AST scan 0 violations."
+    },
+    {
+      "id": "V3-scheduler",
+      "resolved": true,
+      "evidence": "src/ds_agent/application/services/scheduler_service.py:10 now imports CronRunnerPort; no ds_agent.infrastructure import remains. AST scan 0 violations."
+    }
+  ],
+  "s5_residuals_resolved": [
+    {
+      "id": "R1-transitive",
+      "resolved": true,
+      "evidence": "execution_router.py has no static ds_agent.tools.* or ds_agent.infrastructure.* import; lazy import confined to infrastructure/sandbox/sandbox_factory.py:50. lint-imports reports application_independence_from_infrastructure KEPT."
+    },
+    {
+      "id": "R3-subagent-fixture",
+      "resolved": true,
+      "evidence": "tests/unit/application/conftest.py present; tests/unit/application/test_subagent.py passes 4/4 in scope-isolated run."
+    }
+  ],
+  "new_regressions": [],
+  "pre_existing_non_regressions": [
+    {
+      "id": "test_semantic_ports_are_runtime_checkable",
+      "location": "tests/unit/application/test_semantic_ports.py:223",
+      "note": "Pre-existing failure in ds_agent.memory.semantic.ExternalSemanticSource runtime_checkable. Documented in both S1 and S5 FINAL.json as pre-existing and out of their scope. Not in A01 R1 scope (architecture/ only). Not a regression."
+    }
+  ],
+  "scope_respected": true,
+  "scope_check_detail": {
+    "all_declared_s1_files_exist": true,
+    "all_declared_s5_files_exist": true,
+    "sandbox_port_consumers": [
+      "src/ds_agent/application/ports/__init__.py:11 (declared)",
+      "src/ds_agent/application/services/execution_router.py:19 (declared)",
+      "src/ds_agent/infrastructure/sandbox/sandbox_factory.py:22 (declared, new)"
+    ],
+    "no_unexpected_consumers": true
+  },
+  "metrics": {
+    "check_import_contracts_exit_code": 0,
+    "lint_imports_exit_code": 0,
+    "lint_imports_contracts_total": 2,
+    "lint_imports_contracts_kept": 2,
+    "lint_imports_contracts_broken": 0,
+    "pytest_architecture_exit_code": 0,
+    "pytest_architecture_tests": 7,
+    "pytest_architecture_failures": 0,
+    "pytest_application_isolated_passed": 488,
+    "pytest_application_isolated_failed": 1,
+    "pytest_application_isolated_regression_count": 0,
+    "domain_files_scanned": 97,
+    "domain_external_import_violations": 0,
+    "application_files_scanned": 68,
+    "application_infrastructure_import_violations": 0,
+    "application_tools_import_violations": 0,
+    "ws_handler_lines_baseline": 4034,
+    "ws_handler_lines_current": 4433,
+    "ws_handler_lines_delta": 399,
+    "ipc_ts_lines_baseline": 1377,
+    "ipc_ts_lines_current": 1508,
+    "ipc_ts_lines_delta": 131,
+    "mission_brief_panel_lines_baseline": 798,
+    "mission_brief_panel_lines_current": 862,
+    "mission_brief_panel_lines_delta": 64
+  },
+  "pass_criteria": {
+    "prior_three_violations_resolved": true,
+    "lint_imports_zero_broken": true,
+    "architecture_tests_all_pass": true,
+    "application_infrastructure_imports_zero": true,
+    "application_tools_imports_zero": true,
+    "zero_new_regressions": true,
+    "fix_sprint_scope_respected": true
+  }
+}

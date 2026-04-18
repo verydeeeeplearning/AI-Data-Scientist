@@ -1,0 +1,11 @@
+{
+  "total_tools": 86,
+  "total_cells": 430,
+  "critical_failures": 0,
+  "sandbox_blocks": 10,
+  "outcome_counts": {
+    "pass": 346,
+    "fail": 0,
+    "skipped": 84
+  }
+}

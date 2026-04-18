@@ -1,0 +1,39 @@
+{"ts": "2026-04-18T04:24:32.112689Z", "event": "scenario_start", "scenario_id": "P-01", "goal_preview": "tips.csv의 total_bill 예측 — 데이터 로드와 프로파일링, baseline 선형 회귀 모델, 평가, 최종 DeliveryPack(PDF)을 생성하세요."}
+{"ts": "2026-04-18T04:24:33.170643Z", "event": "fake_application_built", "token_prefix": "1", "bot_type": "ExtBot", "updater": "None"}
+{"ts": "2026-04-18T04:24:33.170643Z", "event": "plugin_instantiated", "plugin_class": "TelegramPlugin", "fake_app_spliced": true}
+{"ts": "2026-04-18T04:24:33.170643Z", "event": "update_constructed", "scenario_id": "P-01", "update_id": 555777995, "message_id": 555777995, "chat_id": 555777, "thread_id": 7, "text_preview": "tips.csv의 total_bill 예측 — 데이터 로드와 프로파일링, baseline 선형 회귀 모델, 평가, 최종 DeliveryPack("}
+{"ts": "2026-04-18T04:24:33.171167Z", "event": "plugin_on_text_invoked", "handler": "_on_text"}
+{"ts": "2026-04-18T04:24:33.171167Z", "event": "inbound_message_dequeued", "channel_id": "telegram", "conversation_id": "555777", "thread_id": "7", "sender_id": "8881", "text_len": 92}
+{"ts": "2026-04-18T04:24:33.172683Z", "event": "session_id_derived", "base_session_id": "telegram:555777:7", "full_session_id": "telegram:555777:7:P-01-042433", "helper": "ds_agent.runtime.channel_identity.telegram_session_id"}
+{"ts": "2026-04-18T04:24:34.960350Z", "event": "backend_spawned", "pid": 227436, "port": 18950}
+{"ts": "2026-04-18T04:24:34.963860Z", "event": "ws_request", "url": "ws://127.0.0.1:18950/ws", "request": {"type": "req", "id": "s15-telegram:555777:7:P-01-042433", "method": "chat.send", "params": {"sessionId": "telegram:555777:7:P-01-042433", "message": "tips.csv의 total_bill 예측 — 데이터 로드와 프로파일링, baseline 선형 회귀 모델, 평가, 최종 DeliveryPack(PDF)을 생성하세요.", "surface": "telegram", "maxIterations": 2, "maxCostUsd": 0.0}}}
+{"ts": "2026-04-18T04:24:35.066282Z", "event": "ws_frame", "frame_type": "res", "frame_event_name": null}
+{"ts": "2026-04-18T04:24:35.067290Z", "event": "ws_complete", "event_count": 1, "status": "error", "error_code": "INTERNAL", "final_content_len": 109}
+{"ts": "2026-04-18T04:24:42.925050Z", "event": "backend_cleanup", "pid": 227436, "cleanup": {"pid": 227436, "exit_code": 1, "killed": true, "already_exited": false}}
+{"ts": "2026-04-18T04:24:42.927223Z", "event": "scenario_complete", "status": "error", "hash_prefix": "51de5976e68aeb2d"}
+{"ts": "2026-04-18T04:24:42.945145Z", "event": "scenario_start", "scenario_id": "P-02", "goal_preview": "현재 세션의 Authority를 Supervised에서 Delegate로 전환하고, 실험 기록 삭제(가상) CAUTION 도구를 호출해 승인 플로우를 트리거하세요."}
+{"ts": "2026-04-18T04:24:43.641333Z", "event": "fake_application_built", "token_prefix": "1", "bot_type": "ExtBot", "updater": "None"}
+{"ts": "2026-04-18T04:24:43.641333Z", "event": "plugin_instantiated", "plugin_class": "TelegramPlugin", "fake_app_spliced": true}
+{"ts": "2026-04-18T04:24:43.641333Z", "event": "update_constructed", "scenario_id": "P-02", "update_id": 555778452, "message_id": 555778452, "chat_id": 555778, "thread_id": null, "text_preview": "현재 세션의 Authority를 Supervised에서 Delegate로 전환하고, 실험 기록 삭제(가상) CAUTION 도구를 호출해 승인 플"}
+{"ts": "2026-04-18T04:24:43.641333Z", "event": "plugin_on_text_invoked", "handler": "_on_text"}
+{"ts": "2026-04-18T04:24:43.641333Z", "event": "inbound_message_dequeued", "channel_id": "telegram", "conversation_id": "555778", "thread_id": null, "sender_id": "8882", "text_len": 91}
+{"ts": "2026-04-18T04:24:43.642847Z", "event": "session_id_derived", "base_session_id": "telegram:555778", "full_session_id": "telegram:555778:P-02-042443", "helper": "ds_agent.runtime.channel_identity.telegram_session_id"}
+{"ts": "2026-04-18T04:24:45.683514Z", "event": "backend_spawned", "pid": 207640, "port": 18951}
+{"ts": "2026-04-18T04:24:45.685033Z", "event": "ws_request", "url": "ws://127.0.0.1:18951/ws", "request": {"type": "req", "id": "s15-telegram:555778:P-02-042443", "method": "chat.send", "params": {"sessionId": "telegram:555778:P-02-042443", "message": "현재 세션의 Authority를 Supervised에서 Delegate로 전환하고, 실험 기록 삭제(가상) CAUTION 도구를 호출해 승인 플로우를 트리거하세요.", "surface": "telegram", "maxIterations": 2, "maxCostUsd": 0.0}}}
+{"ts": "2026-04-18T04:24:45.758938Z", "event": "ws_frame", "frame_type": "res", "frame_event_name": null}
+{"ts": "2026-04-18T04:24:45.758938Z", "event": "ws_complete", "event_count": 1, "status": "error", "error_code": "INTERNAL", "final_content_len": 109}
+{"ts": "2026-04-18T04:24:53.800496Z", "event": "backend_cleanup", "pid": 207640, "cleanup": {"pid": 207640, "exit_code": 1, "killed": true, "already_exited": false}}
+{"ts": "2026-04-18T04:24:53.802029Z", "event": "scenario_complete", "status": "error", "hash_prefix": "51de5976e68aeb2d"}
+{"ts": "2026-04-18T04:24:53.818099Z", "event": "scenario_start", "scenario_id": "P-03", "goal_preview": "세션에서 관찰한 반복 패턴을 LearningInbox 항목으로 추출하고, 하나를 review·approve 후 promote. 이후 2회 eval 실패 → auto-deprecat"}
+{"ts": "2026-04-18T04:24:54.505519Z", "event": "fake_application_built", "token_prefix": "1", "bot_type": "ExtBot", "updater": "None"}
+{"ts": "2026-04-18T04:24:54.505519Z", "event": "plugin_instantiated", "plugin_class": "TelegramPlugin", "fake_app_spliced": true}
+{"ts": "2026-04-18T04:24:54.506049Z", "event": "update_constructed", "scenario_id": "P-03", "update_id": 555779522, "message_id": 555779522, "chat_id": 555779, "thread_id": 7, "text_preview": "세션에서 관찰한 반복 패턴을 LearningInbox 항목으로 추출하고, 하나를 review·approve 후 promote. 이후 2회 eva"}
+{"ts": "2026-04-18T04:24:54.506049Z", "event": "plugin_on_text_invoked", "handler": "_on_text"}
+{"ts": "2026-04-18T04:24:54.506049Z", "event": "inbound_message_dequeued", "channel_id": "telegram", "conversation_id": "555779", "thread_id": "7", "sender_id": "8883", "text_len": 112}
+{"ts": "2026-04-18T04:24:54.506584Z", "event": "session_id_derived", "base_session_id": "telegram:555779:7", "full_session_id": "telegram:555779:7:P-03-042454", "helper": "ds_agent.runtime.channel_identity.telegram_session_id"}
+{"ts": "2026-04-18T04:24:56.285730Z", "event": "backend_spawned", "pid": 221464, "port": 18952}
+{"ts": "2026-04-18T04:24:56.287246Z", "event": "ws_request", "url": "ws://127.0.0.1:18952/ws", "request": {"type": "req", "id": "s15-telegram:555779:7:P-03-042454", "method": "chat.send", "params": {"sessionId": "telegram:555779:7:P-03-042454", "message": "세션에서 관찰한 반복 패턴을 LearningInbox 항목으로 추출하고, 하나를 review·approve 후 promote. 이후 2회 eval 실패 → auto-deprecate를 시뮬레이션하세요.", "surface": "telegram", "maxIterations": 2, "maxCostUsd": 0.0}}}
+{"ts": "2026-04-18T04:24:56.356012Z", "event": "ws_frame", "frame_type": "res", "frame_event_name": null}
+{"ts": "2026-04-18T04:24:56.356012Z", "event": "ws_complete", "event_count": 1, "status": "error", "error_code": "INTERNAL", "final_content_len": 109}
+{"ts": "2026-04-18T04:25:04.353259Z", "event": "backend_cleanup", "pid": 221464, "cleanup": {"pid": 221464, "exit_code": 1, "killed": true, "already_exited": false}}
+{"ts": "2026-04-18T04:25:04.354580Z", "event": "scenario_complete", "status": "error", "hash_prefix": "51de5976e68aeb2d"}

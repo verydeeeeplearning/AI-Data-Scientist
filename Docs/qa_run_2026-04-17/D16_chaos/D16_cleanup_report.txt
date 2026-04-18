@@ -1,0 +1,93 @@
+D16 Chaos / Recovery Engineer — End-of-Run Cleanup Report
+=========================================================
+Run ID: D16 (Tier 4, solo)
+Completed at: 2026-04-17T12:24:03Z (last scenario verdict timestamp)
+Cleanup verified at: 2026-04-17T (post-scenario-8)
+
+
+1. Orphan process check
+-----------------------
+Detector script: .tmp/qa_D16/orphan_check.py
+Filter rule:     name ∈ {python.exe,python,pythonw.exe}
+                 AND argv contains a .py path matching qa_D16/.../scenario_\d+.py
+
+Result:
+  d16_orphan_processes     = []
+  d16_orphan_count         = 0
+
+Pre-existing processes (NOT created by D16, out of scope):
+  [pid=193632] ds-agent-api.exe
+    cmdline: C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\build\ds-agent-backend\ds-agent-api.exe --port 18850
+    note:    Already running when D16 started (recorded in D16_precheck.txt).
+             This is the C15 packaging / Tier 3 smoke artifact. D16 MUST NOT
+             touch this pid; it is still alive after D16 completes — expected.
+
+
+2. Filesystem: .tmp/qa_D16/
+---------------------------
+All 32 files retained for D17 evidence reproducibility:
+
+  .tmp/qa_D16/_helpers.py                     (shared helpers)
+  .tmp/qa_D16/orphan_check.py                 (D16 self-cleanup proof)
+  .tmp/qa_D16/scenario_<1..8>.py              (driver scripts)
+  .tmp/qa_D16/scenario_<1..8>/                (per-scenario workspaces)
+  .tmp/qa_D16/__pycache__/                    (Python cache)
+
+Lock-style files grep (*.lock, *-journal, *-wal, *-shm): none.
+SQLite dbs: 1 (scenario_2/contention.db) — cleanly closed, no WAL/SHM artefacts.
+Working memory JSON: 6 files across scenarios 1+7, all under .tmp/qa_D16/.
+Checkpoints: 6 files across scenarios 1+7, all under .tmp/qa_D16/.
+Config YAML: 1 (scenario_8/config.yaml) — isolated to scenario_8 workspace,
+             NEVER written to ~/.ds-agent/config.yaml or any system path.
+
+
+3. Real user data — INTACT
+--------------------------
+C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\data\
+  total 60
+  drwxr-xr-x 1 aquap 197609     0 Apr 14 01:37 .
+  drwxr-xr-x 1 aquap 197609     0 Apr 17 10:51 ..
+  -rw-r--r-- 1 aquap 197609 22682 Apr 14 11:26 audit_log.jsonl
+  drwxr-xr-x 1 aquap 197609     0 Apr 17 10:30 memory
+  drwxr-xr-x 1 aquap 197609     0 Apr 14 01:37 policy
+  drwxr-xr-x 1 aquap 197609     0 Apr 12 16:11 projects
+
+audit_log.jsonl: unchanged (last mtime Apr 14 11:26, predates D16 start).
+No files created / modified / deleted under data/ by D16.
+
+
+4. Config file — USER HOME UNTOUCHED
+------------------------------------
+Scenario 8 used DS_AGENT_CONFIG_PATH=.tmp/qa_D16/scenario_8/config.yaml via
+subprocess env. The user-level default (~/.ds-agent/config.yaml) was NEVER
+written to by any D16 child process.
+
+
+5. Keyring — NOT DISABLED
+-------------------------
+Scenario 3 injected a mock keyring failure via in-process monkeypatch inside
+its child subprocess only. The host OS keyring (Windows Credential Manager)
+was never disabled, reconfigured, or queried for real user entries.
+
+
+6. Network — NO REAL CALLS
+--------------------------
+Scenario 4 replaced the LLM provider transport with _SimNetworkDown within
+the child subprocess only. No outbound TCP connections to anthropic.com /
+openai.com / any provider were made during the D16 run.
+
+
+7. Summary
+----------
+  scenarios_total                 = 8
+  scenarios_recovered             = 8
+  silent_failures                 = 0
+  orphan_processes_at_end         = 0     (D16-spawned; pre-existing pid=193632
+                                           is the C15 artifact, untouched)
+  cleanup_confirmed               = true
+  data/_directory_modified        = false
+  user_config_directory_modified  = false
+  real_external_service_called    = false
+  pytest_full_regression_run      = false (forbidden by §8.3; not attempted)
+
+D16 Gate verdict: PASS (self-reported; final judge is D18 Release Readiness).

@@ -1,0 +1,20 @@
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=list_my_contracts
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=close_task_contract
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=record_review_verdict
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=build_delivery_pack
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=render_delivery_artifact
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=dispatch_delivery
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=list_delivery_log
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=record_delivery_pack
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=run_verifier
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=get_review_verdict
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=get_verifier_shadow_comparison
+2026-04-17 10:28:28 [debug    ] tool_registered                category=mission name=list_verifier_shadow_comparisons
+2026-04-17 10:28:28 [debug    ] tool_registered                category=utility name=ask_user
+2026-04-17 10:28:28 [debug    ] tool_registered                category=utility name=web_search
+{
+  "runs_completed": 9,
+  "runs_total": 9,
+  "parity_match": true,
+  "out_dir": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\.tmp\\qa_C13"
+}

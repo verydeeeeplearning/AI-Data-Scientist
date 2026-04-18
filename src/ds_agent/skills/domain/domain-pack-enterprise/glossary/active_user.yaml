@@ -1,0 +1,10 @@
+term_id: term.active_user
+canonical_form: active user
+definition: "User meeting the current activity policy for product engagement scorecards."
+synonyms:
+  - engaged user
+linked_metric_ids:
+  - monthly_active_users
+  - weekly_active_users
+category: entity
+owner: product_analytics

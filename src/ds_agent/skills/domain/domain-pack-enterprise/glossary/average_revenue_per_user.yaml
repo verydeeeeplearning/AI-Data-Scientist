@@ -1,0 +1,9 @@
+term_id: term.average_revenue_per_user
+canonical_form: average revenue per user
+definition: "Recognized subscription revenue divided by active users or subscriptions."
+synonyms:
+  - arpu
+linked_metric_ids:
+  - average_revenue_per_user
+category: metric
+owner: finance_team

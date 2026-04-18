@@ -1,0 +1,27 @@
+{
+  "sentry_redaction_sample": {
+    "message": "Contact jane.doe@example.com or +1-202-555-0199 with card 4111 1111 1111 1111",
+    "extra": {
+      "notes": "email=jane.doe@example.com phone=202-555-0199 card=4111111111111111",
+      "customer_email": "jane.doe@example.com",
+      "token": "***REDACTED***"
+    }
+  },
+  "sentry_pii_redacted": {
+    "message_email_removed": false,
+    "message_phone_removed": false,
+    "message_card_removed": false,
+    "extra_notes_email_removed": false,
+    "extra_notes_phone_removed": false,
+    "extra_notes_card_removed": false,
+    "field_token_redacted": true,
+    "field_customer_email_redacted": false
+  },
+  "preamble_checks": {
+    "starts_with_guard_header": true,
+    "contains_policy_object": true,
+    "placeholder_removed": true,
+    "user_code_present": true,
+    "commented_policy_guard_found": false
+  }
+}

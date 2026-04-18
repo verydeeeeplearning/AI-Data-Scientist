@@ -1,0 +1,80 @@
+name: Evaluation Harness Nightly
+
+# P1: Keep the evaluation harness green even when the autonomous runtime,
+# scorer registry, or scorecard bridge changes.
+
+on:
+  schedule:
+    - cron: "15 18 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: evaluation-harness-nightly
+  cancel-in-progress: true
+
+jobs:
+  evaluation-harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+      PYTEST_BASETEMP: .tmp/pytest_eval_harness_ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[providers,cli,gateway,dev]"
+
+      - name: Install Electron deps
+        run: npm ci
+        working-directory: electron
+
+      - name: Validate bundled gold task suite
+        run: python -m ds_agent.cli.main eval validate-suite
+
+      - name: Run evaluation harness regressions
+        run: |
+          pytest --basetemp "${PYTEST_BASETEMP}" \
+            tests/unit/domain/test_delivery_pack.py \
+            tests/unit/evaluation \
+            tests/integration/evaluation \
+            tests/unit/infrastructure/test_api.py
+
+      - name: Lint evaluation harness paths
+        run: |
+          ruff check \
+            src/ds_agent/evaluation \
+            src/ds_agent/api/ws_handler.py \
+            src/ds_agent/domain/entities/delivery_pack.py \
+            tests/unit/domain/test_delivery_pack.py \
+            tests/unit/evaluation \
+            tests/integration/evaluation \
+            tests/unit/infrastructure/test_api.py
+
+      - name: Typecheck Electron scorecard bridge
+        run: npm run typecheck
+        working-directory: electron
+
+      - name: Upload pytest artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-harness-debug
+          path: |
+            .tmp/pytest_eval_harness_ci/**
+            .tmp/pytest/.cache/**
+          if-no-files-found: ignore
+          retention-days: 7

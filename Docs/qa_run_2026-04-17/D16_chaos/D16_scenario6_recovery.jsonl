@@ -1,0 +1,6 @@
+{"step": "clock_drift_case", "case": "clock_backward_1h", "now": "2026-04-17T09:00:00+00:00", "mode": "incident", "started_at": "2026-04-17T10:00:00+00:00", "expires_at": "2026-04-18T10:00:00+00:00", "expired": false, "remaining_seconds": 90000.0}
+{"step": "clock_drift_case", "case": "at_start", "now": "2026-04-17T10:00:00+00:00", "mode": "incident", "started_at": "2026-04-17T10:00:00+00:00", "expires_at": "2026-04-18T10:00:00+00:00", "expired": false, "remaining_seconds": 86400.0}
+{"step": "clock_drift_case", "case": "just_before_expiry", "now": "2026-04-18T09:59:00+00:00", "mode": "incident", "started_at": "2026-04-17T10:00:00+00:00", "expires_at": "2026-04-18T10:00:00+00:00", "expired": false, "remaining_seconds": 60.0}
+{"step": "clock_drift_case", "case": "plus_1_day", "now": "2026-04-18T10:00:00+00:00", "mode": null, "started_at": "2026-04-17T10:00:00+00:00", "expires_at": "2026-04-18T10:00:00+00:00", "expired": true, "remaining_seconds": 0.0}
+{"step": "clock_drift_case", "case": "plus_25h", "now": "2026-04-18T11:00:00+00:00", "mode": null, "started_at": "2026-04-17T10:00:00+00:00", "expires_at": "2026-04-18T10:00:00+00:00", "expired": true, "remaining_seconds": -3600.0}
+{"step": "verdict", "status": "pass"}

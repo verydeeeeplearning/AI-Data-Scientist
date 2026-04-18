@@ -1,0 +1,27 @@
+{
+  "agent": "B10",
+  "role": "Comms / Workflow / Export Tester",
+  "specs_tested": ["Spec 07 DeliveryRouter/Exporters", "Spec 08 Integration Hub/Connectors/Workflow"],
+  "project_root": "C:/Users/aquap/Desktop/AI_Data_Scientist_Demo",
+  "output_dir": "Docs/qa_run_2026-04-17/B10_comms_export",
+  "tmp_dir": ".tmp/qa_B10",
+  "start_utc": "2026-04-17T00:00:00Z",
+  "paths": [
+    "1. Export format x audience matrix (5 audiences x 6 formats = 30 cells)",
+    "2. Korean round-trip string equality (markdown)",
+    "3. DeliveryRouter quiet_hours digest behaviour",
+    "4. TokenBucket rate limit deny + backoff",
+    "5. 7 connectors simulated mode + kill-switch forced real-mode block",
+    "6. DLQ replay (_REPLAY_REQUEST_TYPES mapping, retry success)",
+    "7. ML Handoff template: model_card / serving_config / monitoring_setup / rollback_plan",
+    "8. WorkObject lifecycle: Intake -> Executing -> Review -> Documenting -> Followup -> Closed, reverse blocked"
+  ],
+  "constraints": [
+    "no source modification",
+    "no real external adapter calls (simulated only)",
+    "no full-regression pytest",
+    "no out-of-scope file touch",
+    "no self-pass verdict",
+    "data/ untouched"
+  ]
+}

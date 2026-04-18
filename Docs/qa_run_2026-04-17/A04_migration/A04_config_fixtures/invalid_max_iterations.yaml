@@ -1,0 +1,8 @@
+agent:
+  max_iterations: not-a-number
+_schema_version: 4
+observability:
+  sentry_dsn: null
+  sentry_environment: production
+  telemetry_enabled: false
+  error_reporting_enabled: false

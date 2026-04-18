@@ -1,0 +1,1550 @@
+{
+  "generated_at": "2026-04-18T04:07:40+00:00",
+  "tool": "mypy",
+  "target": "src/ds_agent",
+  "total_errors": 257,
+  "errors": [
+    {
+      "file": "src/ds_agent/api/app.py",
+      "line": 27,
+      "code": "union-attr",
+      "message": "Item \"TextIO\" of \"TextIO | Any\" has no attribute \"reconfigure\""
+    },
+    {
+      "file": "src/ds_agent/api/app.py",
+      "line": 28,
+      "code": "union-attr",
+      "message": "Item \"TextIO\" of \"TextIO | Any\" has no attribute \"reconfigure\""
+    },
+    {
+      "file": "src/ds_agent/api/workspace_service.py",
+      "line": 298,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"pandas\""
+    },
+    {
+      "file": "src/ds_agent/api/workspace_service.py",
+      "line": 445,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 70,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 82,
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 114,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"str\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 969,
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 980,
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2098,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2106,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2122,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2160,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2171,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2227,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"BigQuerySchemaAdapter\", variable has type \"PostgresSchemaAdapter\")"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2233,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"SnowflakeSchemaAdapter\", variable has type \"PostgresSchemaAdapter\")"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2252,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"DbtMetricFlowAdapter\", variable has type \"PostgresSchemaAdapter\")"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2273,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"UnityCatalogAdapter\", variable has type \"PostgresSchemaAdapter\")"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2292,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"LookerAdapter\", variable has type \"PostgresSchemaAdapter\")"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2324,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2389,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"created_at\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2409,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"model_dump\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2415,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2447,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2497,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2515,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2524,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2863,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_method\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2866,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_method\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2872,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"type\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2873,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"label\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2874,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"options\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2875,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_method\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2877,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"read_only\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2878,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"timeout_seconds\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2879,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"max_rows\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2889,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_method\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2898,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"type\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2899,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"label\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2900,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"options\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2901,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_method\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2903,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"read_only\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2904,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"timeout_seconds\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2905,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"max_rows\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2907,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"to_domain\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2915,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"timeout_seconds\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2956,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_ref\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2959,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_method\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2964,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_method\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2975,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_method\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2979,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"type\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2980,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"label\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2981,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"options\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2982,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"credential_method\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2984,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"read_only\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2985,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"timeout_seconds\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 2986,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"max_rows\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3072,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3151,
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3190,
+      "code": "no-untyped-def",
+      "message": "Function is missing a type annotation for one or more parameters"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3244,
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3255,
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3562,
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3833,
+      "code": "arg-type",
+      "message": "Argument 2 to \"run\" of \"DSAgent\" has incompatible type \"**dict[str, object]\"; expected \"BudgetPolicy | None\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3833,
+      "code": "arg-type",
+      "message": "Argument 2 to \"run\" of \"DSAgent\" has incompatible type \"**dict[str, object]\"; expected \"SessionCheckpoint | None\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3833,
+      "code": "arg-type",
+      "message": "Argument 2 to \"run\" of \"DSAgent\" has incompatible type \"**dict[str, object]\"; expected \"str\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3852,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3853,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3854,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3855,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3856,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3857,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3928,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3929,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3930,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3931,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3932,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 3933,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4066,
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation"
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4107,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4110,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4174,
+      "code": "arg-type",
+      "message": "Argument \"type\" has incompatible type \"object\"; expected \"ConnectorType\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4177,
+      "code": "arg-type",
+      "message": "Argument \"credential_method\" has incompatible type \"object\"; expected \"CredentialMethod\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4185,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4188,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4229,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"to_domain\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4249,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"get_str_option\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4266,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"get_str_option\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4303,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"get_str_option\""
+    },
+    {
+      "file": "src/ds_agent/api/ws_handler.py",
+      "line": 4425,
+      "code": "no-untyped-def",
+      "message": "Function is missing a type annotation"
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 110,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"updater\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 111,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"stop\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 112,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"shutdown\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 198,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"send_message\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 206,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"message_id\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 244,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"send_document\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 251,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"message_id\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 275,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"answer_callback_query\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 300,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"edit_message_text\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 324,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"edit_message_reply_markup\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 350,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"set_my_commands\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 412,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"object | None\""
+    },
+    {
+      "file": "src/ds_agent/channels/bundled/telegram/plugin.py",
+      "line": 508,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"object | None\""
+    },
+    {
+      "file": "src/ds_agent/gateway/daemon.py",
+      "line": 129,
+      "code": "arg-type",
+      "message": "Argument \"automation_profile\" to \"PolicyEngine\" has incompatible type \"str\"; expected \"Literal['manual', 'balanced', 'aggressive']\""
+    },
+    {
+      "file": "src/ds_agent/gateway/daemon.py",
+      "line": 183,
+      "code": "arg-type",
+      "message": "Argument \"list_recent_runs\" to \"PipelineHealthSensor\" has incompatible type \"Callable[[], list[RunState]]\"; expected \"Callable[[], list[object]]\""
+    },
+    {
+      "file": "src/ds_agent/gateway/daemon.py",
+      "line": 183,
+      "code": "return-value",
+      "message": "Incompatible return value type (got \"list[RunState]\", expected \"list[object]\")"
+    },
+    {
+      "file": "src/ds_agent/gateway/daemon.py",
+      "line": 224,
+      "code": "union-attr",
+      "message": "Item \"EventTrigger\" of \"CronTrigger | EventTrigger\" has no attribute \"cron\""
+    },
+    {
+      "file": "src/ds_agent/gateway/daemon.py",
+      "line": 226,
+      "code": "union-attr",
+      "message": "Item \"EventTrigger\" of \"CronTrigger | EventTrigger\" has no attribute \"cron\""
+    },
+    {
+      "file": "src/ds_agent/gateway/daemon.py",
+      "line": 239,
+      "code": "union-attr",
+      "message": "Item \"EventTrigger\" of \"CronTrigger | EventTrigger\" has no attribute \"cron\""
+    },
+    {
+      "file": "src/ds_agent/gateway/daemon.py",
+      "line": 252,
+      "code": "union-attr",
+      "message": "Item \"EventTrigger\" of \"CronTrigger | EventTrigger\" has no attribute \"cron\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 625,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"status\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 627,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 627,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"status\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 628,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 631,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 634,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 635,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 635,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"session_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 638,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1045,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1046,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"session_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1047,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"status\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1048,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"created_at\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1049,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"message\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1051,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"task_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1052,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"task_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1053,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"result_preview\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1054,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"result_preview\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1055,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"error\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1056,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"error\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1057,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"cost_usd\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1058,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"cost_usd\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1059,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"status\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1060,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1062,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1083,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1084,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"status\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1280,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"str\", variable has type \"Literal['manual', 'balanced', 'aggressive']\")"
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1471,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"kind\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1471,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"text\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1473,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"text\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1478,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"kind\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1478,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"text\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1480,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"text\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1485,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"file_path\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1485,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"kind\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1489,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"file_path\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1491,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"caption\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1491,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"file_path\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1495,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"file_path\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1524,
+      "code": "return-value",
+      "message": "Incompatible return value type (got \"list[OutcomeDeliverable]\", expected \"list[object]\")"
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1546,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1550,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1581,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1715,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"status\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 1716,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"run_id\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 2150,
+      "code": "arg-type",
+      "message": "Argument 2 to \"_build_chat_digest\" of \"TelegramGatewayRunner\" has incompatible type \"list[SuppressedAlertRecord]\"; expected \"list[object]\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 2231,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"list_pending\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 2236,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"get\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 2259,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"update\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 2268,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"get\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 2274,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"get\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 2795,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"str | None\", variable has type \"str\")"
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 3144,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"object | None\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 3147,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"object | None\""
+    },
+    {
+      "file": "src/ds_agent/gateway/telegram_runner.py",
+      "line": 3156,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"SessionCheckpoint | None\""
+    },
+    {
+      "file": "src/ds_agent/infrastructure/observability/sentry_backend.py",
+      "line": 24,
+      "code": "import-not-found",
+      "message": "Cannot find implementation or library stub for module named \"sentry_sdk.integrations.fastapi\""
+    },
+    {
+      "file": "src/ds_agent/infrastructure/observability/sentry_backend.py",
+      "line": 27,
+      "code": "import-not-found",
+      "message": "Cannot find implementation or library stub for module named \"sentry_sdk.integrations.logging\""
+    },
+    {
+      "file": "src/ds_agent/runtime/checkpoint_store.py",
+      "line": 51,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/checkpoint_store.py",
+      "line": 53,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/delivery_rate_limiter.py",
+      "line": 88,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"timezone\", variable has type \"ZoneInfo\")"
+    },
+    {
+      "file": "src/ds_agent/runtime/goal_store.py",
+      "line": 43,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/goal_store.py",
+      "line": 52,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/goal_store.py",
+      "line": 86,
+      "code": "call-overload",
+      "message": "No overload variant of \"list\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/goal_store.py",
+      "line": 109,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/goal_store.py",
+      "line": 232,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/goal_store.py",
+      "line": 233,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/goal_store.py",
+      "line": 239,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/goal_store.py",
+      "line": 241,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/operator_alert_state_store.py",
+      "line": 250,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"timezone\", variable has type \"ZoneInfo\")"
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 64,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 65,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 70,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 71,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 230,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 232,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 234,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 247,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 445,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 449,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 450,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 451,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 452,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 453,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 454,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/organization_store.py",
+      "line": 455,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 55,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 73,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 136,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 177,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 188,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 333,
+      "code": "arg-type",
+      "message": "Argument 3 to \"_append_standing_order_history_unlocked\" of \"JsonPolicyStore\" has incompatible type \"dict[str, float | dict[str, object] | str | None]\"; expected \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 335,
+      "code": "return-value",
+      "message": "Incompatible return value type (got \"dict[str, float | dict[str, object] | str | None]\", expected \"dict[str, object] | None\")"
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 414,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 417,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 421,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 422,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 485,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"CronTrigger\", variable has type \"EventTrigger\")"
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 512,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 515,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 518,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 520,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 521,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 522,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/policy_store.py",
+      "line": 523,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/post_deploy_monitor.py",
+      "line": 141,
+      "code": "arg-type",
+      "message": "Argument \"data_snapshot_uri\" to \"ExperimentRun\" has incompatible type \"object\"; expected \"str\""
+    },
+    {
+      "file": "src/ds_agent/runtime/post_deploy_monitor.py",
+      "line": 175,
+      "code": "no-untyped-def",
+      "message": "Function is missing a type annotation for one or more parameters"
+    },
+    {
+      "file": "src/ds_agent/runtime/post_deploy_monitor.py",
+      "line": 184,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"dict[str, object]\""
+    },
+    {
+      "file": "src/ds_agent/runtime/post_deploy_monitor.py",
+      "line": 310,
+      "code": "arg-type",
+      "message": "Argument \"overall_status\" to \"PostDeployMonitorState\" has incompatible type \"str\"; expected \"Literal['ok', 'warning', 'alert']\""
+    },
+    {
+      "file": "src/ds_agent/runtime/post_deploy_monitor.py",
+      "line": 312,
+      "code": "arg-type",
+      "message": "Argument \"trigger_mode\" to \"PostDeployMonitorState\" has incompatible type \"str\"; expected \"Literal['manual_only', 'auto_retrain', 'auto_rollback']\""
+    },
+    {
+      "file": "src/ds_agent/runtime/post_deploy_monitor.py",
+      "line": 440,
+      "code": "arg-type",
+      "message": "Argument \"direction\" to \"MetricChangeObservation\" has incompatible type \"str\"; expected \"Literal['better', 'worse', 'neutral']\""
+    },
+    {
+      "file": "src/ds_agent/runtime/post_deploy_monitor.py",
+      "line": 441,
+      "code": "arg-type",
+      "message": "Argument \"status\" to \"MetricChangeObservation\" has incompatible type \"str\"; expected \"Literal['ok', 'warning', 'alert', 'skipped']\""
+    },
+    {
+      "file": "src/ds_agent/runtime/post_deploy_monitor.py",
+      "line": 470,
+      "code": "arg-type",
+      "message": "Argument \"status\" to \"ServiceLevelSummary\" has incompatible type \"str\"; expected \"Literal['ok', 'warning', 'alert', 'skipped']\""
+    },
+    {
+      "file": "src/ds_agent/runtime/post_deploy_monitor.py",
+      "line": 523,
+      "code": "no-untyped-def",
+      "message": "Function is missing a type annotation for one or more parameters"
+    },
+    {
+      "file": "src/ds_agent/runtime/provider_factory.py",
+      "line": 171,
+      "code": "arg-type",
+      "message": "Argument 2 to \"ProviderRouter\" has incompatible type \"**dict[str, object]\"; expected \"Callable[[str, dict[Any, Any]], None] | None\""
+    },
+    {
+      "file": "src/ds_agent/runtime/provider_factory.py",
+      "line": 171,
+      "code": "arg-type",
+      "message": "Argument 2 to \"ProviderRouter\" has incompatible type \"**dict[str, object]\"; expected \"Callable[[str], str | None] | None\""
+    },
+    {
+      "file": "src/ds_agent/runtime/provider_factory.py",
+      "line": 171,
+      "code": "arg-type",
+      "message": "Argument 2 to \"ProviderRouter\" has incompatible type \"**dict[str, object]\"; expected \"dict[str, str] | None\""
+    },
+    {
+      "file": "src/ds_agent/runtime/provider_factory.py",
+      "line": 171,
+      "code": "arg-type",
+      "message": "Argument 2 to \"ProviderRouter\" has incompatible type \"**dict[str, object]\"; expected \"list[str] | None\""
+    },
+    {
+      "file": "src/ds_agent/runtime/run_registry.py",
+      "line": 208,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/run_registry.py",
+      "line": 209,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/run_registry.py",
+      "line": 211,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/run_registry.py",
+      "line": 220,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/runtime_event_log.py",
+      "line": 100,
+      "code": "var-annotated",
+      "message": "Need type annotation for \"event\""
+    },
+    {
+      "file": "src/ds_agent/runtime/runtime_event_log.py",
+      "line": 114,
+      "code": "var-annotated",
+      "message": "Need type annotation for \"event\""
+    },
+    {
+      "file": "src/ds_agent/runtime/runtime_event_log.py",
+      "line": 116,
+      "code": "no-any-return",
+      "message": "Returning Any from function declared to return \"RuntimeEventRecord | None\""
+    },
+    {
+      "file": "src/ds_agent/runtime/runtime_event_log.py",
+      "line": 128,
+      "code": "valid-type",
+      "message": "Function \"ds_agent.runtime.runtime_event_log.RuntimeEventLog.list\" is not valid as a type"
+    },
+    {
+      "file": "src/ds_agent/runtime/runtime_event_log.py",
+      "line": 200,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/sensors/model_monitor.py",
+      "line": 101,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/sensors/system_resource.py",
+      "line": 39,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/sensors/system_resource.py",
+      "line": 40,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/session_registry.py",
+      "line": 146,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/session_registry.py",
+      "line": 147,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/startup_recovery.py",
+      "line": 52,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"list\""
+    },
+    {
+      "file": "src/ds_agent/runtime/startup_recovery.py",
+      "line": 57,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"get_active_goal\""
+    },
+    {
+      "file": "src/ds_agent/runtime/startup_recovery.py",
+      "line": 58,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"load\""
+    },
+    {
+      "file": "src/ds_agent/runtime/startup_recovery.py",
+      "line": 84,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"mark_status\""
+    },
+    {
+      "file": "src/ds_agent/runtime/startup_recovery.py",
+      "line": 98,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"mark_status\""
+    },
+    {
+      "file": "src/ds_agent/runtime/startup_recovery.py",
+      "line": 136,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"save\""
+    },
+    {
+      "file": "src/ds_agent/runtime/task_ledger.py",
+      "line": 232,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/task_ledger.py",
+      "line": 233,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/task_ledger.py",
+      "line": 235,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/ds_agent/runtime/transcript_store.py",
+      "line": 132,
+      "code": "arg-type",
+      "message": "Argument \"content\" to \"ChatMessage\" has incompatible type \"object\"; expected \"str | None\""
+    },
+    {
+      "file": "src/ds_agent/runtime/transcript_store.py",
+      "line": 135,
+      "code": "arg-type",
+      "message": "Argument \"tool_call_id\" to \"ChatMessage\" has incompatible type \"object\"; expected \"str | None\""
+    },
+    {
+      "file": "src/ds_agent/runtime/transcript_store.py",
+      "line": 137,
+      "code": "arg-type",
+      "message": "Argument \"name\" to \"ChatMessage\" has incompatible type \"object\"; expected \"str | None\""
+    },
+    {
+      "file": "src/ds_agent/runtime/transcript_store.py",
+      "line": 139,
+      "code": "call-overload",
+      "message": "No overload variant of \"dict\" matches argument type \"object\""
+    },
+    {
+      "file": "src/ds_agent/runtime/working_memory.py",
+      "line": 90,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/ds_agent/runtime/working_memory.py",
+      "line": 96,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    }
+  ]
+}

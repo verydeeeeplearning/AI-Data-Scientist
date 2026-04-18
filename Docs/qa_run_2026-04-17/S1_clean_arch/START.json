@@ -1,0 +1,21 @@
+{
+  "agent_id": "S1",
+  "stream_name": "clean_arch",
+  "started_at": "2026-04-16T19:21:52.807527+00:00",
+  "input_report_path": "Docs/qa_run_2026-04-17/A01_architecture/A01_arch_report.md",
+  "input_report_sha256": "48fe19a2def5d63bb0ef3ebc58d2777143dc1538b5d5fa0a9d481722ab8f29a9",
+  "scope": [
+    "src/ds_agent/application/services/lineage_capture_service.py",
+    "src/ds_agent/application/services/reproducibility_exporter.py",
+    "src/ds_agent/application/services/scheduler_service.py",
+    "src/ds_agent/application/ports/lineage_store_port.py (new)",
+    "src/ds_agent/application/ports/notebook_engine_port.py (new)",
+    "src/ds_agent/application/ports/cron_runner_port.py (new)",
+    "src/ds_agent/application/ports/__init__.py",
+    "src/ds_agent/agent/factory.py",
+    ".importlinter",
+    "scripts/check_import_contracts.py",
+    "tests/unit/architecture/ (new tests)"
+  ],
+  "responsibility": "Invert application->infrastructure direct imports via Protocol-based ports; wire concrete adapters at composition root."
+}

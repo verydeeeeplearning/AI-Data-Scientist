@@ -1,0 +1,63 @@
+{
+  "templates": {
+    "tpl/exec_brief/v3": {
+      "family": "exec_brief",
+      "format": "pptx",
+      "title": "Executive Brief",
+      "default_structure": [
+        "situation",
+        "finding",
+        "impact",
+        "recommendation",
+        "decision_needed"
+      ]
+    },
+    "tpl/pm_memo/v2": {
+      "family": "pm_memo",
+      "format": "markdown",
+      "title": "PM Action Memo",
+      "default_structure": [
+        "summary",
+        "next_actions",
+        "eta",
+        "trade_offs",
+        "dependencies"
+      ]
+    },
+    "tpl/ds_note/v4": {
+      "family": "ds_note",
+      "format": "ipynb",
+      "title": "DS Experiment Note",
+      "default_structure": [
+        "hypothesis",
+        "methodology",
+        "results",
+        "caveats",
+        "reproducibility"
+      ]
+    },
+    "tpl/ml_handoff/v2": {
+      "family": "ml_handoff",
+      "format": "markdown",
+      "title": "ML Handoff Specification",
+      "default_structure": [
+        "model_card",
+        "serving_config",
+        "monitoring_setup",
+        "rollback_plan"
+      ]
+    },
+    "tpl/audit/v1": {
+      "family": "audit",
+      "format": "pdf",
+      "title": "Audit Trail",
+      "default_structure": [
+        "data_provenance",
+        "access_log",
+        "policy_compliance",
+        "approval_chain",
+        "lineage"
+      ]
+    }
+  }
+}

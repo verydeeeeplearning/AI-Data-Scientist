@@ -1,0 +1,44 @@
+{
+  "agent_id": "B11_reaudit",
+  "status": "pass",
+  "round": 2,
+  "delta_scope": "Path 8 (Rollback atomicity)",
+  "path8_verdict": "pass",
+  "regressions_in_other_paths": [],
+  "regressions_in_other_paths_count": 0,
+  "s6_review_notes": [
+    "[INFO] save_item_and_deprecation uses 'except BaseException' — defensible (ensures rollback on KeyboardInterrupt/SystemExit) but 'Exception' would be more conventional. Non-blocking style note.",
+    "[INFO] RollbackPromotionUseCase casts its LearningStore parameter to LearningStoreAtomicPort at call site via 'type: ignore[assignment]'. A more explicit constructor signature would be type-safer but out of S6 scope.",
+    "[INFO] Three additional double-write sites flagged in RECOMMENDATIONS.md (PromoteLearningItemUseCase, DeprecateLearningItemUseCase, ReviewLearningItemUseCase) — same atomicity class, correctly deferred to follow-up stream."
+  ],
+  "s6_review_notes_count": 3,
+  "atomicity_probe_scenarios": {
+    "a_happy_path": "pass",
+    "b_atomic_port_injection": "pass",
+    "c_commit_level_injection": "pass",
+    "port_runtime_checkable": "pass"
+  },
+  "test_counts": {
+    "s6_scoped_pytest_passed": 33,
+    "s6_scoped_pytest_failed": 0,
+    "b11_regression_pytest_passed": 145,
+    "b11_regression_pytest_failed": 0
+  },
+  "static_checks": {
+    "check_import_contracts": "ok",
+    "lint_imports_kept": 2,
+    "lint_imports_broken": 0,
+    "check_layer_deps": "ok",
+    "ruff_errors_in_s6_scope": 0
+  },
+  "self_pass_disclaimer": "Per HANDOFF §6.3, FINAL.json.status is advisory. Final Tier 2 gate decision reserved for D18.",
+  "evidence": [
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning_reaudit/START.json",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning_reaudit/B11_reaudit_rollback_probe.json",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning_reaudit/junit_s6_rerun.xml",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning_reaudit/junit_b11_regression.xml",
+    "Docs/qa_run_2026-04-17/B11_portfolio_learning_reaudit/B11_reaudit_report.md",
+    ".tmp/qa_B11_reaudit/probe_rollback_atomicity.py"
+  ],
+  "completed_at": "2026-04-17T00:00:00Z"
+}

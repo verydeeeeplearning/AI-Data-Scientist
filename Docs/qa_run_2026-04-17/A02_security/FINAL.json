@@ -1,0 +1,28 @@
+﻿{
+    "status":  "fail",
+    "evidence":  [
+                     "Docs/qa_run_2026-04-17/A02_security/START.json",
+                     "Docs/qa_run_2026-04-17/A02_security/A02_secret_scan.txt",
+                     "Docs/qa_run_2026-04-17/A02_security/A02_sandbox_blocklist.csv",
+                     "Docs/qa_run_2026-04-17/A02_security/A02_runtime_checks.json",
+                     "Docs/qa_run_2026-04-17/A02_security/junit_a02_core.xml",
+                     "Docs/qa_run_2026-04-17/A02_security/junit_targeted.xml",
+                     "Docs/qa_run_2026-04-17/A02_security/junit.xml",
+                     "Docs/qa_run_2026-04-17/A02_security/A02_additional_anomalies.txt",
+                     "Docs/qa_run_2026-04-17/A02_security/A02_security_report.md"
+                 ],
+    "metrics":  {
+                    "secret_scan_matches":  0,
+                    "sandbox_blocklist_cases":  8,
+                    "sandbox_blocklist_blocked":  8,
+                    "junit_core_passed":  76,
+                    "junit_core_failed":  0,
+                    "junit_core_deselected":  1,
+                    "pii_redaction_checks_total":  8,
+                    "pii_redaction_checks_passed":  1,
+                    "pii_redaction_checks_failed":  7,
+                    "additional_anomaly_broad_run_failures":  1
+                },
+    "duration_sec":  384,
+    "code_sha":  "nogit:BA70BF7326BCA83CC09D5B57C44EE62FFD0DC008C97B8228458BA6100B2F02A3"
+}

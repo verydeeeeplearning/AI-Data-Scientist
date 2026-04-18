@@ -1,0 +1,11 @@
+term_id: term.mrr
+canonical_form: MRR
+definition: "Monthly recurring revenue from active subscription contracts."
+synonyms:
+  - monthly recurring revenue
+abbreviations:
+  - MRR
+linked_metric_ids:
+  - monthly_recurring_revenue
+category: metric
+owner: finance_team

@@ -1,0 +1,10 @@
+[2026-04-17T01:59:40Z] Scenario 5 START — Disk full (ENOSPC) inside sandbox
+[2026-04-17T01:59:40Z] workspace=C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\.tmp\qa_D16\scenario_5
+[2026-04-17T01:59:41Z] child rc=0
+[2026-04-17T01:59:41Z] first_is_json_error=True
+[2026-04-17T01:59:41Z] first_payload_error_snippet=Traceback (most recent call last):
+  File "C:\Users\aquap\AppData\Local\Temp\tmprk5c_vfh.py", line 247, in <module>
+    raise OSError(errno.ENOSPC, 'No space left on device', 'd16-simulated.dat')
+O
+[2026-04-17T01:59:41Z] second_alive=True
+[2026-04-17T01:59:41Z] PASS: ENOSPC in user code → structured JSON error; backend survives & next sandbox call succeeds

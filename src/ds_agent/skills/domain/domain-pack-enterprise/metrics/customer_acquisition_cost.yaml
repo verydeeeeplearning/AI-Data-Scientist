@@ -1,0 +1,26 @@
+metric_id: customer_acquisition_cost
+display_name: Customer Acquisition Cost
+owner: marketing_ops
+definition: "Average attributable acquisition spend per closed-won customer in a month."
+synonyms:
+  - CAC
+  - paid acquisition cost
+grain: monthly
+unit: amount
+direction: lower_is_better
+related_metrics:
+  - trial_to_paid_conversion_rate
+  - lifetime_value
+caveats:
+  - Partner-sourced deals are excluded unless spend is recorded in the attribution mart.
+verified_query_ids:
+  - vq-cac-postgres
+calculation:
+  numerator:
+    source: prod.marketing.attribution_touch
+    filter: attributed_flag = TRUE
+    aggregation: SUM(spend_amount)
+  denominator:
+    source: prod.sales.opportunity
+    filter: stage = 'closed_won'
+    aggregation: COUNT(DISTINCT account_id)

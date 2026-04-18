@@ -1,0 +1,17 @@
+{
+  "overall_parity_match": true,
+  "scenarios": {
+    "P-01_basic_report": {
+      "field_mismatches": [],
+      "match": true
+    },
+    "P-02_authority_switch": {
+      "field_mismatches": [],
+      "match": true
+    },
+    "P-03_learning_governance": {
+      "field_mismatches": [],
+      "match": true
+    }
+  }
+}

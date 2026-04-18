@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "tests/.compiled-contract",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "tests/contract/**/*.spec.ts",
+    "src/main/task-contract-preview.ts",
+    "src/renderer/components/settings/policyStudioCatalog.ts",
+    "src/renderer/components/mission/missionBriefModel.ts",
+    "src/renderer/components/workflow/workObjectPanelModel.ts",
+    "src/renderer/components/workflow/qualityPanelModel.ts",
+    "src/renderer/types/taskContract.ts",
+    "src/renderer/types/workObject.ts"
+  ]
+}

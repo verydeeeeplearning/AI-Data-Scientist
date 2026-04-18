@@ -1,0 +1,30 @@
+[importlinter]
+root_package = ds_agent
+
+[importlinter:contract:domain_independence]
+name = Domain must not depend on outer layers
+type = forbidden
+source_modules =
+    ds_agent.domain
+forbidden_modules =
+    ds_agent.api
+    ds_agent.application
+    ds_agent.channels
+    ds_agent.cli
+    ds_agent.config
+    ds_agent.evaluation
+    ds_agent.gateway
+    ds_agent.infrastructure
+    ds_agent.memory
+    ds_agent.providers
+    ds_agent.runtime
+    ds_agent.self_improve
+    ds_agent.tools
+
+[importlinter:contract:application_independence_from_infrastructure]
+name = Application must not depend on infrastructure
+type = forbidden
+source_modules =
+    ds_agent.application
+forbidden_modules =
+    ds_agent.infrastructure

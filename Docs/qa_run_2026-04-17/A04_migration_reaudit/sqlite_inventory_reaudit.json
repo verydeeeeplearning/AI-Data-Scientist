@@ -1,0 +1,28 @@
+{
+  "migration_inventory": {
+    "learning_store": 13,
+    "task_contract_store": 10,
+    "work_object_store": 12,
+    "semantic_store": 7
+  },
+  "aggregate_max_target": 13,
+  "observed_schema_versions_after_run_all": {
+    "learning_store": 13,
+    "task_contract_store": 10,
+    "work_object_store": 12,
+    "semantic_store": 7
+  },
+  "observed_max_schema_version": 13,
+  "idempotent_second_run_no_drift": true,
+  "backward_load_result": {
+    "learning_store": 13,
+    "task_contract_store": 10,
+    "work_object_store": 12,
+    "semantic_store": 7
+  },
+  "backward_load_v13_owner_reached_target": true,
+  "plan_claim_v13_satisfied": true,
+  "central_sqlite_v13_runner_found": true,
+  "v13_owner_store": "learning_store",
+  "store_count": 4
+}

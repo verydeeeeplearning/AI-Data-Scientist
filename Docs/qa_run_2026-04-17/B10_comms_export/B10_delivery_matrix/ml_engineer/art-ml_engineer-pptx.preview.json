@@ -1,0 +1,49 @@
+{
+  "artifact_id": "art-ml_engineer-pptx",
+  "artifact_type": "ml_handoff_spec",
+  "audience": "ml_engineer",
+  "template_ref": "tpl/ml_handoff_spec/v1",
+  "slide_count": 4,
+  "slides": [
+    {
+      "index": 1,
+      "section": "model_card",
+      "title": "모델 카드",
+      "bullets": [
+        "모델 버전: churn_v4.3.1."
+      ],
+      "excerpt": "모델 버전: churn_v4.3.1.",
+      "chart_count": 0
+    },
+    {
+      "index": 2,
+      "section": "serving_config",
+      "title": "서빙 구성",
+      "bullets": [
+        "GPU T4 x1, 레이턴시 p95 < 80ms."
+      ],
+      "excerpt": "GPU T4 x1, 레이턴시 p95 < 80ms.",
+      "chart_count": 0
+    },
+    {
+      "index": 3,
+      "section": "monitoring_setup",
+      "title": "모니터링",
+      "bullets": [
+        "PSI > 0.2 알람, 24시간 지연 감지."
+      ],
+      "excerpt": "PSI > 0.2 알람, 24시간 지연 감지.",
+      "chart_count": 0
+    },
+    {
+      "index": 4,
+      "section": "rollback_plan",
+      "title": "롤백 절차",
+      "bullets": [
+        "이전 블레스드 모델 churn_v4.2.9로 자동 되돌림."
+      ],
+      "excerpt": "이전 블레스드 모델 churn_v4.2.9로 자동 되돌림.",
+      "chart_count": 0
+    }
+  ]
+}

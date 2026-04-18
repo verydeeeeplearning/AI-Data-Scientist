@@ -1,0 +1,52 @@
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.744768+00:00", "source": "active", "target": "waiting", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "active", "target": "monitoring", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "active", "target": "completed", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "active", "target": "cancelled", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "waiting", "target": "active", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "waiting", "target": "cancelled", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "monitoring", "target": "active", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "monitoring", "target": "playbook_candidate", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "monitoring", "target": "completed", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "monitoring", "target": "archived", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "playbook_candidate", "target": "archived", "allowed": true, "expected": true, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "playbook_candidate", "target": "monitoring", "allowed": false, "expected": false, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "playbook_candidate", "target": "active", "allowed": false, "expected": false, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "completed", "target": "active", "allowed": false, "expected": false, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "cancelled", "target": "active", "allowed": false, "expected": false, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "archived", "target": "active", "allowed": false, "expected": false, "passed": true}
+{"category": "portfolio_quadrant_transition", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "waiting", "target": "monitoring", "allowed": false, "expected": false, "passed": true}
+{"category": "portfolio_illegal_transition_attempt", "ts": "2026-04-16T20:52:38.745770+00:00", "source": "playbook_candidate", "target": "monitoring", "rejected": true}
+{"category": "slot_acquire_attempt", "ts": "2026-04-16T20:52:38.747212+00:00", "configured_max": 2, "active_count": 2, "refused": true, "msg": "All 2 active slots are occupied. Pause or complete an active task before resuming another."}
+{"category": "priority_calculator_rank", "ts": "2026-04-16T20:52:38.747742+00:00", "entries": ["PE-1", "PE-2", "PE-0"], "raw_scores": [8.02, 4.04, 2.0], "informational_only": true}
+{"category": "wait_condition_evaluation", "ts": "2026-04-16T20:52:38.747742+00:00", "kind": "timer"}
+{"category": "wait_condition_evaluation", "ts": "2026-04-16T20:52:38.747742+00:00", "kind": "approval"}
+{"category": "wait_condition_evaluation", "ts": "2026-04-16T20:52:38.747742+00:00", "kind": "data_freshness"}
+{"category": "wait_condition_evaluation", "ts": "2026-04-16T20:52:38.747742+00:00", "kind": "external_resource"}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "proposed", "target": "under_review", "allowed": true, "expected": true, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "under_review", "target": "approved", "allowed": true, "expected": true, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "approved", "target": "promoted", "allowed": true, "expected": true, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "promoted", "target": "monitored", "allowed": true, "expected": true, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "monitored", "target": "deprecated", "allowed": true, "expected": true, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "deprecated", "target": "archived", "allowed": true, "expected": true, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "proposed", "target": "approved", "allowed": false, "expected": false, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "proposed", "target": "promoted", "allowed": false, "expected": false, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "approved", "target": "monitored", "allowed": false, "expected": false, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "promoted", "target": "proposed", "allowed": false, "expected": false, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "deprecated", "target": "promoted", "allowed": false, "expected": false, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "archived", "target": "proposed", "allowed": false, "expected": false, "passed": true}
+{"category": "learning_transition", "ts": "2026-04-16T20:52:38.747742+00:00", "source": "archived", "target": "approved", "allowed": false, "expected": false, "passed": true}
+{"category": "promotion_threshold_check", "ts": "2026-04-16T20:52:38.747742+00:00", "item_type": "pattern", "label": "just_below", "delta": -0.01, "promoted": false}
+{"category": "promotion_threshold_check", "ts": "2026-04-16T20:52:38.747742+00:00", "item_type": "pattern", "label": "at_threshold", "delta": 0.0, "promoted": true}
+{"category": "promotion_threshold_check", "ts": "2026-04-16T20:52:38.747742+00:00", "item_type": "pattern", "label": "above_threshold", "delta": 0.01, "promoted": true}
+{"category": "promotion_threshold_check", "ts": "2026-04-16T20:52:38.747742+00:00", "item_type": "kb_entry", "label": "just_below", "delta": -0.01, "promoted": false}
+{"category": "promotion_threshold_check", "ts": "2026-04-16T20:52:38.747742+00:00", "item_type": "kb_entry", "label": "at_threshold", "delta": 0.0, "promoted": true}
+{"category": "promotion_threshold_check", "ts": "2026-04-16T20:52:38.747742+00:00", "item_type": "kb_entry", "label": "above_threshold", "delta": 0.01, "promoted": true}
+{"category": "promotion_threshold_check", "ts": "2026-04-16T20:52:38.747742+00:00", "item_type": "custom_skill", "label": "just_below", "delta": -0.01, "promoted": false}
+{"category": "promotion_threshold_check", "ts": "2026-04-16T20:52:38.747742+00:00", "item_type": "custom_skill", "label": "at_threshold", "delta": 0.0, "promoted": true}
+{"category": "promotion_threshold_check", "ts": "2026-04-16T20:52:38.747742+00:00", "item_type": "custom_skill", "label": "above_threshold", "delta": 0.01, "promoted": true}
+{"category": "auto_deprecation", "ts": "2026-04-16T20:52:38.747742+00:00", "attempt": 1, "status": "promoted", "deprecated": false}
+{"category": "auto_deprecation", "ts": "2026-04-16T20:52:38.747742+00:00", "attempt": 2, "status": "deprecated", "deprecated": true}
+{"category": "rollback_atomicity_probe", "ts": "2026-04-16T20:52:38.767606+00:00", "exception_raised": true, "item_status_after": "deprecated", "dep_record_saved": false, "atomicity_verdict": "non_atomic_partial"}
+{"category": "feature_flag_off", "ts": "2026-04-16T20:52:38.934011+00:00", "tool_responses": {"list_my_portfolio": "DISABLED", "resume_task": "DISABLED", "pause_task": "DISABLED", "request_monitoring": "DISABLED", "set_sla": "DISABLED"}}
+{"category": "feature_flag_on", "ts": "2026-04-16T20:52:38.939959+00:00", "list_response_ok": true}
+{"category": "feature_flag_off_learning", "ts": "2026-04-16T20:52:38.943794+00:00", "tool_responses": {"list_learning_inbox": "DISABLED", "get_learning_item": "DISABLED", "list_promotions": "DISABLED", "list_deprecations": "DISABLED"}}

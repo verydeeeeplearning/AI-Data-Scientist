@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "samples": {
+    "data_analysis": {
+      "filename": "sample_sales_data.csv",
+      "label": "3-month sales data",
+      "description": "40 rows of multi-product retail sales across regions and channels — good for exploratory analysis.",
+      "rows": 40,
+      "columns": ["date", "product", "category", "units", "unit_price", "revenue", "region", "channel"]
+    },
+    "reporting": {
+      "filename": "sample_customer_survey.csv",
+      "label": "Customer satisfaction survey",
+      "description": "35 survey responses across enterprise/SMB/consumer segments — ideal for a stakeholder report.",
+      "rows": 35,
+      "columns": ["respondent_id", "segment", "product_used", "nps", "satisfaction", "recommend", "support_rating", "comment"]
+    },
+    "prediction": {
+      "filename": "sample_churn_data.csv",
+      "label": "Customer churn dataset",
+      "description": "50 customers labeled with churn outcome plus tenure/billing/service features — ready for a baseline classifier.",
+      "rows": 50,
+      "columns": ["customer_id", "tenure_months", "monthly_charges", "total_charges", "contract", "payment_method", "internet_service", "tech_support", "paperless_billing", "churn"]
+    },
+    "dashboard": {
+      "filename": "sample_sales_data.csv",
+      "label": "3-month sales data",
+      "description": "Multi-product sales — chart revenue trends, regional mix, and channel splits.",
+      "rows": 40,
+      "columns": ["date", "product", "category", "units", "unit_price", "revenue", "region", "channel"]
+    },
+    "sql_exploration": {
+      "filename": "sample_sales_data.csv",
+      "label": "3-month sales data",
+      "description": "Tabular sales data — good practice for filtering, grouping, and joining with SQL-style queries.",
+      "rows": 40,
+      "columns": ["date", "product", "category", "units", "unit_price", "revenue", "region", "channel"]
+    },
+    "general": {
+      "filename": "sample_sales_data.csv",
+      "label": "3-month sales data",
+      "description": "A small but realistic dataset to try the agent on — switch to your own data anytime.",
+      "rows": 40,
+      "columns": ["date", "product", "category", "units", "unit_price", "revenue", "region", "channel"]
+    }
+  }
+}

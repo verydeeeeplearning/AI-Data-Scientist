@@ -1,0 +1,9 @@
+fqtn: prod.finance.invoice_line
+grade: gold
+owner: finance_team
+description: "Posted invoice line mart with recognized revenue and gross profit fields."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Certified revenue accounting mart for gross margin reporting."
+last_audited: 2026-04-15

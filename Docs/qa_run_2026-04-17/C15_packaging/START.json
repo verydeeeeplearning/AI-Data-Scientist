@@ -1,0 +1,54 @@
+{
+  "agent_id": "C15",
+  "role": "Packaging & Diagnostic Tester",
+  "tier": 3,
+  "start_timestamp_utc": "2026-04-17T10:35:00Z",
+  "mandate": "Verify 6 packaging/diagnostic paths per PRE_RELEASE_AI_TEST_PLAN_2026-04-17.md §6.3.",
+  "targets": [
+    "scripts/build_backend.py",
+    "ds-agent-api.spec",
+    "src/ds_agent/api/app.py",
+    "src/ds_agent/runtime/startup_recovery.py",
+    "electron/src/main/python-backend.ts",
+    "electron/src/main/window.ts",
+    "electron/src/main/index.ts",
+    "electron/src/main/auto-updater.ts",
+    "electron/electron-builder.yml"
+  ],
+  "six_paths": [
+    "1_binary_build",
+    "2_backend_smoke",
+    "3_ready_race_10_procs",
+    "4_electron_happy_path",
+    "5_electron_diagnostic_path",
+    "6_autoupdater_mock"
+  ],
+  "environment": {
+    "os": "Windows 11",
+    "python": "uv venv",
+    "pyinstaller": "6.19.0 (available)",
+    "node": "v22.20.0",
+    "npm": "10.9.3",
+    "playwright": "^1.59.1 (declared in electron/package.json)",
+    "git_available": false
+  },
+  "constraints": [
+    "No source edits",
+    "No real Sentry DSN (P0-07 pending external)",
+    "No real code signing (P0-05 pending external)",
+    "No full pytest regression (use scope-isolated)",
+    "No data/ user data",
+    "Build artefacts isolated to dist/ and .tmp/qa_C15/",
+    "No self pass verdict",
+    "Environment fallbacks MUST be explicit"
+  ],
+  "output_paths": {
+    "base": "Docs/qa_run_2026-04-17/C15_packaging/",
+    "smoke_log": "C15_package_smoke.log",
+    "ready_race_csv": "C15_ready_race.csv",
+    "diagnostic_trace": "C15_diagnostic_trace.md",
+    "screenshots_dir": "C15_screenshots/",
+    "report": "C15_report.md",
+    "final": "FINAL.json"
+  }
+}

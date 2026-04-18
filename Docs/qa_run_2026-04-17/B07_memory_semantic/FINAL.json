@@ -1,0 +1,53 @@
+{
+  "agent_id": "B07",
+  "tier": 2,
+  "status": "evidence_submitted_pending_tier3_judgment",
+  "self_pass_claim": false,
+  "completed_at": "2026-04-17T00:00:00Z",
+  "code_sha": "git-unavailable",
+  "metrics": {
+    "paths_verified": "7/7",
+    "fts5_precision_at_10": 1.0,
+    "fts5_precision_threshold": 0.8,
+    "fts5_queries_tested": 8,
+    "fixture_size_transcripts": 100,
+    "semantic_ports_preexisting": true,
+    "scoped_pytest_total": 89,
+    "scoped_pytest_passed": 88,
+    "scoped_pytest_failed": 1,
+    "scoped_pytest_new_regressions": 0,
+    "preexisting_issues_count": 1
+  },
+  "path_results": {
+    "path1_fts5_precision": "pass",
+    "path2_unified_aggregate": "pass",
+    "path3_semantic_first_fallback": "pass",
+    "path4_dual_write": "pass",
+    "path5_semantic_proposal_approve": "pass",
+    "path6_data_trust_registry": "pass",
+    "path7_verified_query_store": "pass"
+  },
+  "preexisting_issues": [
+    {
+      "id": "PRE-1",
+      "test": "tests/unit/application/test_semantic_ports.py::test_semantic_ports_are_runtime_checkable",
+      "classification": "pre-existing, not blocking this tier",
+      "source_of_record": "HANDOFF_NEXT_AGENT.md §4.6 / §7"
+    }
+  ],
+  "evidence": [
+    "Docs/qa_run_2026-04-17/B07_memory_semantic/B07_report.md",
+    "Docs/qa_run_2026-04-17/B07_memory_semantic/B07_fts5_precision.csv",
+    "Docs/qa_run_2026-04-17/B07_memory_semantic/B07_semantic_proposal_trace.jsonl",
+    "Docs/qa_run_2026-04-17/B07_memory_semantic/B07_path_results.json",
+    "Docs/qa_run_2026-04-17/B07_memory_semantic/B07_pytest_junit.xml"
+  ],
+  "constraints_observed": {
+    "source_unmodified": true,
+    "no_full_regression_pytest": true,
+    "data_dir_untouched": true,
+    "no_external_adapter_calls": true,
+    "no_self_pass_judgment": true,
+    "scope_only_files": true
+  }
+}

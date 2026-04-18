@@ -1,0 +1,29 @@
+{
+  "scenario_id": "gemini-P02",
+  "recorded_with_model": "gemini-3-flash-preview",
+  "prompt_system": "Respond only with a single JSON object {\"x\": N}.",
+  "prompt_user": "Return x=42.",
+  "response_preview": "{\n  \"x\": 42\n}",
+  "response_model": "gemini-3-flash-preview",
+  "usage": {
+    "input_tokens": 5563,
+    "output_tokens": 11,
+    "reasoning_tokens": 61
+  },
+  "subprocess": {
+    "cmd": [
+      "cmd.exe",
+      "/c",
+      "C:\\Users\\aquap\\AppData\\Roaming\\npm\\gemini.CMD",
+      "-p",
+      "<PROMPT>",
+      "-o",
+      "json",
+      "-m",
+      "gemini-3-flash-preview"
+    ],
+    "returncode": 0,
+    "stdout": "{\n  \"session_id\": \"fc72db73-33bc-4dd0-b1a8-62e5e107363b\",\n  \"response\": \"{\\n  \\\"x\\\": 42\\n}\",\n  \"stats\": {\n    \"models\": {\n      \"gemini-3-flash-preview\": {\n        \"api\": {\n          \"totalRequests\": 1,\n          \"totalErrors\": 0,\n          \"totalLatencyMs\": 1913\n        },\n        \"tokens\": {\n          \"input\": 5563,\n          \"prompt\": 5563,\n          \"candidates\": 11,\n          \"total\": 5635,\n          \"cached\": 0,\n          \"thoughts\": 61,\n          \"tool\": 0\n        },\n        \"roles\": {\n          \"main\": {\n            \"totalRequests\": 1,\n            \"totalErrors\": 0,\n            \"totalLatencyMs\": 1913,\n            \"tokens\": {\n              \"input\": 5563,\n              \"prompt\": 5563,\n              \"candidates\": 11,\n              \"total\": 5635,\n              \"cached\": 0,\n              \"thoughts\": 61,\n              \"tool\": 0\n            }\n          }\n        }\n      }\n    },\n    \"tools\": {\n      \"totalCalls\": 0,\n      \"totalSuccess\": 0,\n      \"totalFail\": 0,\n      \"totalDurationMs\": 0,\n      \"totalDecisions\": {\n        \"accept\": 0,\n        \"reject\": 0,\n        \"modify\": 0,\n        \"auto_accept\": 0\n      },\n      \"byName\": {}\n    },\n    \"files\": {\n      \"totalLinesAdded\": 0,\n      \"totalLinesRemoved\": 0\n    }\n  }\n}",
+    "stderr": ""
+  }
+}

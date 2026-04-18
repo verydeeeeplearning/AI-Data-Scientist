@@ -1,0 +1,42 @@
+{
+  "agent_id": "A01",
+  "agent_name": "Architecture Auditor",
+  "tier": 1,
+  "status": "fail",
+  "started_at": "2026-04-17T03:59:35.8318524+09:00",
+  "finished_at": "2026-04-17T04:04:05.4246229+09:00",
+  "duration_sec": 269.593,
+  "code_sha": "git-unavailable",
+  "evidence": [
+    "Docs/qa_run_2026-04-17/A01_architecture/START.json",
+    "Docs/qa_run_2026-04-17/A01_architecture/A01_arch_report.md",
+    "Docs/qa_run_2026-04-17/A01_architecture/A01_domain_imports.json",
+    "Docs/qa_run_2026-04-17/A01_architecture/A01_hotspot_summary.md",
+    "Docs/qa_run_2026-04-17/A01_architecture/junit.xml",
+    ".tmp/qa_A01/check_import_contracts.log",
+    ".tmp/qa_A01/lint_imports.log",
+    ".tmp/qa_A01/lint_imports_post_sync.log",
+    ".tmp/qa_A01/lint_imports_uv.log",
+    ".tmp/qa_A01/pytest_architecture.log",
+    ".tmp/qa_A01/uv_sync_dev.log"
+  ],
+  "metrics": {
+    "check_import_contracts_exit_code": 0,
+    "lint_imports_exit_code": 0,
+    "pytest_architecture_exit_code": 0,
+    "pytest_architecture_tests": 3,
+    "pytest_architecture_failures": 0,
+    "domain_files_scanned": 97,
+    "domain_external_import_violations": 0,
+    "application_files_scanned": 64,
+    "application_infrastructure_import_violations": 3,
+    "ws_handler_lines": 4034,
+    "ws_handler_rpc_methods": 80,
+    "ipc_ts_lines": 1377,
+    "ipc_handle_count": 33,
+    "ipc_on_count": 3,
+    "mission_brief_panel_lines": 798,
+    "mission_brief_panel_use_state_count": 11,
+    "mission_brief_panel_handle_count": 8
+  }
+}

@@ -1,0 +1,9 @@
+fqtn: staging.support.ticket_event
+grade: silver
+owner: support_ops
+description: "Ticket event stream staging table with queue transitions and response timestamps."
+refresh:
+  cadence: hourly
+  max_staleness_minutes: 240
+grade_rationale: "Useful for operational triage with partial lineage coverage."
+last_audited: 2026-04-15

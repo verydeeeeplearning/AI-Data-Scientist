@@ -1,0 +1,9 @@
+fqtn: staging.finance.refund_raw
+grade: silver
+owner: finance_team
+description: "Refund and credit staging feed used to reconcile net revenue movements."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Monitored refund feed with basic validation but incomplete lineage."
+last_audited: 2026-04-15

@@ -1,0 +1,9 @@
+fqtn: prod.finance.mrr_ledger
+grade: gold
+owner: finance_team
+description: "Recurring revenue ledger capturing starting, expansion, contraction, and ending balances."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Certified finance ledger used for MRR, NRR, ARPU, and LTV."
+last_audited: 2026-04-15

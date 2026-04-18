@@ -1,0 +1,21 @@
+{
+  "domain": {
+    "files_scanned": 97,
+    "violations": [
+      {
+        "file": "src/ds_agent/domain/interfaces/work_object.py",
+        "line": 5,
+        "module": "builtins",
+        "category": "external_third_party"
+      }
+    ]
+  },
+  "application_to_infrastructure": {
+    "files_scanned": 68,
+    "violations": []
+  },
+  "application_to_tools": {
+    "files_scanned": 68,
+    "violations": []
+  }
+}

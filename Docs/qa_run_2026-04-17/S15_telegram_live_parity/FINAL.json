@@ -1,0 +1,83 @@
+{
+  "agent": "S15",
+  "status": "PASS",
+  "started_at": "2026-04-17T14:40:00Z",
+  "completed_at": "2026-04-18T04:25:00Z",
+  "plan_ref": "Docs/plans/PLAN_post_release_followups_2026-04-17.md §10 (Sprint S15)",
+  "scope": "Telegram live polling (fake bot harness) — uplift C13 Round 2 factory-only fallback to live parity",
+  "metrics": {
+    "scenarios": 3,
+    "telegram_runs_completed": 3,
+    "parity_match_including_telegram": true,
+    "real_telegram_api_calls": 0,
+    "fake_bot_ok": true,
+    "C13_round2_reused": true,
+    "cleanup_confirmed": true,
+    "fake_bot_outbound_call_total": 0,
+    "wall_time_seconds": 32.2,
+    "channels_compared": 3,
+    "total_runs_in_diff": 9
+  },
+  "parity": {
+    "overall_parity_match": true,
+    "per_scenario": {
+      "P-01": {"match": true, "channels": ["CLI", "Electron", "Telegram"]},
+      "P-02": {"match": true, "channels": ["CLI", "Electron", "Telegram"]},
+      "P-03": {"match": true, "channels": ["CLI", "Electron", "Telegram"]}
+    },
+    "parity_fields_checked": [
+      "goal_echo",
+      "final_verdict",
+      "delivery_pack_body_hash",
+      "metric_spec"
+    ],
+    "common_delivery_pack_body_hash": "51de5976e68aeb2df5e3e1d92a01d7e59a402415109531d52a45e32bbf062585"
+  },
+  "telegram_live_evidence": {
+    "python_telegram_bot_version": "22.7",
+    "fake_token_used": "1:AAAA_FAKE_TESTING_ONLY_NO_REAL_TELEGRAM_API_CALLS",
+    "application_built_with_updater": "None (no real polling)",
+    "update_constructed_via": "telegram.Update.de_json",
+    "handler_invoked": "TelegramPlugin._on_text",
+    "session_id_helper": "ds_agent.runtime.channel_identity.telegram_session_id",
+    "session_id_examples": {
+      "P-01": "telegram:555777:7:P-01-042433",
+      "P-02": "telegram:555778:P-02-042443",
+      "P-03": "telegram:555779:7:P-03-042404"
+    },
+    "base_session_ids": {
+      "P-01": "telegram:555777:7",
+      "P-02": "telegram:555778",
+      "P-03": "telegram:555779:7"
+    }
+  },
+  "evidence": [
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/S15_report.md",
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/S15_telegram_live_diff.md",
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/S15_telegram_fake_harness_trace.jsonl",
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/parity_diff_raw.json",
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/parity_matrix.csv",
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/all_runs_including_live.json",
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/telegram_live_run_details.json",
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/TGL-P-01.log",
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/TGL-P-02.log",
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/TGL-P-03.log",
+    "scripts/parity_harness/harness_telegram_v2.py",
+    "scripts/parity_harness/run_s15.py"
+  ],
+  "constraints_adhered": [
+    "no real Telegram bot token used",
+    "mocked LLM provider (no API keys exported to backend subprocess)",
+    "no data/ access",
+    "no production src/ modification",
+    "C13 Round 2 CLI+Electron rows re-loaded unchanged; Telegram rows replaced with live harness output"
+  ],
+  "cleanup": {
+    "orphan_ds_agent_processes": 0,
+    "ports_in_time_wait_only": [18950, 18951, 18952],
+    "tmp_dir_retained_for_audit": ".tmp/qa_S15/",
+    "tmp_dir_has_lock_files": false
+  },
+  "self_pass_judgement": false,
+  "reviewer_notes": "Pass verdict is machine-verifiable from parity_diff_raw.json (overall_parity_match=true) and S15_telegram_fake_harness_trace.jsonl (full live path recorded). Agent is not self-certifying."
+}

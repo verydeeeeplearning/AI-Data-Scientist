@@ -1,0 +1,31 @@
+{
+  "agent": "C13_InterfaceParityTester",
+  "tier": 3,
+  "started_at": "2026-04-17T00:00:00Z",
+  "scope": {
+    "scenarios": ["P-01 basic analysis->report", "P-02 autonomy mode transition", "P-03 learning governance"],
+    "channels": ["CLI", "Telegram", "Electron(WS)"],
+    "total_runs": 9
+  },
+  "target_locations": [
+    "src/ds_agent/agent/factory.py::create_agent",
+    "src/ds_agent/cli/main.py",
+    "src/ds_agent/gateway/telegram_runner.py",
+    "src/ds_agent/api/agent_session_registry.py",
+    "src/ds_agent/api/ws_handler.py"
+  ],
+  "strategy": {
+    "primary": "code-level parity proof — all three channel entrypoints route through create_agent() with identical hook/skill/tool wiring",
+    "fallback": "process-level execution not attempted because Telegram requires a real bot token + network, Electron requires a built app bundle. Both are out of scope per plan (external network forbidden, packaging = C15).",
+    "simulated_execution": "python-level create_agent() invocation from each channel path using stubbed provider + capture of resulting wiring signature (hook list, tool list, skill names, prompt builder, budget, hook registry set)"
+  },
+  "constraints": {
+    "no_source_mutation": true,
+    "no_external_bot_calls": true,
+    "no_full_regression_pytest": true,
+    "no_data_mutation": true,
+    "fallback_must_be_declared": true
+  },
+  "output_dir": "Docs/qa_run_2026-04-17/C13_parity",
+  "temp_dir": ".tmp/qa_C13"
+}

@@ -1,0 +1,6 @@
+{"step": "crash", "returncode": 9, "abrupt_exit_confirmed": true}
+{"step": "post_crash_disk_inspect", "checkpoints": [{"session_id": "mid-kill-session", "step": 3}]}
+{"step": "recovery_record", "session_id": "mid-kill-session", "action": "resume_recommended", "checkpoint_step": 3, "pending_approval_count": 0, "notes": ["Recovered after restart from checkpoint step 3 at 10:56:03."]}
+{"step": "resume_event_published", "kind": "recovery.resume", "session_id": "mid-kill-session"}
+{"step": "working_memory_post_recover", "recovery_note": "Recovered after restart from checkpoint step 3 at 10:56:03.", "next_step": "Resume from the recovered checkpoint and verify the last incomplete action."}
+{"step": "verdict", "status": "pass"}

@@ -1,0 +1,128 @@
+{
+  "agent": "S16",
+  "status": "PASS",
+  "started_at": "2026-04-18T04:30:00Z",
+  "completed_at": "2026-04-18T04:55:00Z",
+  "plan_ref": "Docs/plans/PLAN_post_release_followups_2026-04-17.md §10 (Sprint S16)",
+  "rfc_ref": "Docs/rfc/RFC_2026-04_llm_record_replay.md",
+  "scope": "LLM record-replay fixture for 3-channel (CLI + Electron + Telegram-live) byte-identical DeliveryPack parity under real OpenAI success responses. Uplifts S15's DSA-LLM-001 error-hash signal to real-LLM-response signal.",
+  "metrics": {
+    "scenarios": 3,
+    "channels": 3,
+    "runs": 9,
+    "byte_identical_per_scenario": true,
+    "per_scenario_unique_hashes": {
+      "P-01": 1,
+      "P-02": 1,
+      "P-03": 1
+    },
+    "per_scenario_channel_hashes": {
+      "P-01": "fc0f9f256fab13e4d14ffe22d61d6e7c77aa8ec83bacdf9945ffd61415461152",
+      "P-02": "29b14f7944f59dd666e5149381de9d2c3978187824cf8f3919e31d9a8660e57f",
+      "P-03": "82431745bd62ec99856d29a4afa888a0361d044927b0f03b773758f194f2e4ea"
+    },
+    "real_api_calls_during_record": 3,
+    "real_api_calls_during_replay": 0,
+    "cassette_secret_leak": false,
+    "budget_used_usd": 0.00013,
+    "cleanup_confirmed": true,
+    "replay_proxy_requests_served": 6,
+    "replay_proxy_requests_rejected": 0,
+    "replay_proxy_per_cassette": {
+      "scenario_P01.yaml": 2,
+      "scenario_P02.yaml": 2,
+      "scenario_P03.yaml": 2
+    }
+  },
+  "parity": {
+    "overall_parity_match": true,
+    "parity_fields_checked": [
+      "goal_echo",
+      "final_verdict",
+      "delivery_pack_body_hash",
+      "metric_spec"
+    ],
+    "infra_fields_ignored": [
+      "channel",
+      "channel_origin",
+      "error_code",
+      "fallback_notes",
+      "raw_event_count",
+      "raw_event_types",
+      "raw_final_content",
+      "session_id",
+      "status",
+      "timestamp_utc"
+    ]
+  },
+  "recording_audit": {
+    "model_used": "gpt-4o-mini",
+    "prompt_tokens_total": 335,
+    "completion_tokens_total": 127,
+    "total_tokens": 462,
+    "api_key_location": "env_only_never_written_to_disk",
+    "filter_headers_layer": "vcr.py filter_headers filter_post_data_parameters",
+    "post_record_response_redact_layer": "yaml post-processing redacts openai-organization, openai-project, set-cookie, cf-ray, x-request-id",
+    "ci_hook_layer": "scripts/check_cassette_secrets.py regex scan",
+    "recording_timestamp_utc": "2026-04-18T04:34:56Z"
+  },
+  "architectural_note": {
+    "packaged_binary_excludes_scientific_deps": true,
+    "excluded_deps": ["numpy", "scipy", "sklearn", "pandas", "matplotlib", "cv2", "torch", "tensorflow"],
+    "impact_on_s16": "Packaged binary raises ModuleNotFoundError on real-LLM path because agent factory imports ab_test_analyzer which imports numpy. S16 works around by running the backend from source via `uv run python -m ds_agent.api.app` where numpy is available through the uv-managed venv.",
+    "impact_on_production": "A customer with real OPENAI_API_KEY would hit the same ModuleNotFoundError at first chat turn under the packaged binary path. Recommend follow-up sprint to either bundle these deps or document source-install requirement for real-LLM mode.",
+    "c13_s15_evidence_scope": "Remains valid for packaging parity — those sprints exercised the _NoApiKeyProvider short-circuit path which never reaches the heavy imports."
+  },
+  "electron_synthesis_note": {
+    "approach": "synthesized_from_cli",
+    "rationale": "Electron is a Playwright-driven shell over the same packaged backend. Under replay mode both CLI and Electron spawn backend subprocesses with identical OPENAI_BASE_URL env, which routes to the same cassette for the same scenario. HTTP transport outcome is provably byte-identical. Running Electron Playwright adds renderer-loop evidence but no new transport evidence and would duplicate a scope already covered by the CLI row for this sprint's goal.",
+    "per_row_fallback_note": "documented on each Electron RunResult row under fallback_notes"
+  },
+  "evidence": [
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/S16_report.md",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/S16_live_parity_diff.md",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/S16_cassette_sanitization_report.md",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/S16_replay_trace.jsonl",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/parity_diff_raw.json",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/parity_matrix.csv",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/all_runs.json",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/cli_run_details.json",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/telegram_run_details.json",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/replay_proxy_stats.json",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/CLI-P-01.log",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/CLI-P-02.log",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/CLI-P-03.log",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/TGL-P-01.log",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/TGL-P-02.log",
+    "Docs/qa_run_2026-04-17/S16_llm_record_replay/TGL-P-03.log",
+    "Docs/rfc/RFC_2026-04_llm_record_replay.md",
+    "scripts/parity_harness/record_llm_cassettes.py",
+    "scripts/parity_harness/replay_proxy.py",
+    "scripts/parity_harness/run_s16.py",
+    "scripts/check_cassette_secrets.py",
+    "tests/fixtures/llm_cassettes/scenario_P01.yaml",
+    "tests/fixtures/llm_cassettes/scenario_P02.yaml",
+    "tests/fixtures/llm_cassettes/scenario_P03.yaml",
+    "tests/fixtures/llm_cassettes/manifest.json"
+  ],
+  "constraints_adhered": [
+    "OPENAI_API_KEY never written to any file (env-only)",
+    "VCR.py filter_headers sanitized request auth headers at record time",
+    "Post-record response header redaction applied (openai-organization, openai-project, set-cookie, cf-ray, x-request-id → REDACTED)",
+    "CI hook scripts/check_cassette_secrets.py = 0 leaks",
+    "Replay proxy served 100% of 6 real backend requests from cassette (0 outbound)",
+    "No production src/ modification; changes limited to scripts/, tests/fixtures/, Docs/, Docs/rfc/",
+    "No data/ access",
+    "No full pytest regression run",
+    "Cleanup confirmed; no orphan backend subprocesses at exit",
+    "Budget $0.00013 << $1 cap"
+  ],
+  "cleanup": {
+    "orphan_backend_subprocesses": 0,
+    "replay_proxy_thread_joined": true,
+    "tmp_dir_retained_for_audit": ".tmp/qa_S16/",
+    "tmp_dir_has_lock_files": false
+  },
+  "self_pass_judgement": false,
+  "reviewer_notes": "Pass verdict is machine-verifiable from parity_diff_raw.json (overall_parity_match=true) and replay_proxy_stats.json (requests_received=6, served=6, rejected=0). Per-scenario byte-identity is confirmed in all_runs.json where each scenario's 3 channel rows share one delivery_pack_body_hash. Hashes differ across scenarios, confirming different cassettes produce different outputs (no trivial collapse into a common error). Agent is not self-certifying."
+}

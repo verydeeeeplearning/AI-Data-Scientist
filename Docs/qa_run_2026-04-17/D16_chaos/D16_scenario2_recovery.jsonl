@@ -1,0 +1,5 @@
+{"step": "writer_result", "writer_id": "writer-A", "requested": 20, "inserted": 20, "errors": [], "event_sample": [{"seq": 0, "attempts": 1, "ok": true}, {"seq": 1, "attempts": 1, "ok": true}, {"seq": 2, "attempts": 1, "ok": true}, {"seq": 17, "attempts": 1, "ok": true}, {"seq": 18, "attempts": 1, "ok": true}, {"seq": 19, "attempts": 1, "ok": true}]}
+{"step": "writer_result", "writer_id": "writer-B", "requested": 20, "inserted": 20, "errors": [], "event_sample": [{"seq": 0, "attempts": 1, "ok": true}, {"seq": 1, "attempts": 1, "ok": true}, {"seq": 2, "attempts": 1, "ok": true}, {"seq": 17, "attempts": 1, "ok": true}, {"seq": 18, "attempts": 1, "ok": true}, {"seq": 19, "attempts": 1, "ok": true}]}
+{"step": "final_state", "total": 40, "per_writer": {"writer-A": 20, "writer-B": 20}}
+{"step": "interleaving", "transitions": 1}
+{"step": "verdict", "status": "pass"}

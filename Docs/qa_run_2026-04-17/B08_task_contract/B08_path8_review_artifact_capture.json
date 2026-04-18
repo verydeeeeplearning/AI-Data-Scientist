@@ -1,0 +1,18 @@
+{
+  "extraction": {
+    "cleaned_response": "Visible Decision OS summary.",
+    "capture_count": 1,
+    "errors": [],
+    "first_capture": {
+      "run_id": "run-candidate-B08",
+      "skill_name": "retrain-vs-rollback"
+    }
+  },
+  "hook_persistence": {
+    "modified_response": "Visible Decision OS summary.",
+    "experiment_review_artifact_count": 1,
+    "first_stored_skill": "retrain-vs-rollback",
+    "first_stored_summary": "Recommend retraining instead of rollback.",
+    "hidden_block_stripped": true
+  }
+}

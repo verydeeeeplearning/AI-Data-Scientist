@@ -1,0 +1,8 @@
+{
+  "theme_id": "default_v1",
+  "primary_color": "#1F3A5F",
+  "secondary_color": "#6C7F99",
+  "font_heading": "Aptos Display",
+  "font_body": "Aptos",
+  "chart_palette": ["#1F3A5F", "#6C7F99", "#B5C3D6"]
+}

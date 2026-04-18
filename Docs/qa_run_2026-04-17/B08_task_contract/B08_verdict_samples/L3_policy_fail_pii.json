@@ -1,0 +1,81 @@
+{
+  "case": "L3_policy_fail_pii",
+  "verdict_id": "RV-1776371632959614100",
+  "overall": "fail",
+  "result": "fail",
+  "confidence": {
+    "score": 0.6375000000000001,
+    "grade": "medium"
+  },
+  "layer_results": [
+    {
+      "layer": "statistical",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "statistical_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "stable"
+        }
+      ]
+    },
+    {
+      "layer": "data",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "data_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "clean"
+        }
+      ]
+    },
+    {
+      "layer": "policy",
+      "overall": "fail",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "policy_check",
+          "status": "fail",
+          "score": 0.0,
+          "message": "PII detected: email+SSN in narrative"
+        }
+      ]
+    },
+    {
+      "layer": "narrative",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "narrative_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "aligned"
+        }
+      ]
+    }
+  ],
+  "blocking_issues": [
+    {
+      "severity": "critical",
+      "message": "PII detected: email+SSN in narrative",
+      "blocking": true,
+      "layer": "policy"
+    }
+  ],
+  "recommended_actions": [
+    {
+      "action": null
+    }
+  ]
+}

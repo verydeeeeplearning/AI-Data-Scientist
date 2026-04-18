@@ -1,0 +1,43 @@
+{
+  "a_dependency_declared": {
+    "pass": true,
+    "version": "^6.8.3"
+  },
+  "electron_log_dep": {
+    "pass": true,
+    "version": "^5.4.3"
+  },
+  "b_event_lifecycle_wired": {
+    "pass": true,
+    "missing": []
+  },
+  "c_ipc_handlers_registered": {
+    "pass": true,
+    "missing": []
+  },
+  "d_channel_env_override": {
+    "pass": true
+  },
+  "e_publish_config": {
+    "pass": true,
+    "evidence": [
+      "# P0-05: releaseType defaults to 'draft' so release managers can review the",
+      "provider: github",
+      "owner: ds-agent",
+      "repo: ds-agent-desktop",
+      "releaseType: draft"
+    ]
+  },
+  "f_autoDownload_gate": {
+    "pass": true,
+    "evidence": "User confirms before consuming bandwidth (no silent install)."
+  },
+  "g_dev_build_disabled": {
+    "pass": true
+  },
+  "_summary": {
+    "total": 8,
+    "passed": 8,
+    "all_pass": true
+  }
+}

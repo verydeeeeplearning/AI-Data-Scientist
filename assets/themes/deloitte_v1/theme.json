@@ -1,0 +1,8 @@
+{
+  "theme_id": "deloitte_v1",
+  "primary_color": "#86BC25",
+  "secondary_color": "#2C5234",
+  "font_heading": "Open Sans",
+  "font_body": "Open Sans",
+  "chart_palette": ["#86BC25", "#2C5234", "#A7C66A", "#D4E4AF"]
+}

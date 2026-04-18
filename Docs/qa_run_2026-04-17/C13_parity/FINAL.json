@@ -1,0 +1,91 @@
+{
+  "agent": "C13_InterfaceParityTester",
+  "tier": 3,
+  "status": "complete",
+  "self_verdict": null,
+  "self_verdict_reason": "Plan §4.3 forbids self pass/fail declaration; Tier 3 gate owner decides.",
+  "completed_at": "2026-04-17T00:00:00Z",
+  "metrics": {
+    "scenarios": 3,
+    "channels": 3,
+    "runs_planned": 9,
+    "runs_completed": 9,
+    "parity_match": true,
+    "fallback_used": true,
+    "hook_count": 30,
+    "skill_count_default": 7,
+    "tool_count_observed": 75,
+    "tools_hash": "a0c16d97f9de642e8562c734b562b44b7c85ea3c11323ab7c07131b33b598dea",
+    "budget": {
+      "max_iterations": 100,
+      "max_cost_usd": 10.0
+    }
+  },
+  "equivalence_fields_all_match": [
+    "hooks",
+    "hook_count",
+    "skill_names",
+    "tool_count",
+    "tools_hash",
+    "budget",
+    "mode",
+    "authority_mode",
+    "transcript_store_wired",
+    "checkpoint_store_wired",
+    "goal_store_wired",
+    "working_memory_store_wired",
+    "approval_store_wired",
+    "skill_hub_wired",
+    "post_learner_wired",
+    "tool_registry_class"
+  ],
+  "allowed_deltas_observed": [
+    "channel",
+    "session_id",
+    "callbacks_class",
+    "surface",
+    "timestamps"
+  ],
+  "fallback": {
+    "used": true,
+    "reason_per_channel": {
+      "CLI": "would work but adds no construction-time parity signal beyond the harness; real LLM call would cost API $",
+      "Telegram": "forbidden by constraint 'no real external bot calls'; would require live token + network",
+      "Electron": "requires packaged app + chromium; packaging is C15 scope"
+    },
+    "authorisation": "plan §6.1 step 4 실용 대안 — when process-level execution impossible, prove parity via create_agent() call-path with stubbed provider + callbacks"
+  },
+  "evidence": {
+    "root": "Docs/qa_run_2026-04-17/C13_parity/",
+    "files": {
+      "start_manifest": "START.json",
+      "harness_source": "parity_harness.py",
+      "raw_signatures": "channel_signatures.json",
+      "raw_diff": "parity_diff_raw.json",
+      "call_graph_proof": "call_graph_evidence.md",
+      "human_diff_report": "C13_parity_diff.md",
+      "harness_stdout": "harness_run_log.txt",
+      "final_report": "C13_report.md",
+      "final_json": "FINAL.json"
+    }
+  },
+  "scope_adherence": {
+    "source_not_modified": true,
+    "no_real_external_calls": true,
+    "no_full_regression_pytest_run": true,
+    "data_not_touched": true,
+    "out_of_scope_files_not_touched": true,
+    "c14_c15_territory_untouched": true
+  },
+  "residual_gaps": [
+    "end-to-end DeliveryPack byte-parity requires a reproducible LLM fixture — propose Tier 4",
+    "Telegram fake-update harness end-to-end flow not exercised — propose Tier 4 D17",
+    "Electron Playwright parity run deferred to C15"
+  ],
+  "recommendations": [
+    "R1: Add harness-as-pytest to CI to catch future factory-wiring regressions",
+    "R2: Add record-replay LLM fixture for byte-identical DeliveryPack comparison",
+    "R3: C15 should reuse this equivalence-field list as a Playwright runtime assertion",
+    "R4: Add Telegram fake-Updater harness for Tier 4 regression"
+  ]
+}

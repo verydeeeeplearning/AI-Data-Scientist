@@ -1,0 +1,39 @@
+{
+  "artifact_id": "art-auditor-pptx",
+  "artifact_type": "audit_trail",
+  "audience": "auditor",
+  "template_ref": "tpl/audit_trail/v1",
+  "slide_count": 3,
+  "slides": [
+    {
+      "index": 1,
+      "section": "data_provenance",
+      "title": "데이터 출처",
+      "bullets": [
+        "원본: DW.CUSTOMER.EVENTS, 스냅샷 2026-04-10."
+      ],
+      "excerpt": "원본: DW.CUSTOMER.EVENTS, 스냅샷 2026-04-10.",
+      "chart_count": 0
+    },
+    {
+      "index": 2,
+      "section": "access_log",
+      "title": "접근 기록",
+      "bullets": [
+        "2026-04-12 10:24 UTC, ds-agent, read-only."
+      ],
+      "excerpt": "2026-04-12 10:24 UTC, ds-agent, read-only.",
+      "chart_count": 0
+    },
+    {
+      "index": 3,
+      "section": "policy_compliance",
+      "title": "정책 준수",
+      "bullets": [
+        "GDPR Art.30 준수 확인, 가명화 완료."
+      ],
+      "excerpt": "GDPR Art.30 준수 확인, 가명화 완료.",
+      "chart_count": 0
+    }
+  ]
+}

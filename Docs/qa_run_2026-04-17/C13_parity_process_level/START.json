@@ -1,0 +1,21 @@
+{
+  "agent_id": "C13_process_level",
+  "tier": 3,
+  "round": 2,
+  "started_at": "2026-04-17T22:45:00Z",
+  "scope": "9 run process-level parity (3 scenarios × 3 channels) — CLI subprocess, Telegram fake-update harness, Electron Playwright",
+  "preconditions": {
+    "dist_ds_agent_api_exe_present": true,
+    "dist_ds_agent_api_exe_bytes": 47675753,
+    "electron_dist_present": true,
+    "c15_source_hash_stale": false,
+    "electron_rebuild_required": false
+  },
+  "workspace": ".tmp/qa_phase3/",
+  "output_root": "Docs/qa_run_2026-04-17/C13_parity_process_level/",
+  "fallback_notes_planned": {
+    "CLI": "will run via subprocess of packaged ds-agent-api.exe + WS handshake + mocked provider response",
+    "Telegram": "python-telegram-bot NOT installed in venv (nor bundled in dist) — will use in-process fake update harness against TelegramRunner._create_agent path with a stub TelegramPlugin",
+    "Electron": "playwright available in electron/node_modules; will attempt full Playwright launch; fallback to compiled contract tests if harness fails"
+  }
+}

@@ -1,0 +1,120 @@
+interactions:
+- request:
+    body: '{"messages": [{"role": "system", "content": "\ub2f9\uc2e0\uc740 DS Agent\uc758
+      LLM \uc751\ub2f5 \ub179\ud654\uc6a9 \uacbd\ub7c9 assistant\uc785\ub2c8\ub2e4.
+      \ud55c\uad6d\uc5b4\ub85c 2~3\ubb38\uc7a5\uc73c\ub85c \uc9e7\uac8c \uc811\uc218
+      \ud655\uc778\uacfc \ub2e4\uc74c \ub2e8\uacc4\ub9cc \uc81c\uc2dc\ud558\uc138\uc694.
+      \ucf54\ub4dc, \uc22b\uc790 \uacb0\uacfc, \ub0a0\uc9dc, \uc138\uc158 ID\ub97c
+      \ud3ec\ud568\ud558\uc9c0 \ub9c8\uc138\uc694."}, {"role": "user", "content":
+      "\ud604\uc7ac \uc138\uc158\uc758 Authority\ub97c Supervised\uc5d0\uc11c Delegate\ub85c
+      \uc804\ud658\ud558\uace0, \uc2e4\ud5d8 \uae30\ub85d \uc0ad\uc81c(\uac00\uc0c1)
+      CAUTION \ub3c4\uad6c\ub97c \ud638\ucd9c\ud574 \uc2b9\uc778 \ud50c\ub85c\uc6b0\ub97c
+      \ud2b8\ub9ac\uac70\ud558\uc138\uc694."}], "model": "gpt-4o-mini", "max_tokens":
+      256, "temperature": 0.0}'
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Authorization:
+      - Bearer REDACTED
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '524'
+      Content-Type:
+      - application/json
+      Host:
+      - api.openai.com
+      User-Agent:
+      - AsyncOpenAI/Python 2.32.0
+      X-Stainless-Arch:
+      - other:amd64
+      X-Stainless-Async:
+      - async:asyncio
+      X-Stainless-Lang:
+      - python
+      X-Stainless-OS:
+      - Windows
+      X-Stainless-Package-Version:
+      - 2.32.0
+      X-Stainless-Runtime:
+      - CPython
+      X-Stainless-Runtime-Version:
+      - 3.12.10
+      x-stainless-read-timeout:
+      - '60.0'
+      x-stainless-retry-count:
+      - '0'
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-DVrgOvJE0Ph8Uc5ecWKTUxR2lXIKQ\",\n  \"object\"\
+        : \"chat.completion\",\n  \"created\": 1776486896,\n  \"model\": \"gpt-4o-mini-2024-07-18\"\
+        ,\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n  \
+        \      \"role\": \"assistant\",\n        \"content\": \"요청하신 세션의 Authority\
+        \ 전환과 실험 기록 삭제를 확인했습니다. 다음 단계로 승인 플로우를 진행하겠습니다.\",\n        \"refusal\": null,\n\
+        \        \"annotations\": []\n      },\n      \"logprobs\": null,\n      \"\
+        finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\"\
+        : 111,\n    \"completion_tokens\": 31,\n    \"total_tokens\": 142,\n    \"\
+        prompt_tokens_details\": {\n      \"cached_tokens\": 0,\n      \"audio_tokens\"\
+        : 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\"\
+        : 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n\
+        \      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\"\
+        : \"default\",\n  \"system_fingerprint\": \"fp_baaa53d70d\"\n}\n"
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - REDACTED
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Sat, 18 Apr 2026 04:34:57 GMT
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      X-Content-Type-Options:
+      - nosniff
+      access-control-expose-headers:
+      - X-Request-ID
+      alt-svc:
+      - h3=":443"; ma=86400
+      content-length:
+      - '955'
+      openai-organization:
+      - REDACTED
+      openai-processing-ms:
+      - '642'
+      openai-project:
+      - REDACTED
+      openai-version:
+      - '2020-10-01'
+      set-cookie:
+      - REDACTED
+      x-openai-proxy-wasm:
+      - v0.1
+      x-ratelimit-limit-requests:
+      - '10000'
+      x-ratelimit-limit-tokens:
+      - '10000000'
+      x-ratelimit-remaining-requests:
+      - '9999'
+      x-ratelimit-remaining-tokens:
+      - '9999898'
+      x-ratelimit-reset-requests:
+      - 6ms
+      x-ratelimit-reset-tokens:
+      - 0s
+      x-request-id:
+      - REDACTED
+    status:
+      code: 200
+      message: OK
+version: 1

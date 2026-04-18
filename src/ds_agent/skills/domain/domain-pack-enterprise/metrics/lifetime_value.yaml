@@ -1,0 +1,27 @@
+metric_id: lifetime_value
+display_name: Lifetime Value
+owner: finance_team
+definition: "Average net revenue retained per customer across the measured lifetime window."
+synonyms:
+  - LTV
+  - customer lifetime value
+grain: monthly
+unit: amount
+direction: higher_is_better
+related_metrics:
+  - average_revenue_per_user
+  - customer_acquisition_cost
+caveats:
+  - Gross-margin-adjusted LTV should be used for board packages and pricing reviews.
+verified_query_ids:
+  - vq-ltv-postgres
+  - vq-ltv-bigquery
+calculation:
+  numerator:
+    source: prod.finance.mrr_ledger
+    filter: customer_status = 'retained'
+    aggregation: SUM(net_revenue_amount)
+  denominator:
+    source: prod.growth.customer
+    filter: lifecycle_status = 'active'
+    aggregation: COUNT(DISTINCT customer_id)

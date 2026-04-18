@@ -1,0 +1,44 @@
+{
+  "probe_id": "B11_reaudit_rollback_probe",
+  "round": 2,
+  "round1_reference": "Docs/qa_run_2026-04-17/B11_portfolio_learning/B11_rollback_atomicity_sqlite_probe.json",
+  "scenarios": {
+    "a_happy_path": {
+      "scenario": "a_happy_path",
+      "exception_raised": false,
+      "item_status_after": "deprecated",
+      "dep_record_count_for_item": 1,
+      "atomic": true,
+      "verdict": "ATOMIC_COMMIT (both rows persisted)",
+      "pass": true
+    },
+    "b_atomic_port_injection": {
+      "scenario": "b_atomic_port_injection",
+      "exception_raised": true,
+      "exception_text": "injected mid-rollback failure (atomic port)",
+      "item_status_after": "promoted",
+      "dep_record_count_for_item": 0,
+      "atomic": true,
+      "verdict": "ATOMIC_REVERT (item kept promoted, no dep record)",
+      "pass": true
+    },
+    "c_commit_level_injection": {
+      "scenario": "c_commit_level_injection",
+      "exception_raised": true,
+      "exception_text": "injected commit-level storage failure",
+      "item_status_after": "promoted",
+      "dep_record_count_for_item": 0,
+      "atomic": true,
+      "verdict": "ATOMIC_REVERT (ROLLBACK restored pre-call state)",
+      "pass": true
+    },
+    "port_runtime_checkable": {
+      "scenario": "port_runtime_checkable",
+      "is_atomic_port": true,
+      "pass": true
+    }
+  },
+  "all_scenarios_pass": true,
+  "atomicity_kind": "atomic",
+  "path8_verdict": "pass"
+}

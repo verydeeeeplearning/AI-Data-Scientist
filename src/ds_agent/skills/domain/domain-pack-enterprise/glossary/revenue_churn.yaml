@@ -1,0 +1,8 @@
+term_id: term.revenue_churn
+canonical_form: revenue churn
+definition: "Recurring revenue lost from downgrades or cancellations before expansion offsets."
+linked_metric_ids:
+  - net_revenue_retention
+  - monthly_recurring_revenue
+category: metric
+owner: finance_team

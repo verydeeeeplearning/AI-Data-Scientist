@@ -1,0 +1,81 @@
+{
+  "case": "L1_statistical_fail",
+  "verdict_id": "RV-1776371632957046700",
+  "overall": "fail",
+  "result": "fail",
+  "confidence": {
+    "score": 0.45000000000000007,
+    "grade": "low"
+  },
+  "layer_results": [
+    {
+      "layer": "statistical",
+      "overall": "fail",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "statistical_check",
+          "status": "fail",
+          "score": 0.0,
+          "message": "AUC drop > 0.1 vs baseline"
+        }
+      ]
+    },
+    {
+      "layer": "data",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "data_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "clean"
+        }
+      ]
+    },
+    {
+      "layer": "policy",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "policy_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "safe"
+        }
+      ]
+    },
+    {
+      "layer": "narrative",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "narrative_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "aligned"
+        }
+      ]
+    }
+  ],
+  "blocking_issues": [
+    {
+      "severity": "high",
+      "message": "AUC drop > 0.1 vs baseline",
+      "blocking": true,
+      "layer": "statistical"
+    }
+  ],
+  "recommended_actions": [
+    {
+      "action": null
+    }
+  ]
+}

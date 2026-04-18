@@ -1,0 +1,8 @@
+term_id: term.subscription_plan
+canonical_form: subscription plan
+definition: "Commercial packaging tier used to price and segment subscriptions."
+linked_metric_ids:
+  - monthly_recurring_revenue
+  - average_revenue_per_user
+category: dimension
+owner: billing_ops

@@ -1,0 +1,56 @@
+{
+  "stream": "S6",
+  "status": "pass",
+  "completed_at": "2026-04-17T00:00:00Z",
+  "files_changed": [
+    "src/ds_agent/application/ports/learning_store_port.py",
+    "src/ds_agent/application/learning/rollback_promotion.py",
+    "src/ds_agent/infrastructure/persistence/learning_store.py",
+    "tests/unit/application/test_rollback_atomicity.py",
+    "tests/unit/application/test_rollback_promotion.py"
+  ],
+  "tests_added": [
+    "tests/unit/application/test_rollback_atomicity.py::TestRollbackAtomicity::test_use_case_uses_atomic_write",
+    "tests/unit/application/test_rollback_atomicity.py::TestRollbackAtomicity::test_atomic_failure_raises_and_does_not_split_writes",
+    "tests/unit/application/test_rollback_atomicity.py::TestSqliteStoreAtomicity::test_port_is_runtime_checkable_on_sqlite_store",
+    "tests/unit/application/test_rollback_atomicity.py::TestSqliteStoreAtomicity::test_atomic_success_persists_both_rows",
+    "tests/unit/application/test_rollback_atomicity.py::TestSqliteStoreAtomicity::test_atomic_failure_rolls_back_both_rows"
+  ],
+  "metrics": {
+    "junit_pass": 33,
+    "junit_fail": 0,
+    "atomicity_verified": true,
+    "new_test_green": true,
+    "existing_tests_green": true,
+    "ruff_errors_in_scope": 0,
+    "import_linter_violations": 0,
+    "mypy_new_errors": 0,
+    "mypy_pre_existing_ignored": 3,
+    "b11_probe_simulated_atomic": true,
+    "b11_probe_verdict_post_fix": "ATOMIC_REVERT (item kept promoted, no deprecation record)",
+    "b11_probe_verdict_pre_fix": "NON_ATOMIC_PARTIAL (item deprecated without DeprecationRecord)"
+  },
+  "evidence": [
+    "Docs/qa_run_2026-04-17/S6_rollback_atomicity/DIFF_SUMMARY.md",
+    "Docs/qa_run_2026-04-17/S6_rollback_atomicity/TEST_RESULTS.md",
+    "Docs/qa_run_2026-04-17/S6_rollback_atomicity/CHANGELOG.md",
+    "Docs/qa_run_2026-04-17/S6_rollback_atomicity/RECOMMENDATIONS.md",
+    "Docs/qa_run_2026-04-17/S6_rollback_atomicity/junit.xml",
+    "Docs/qa_run_2026-04-17/S6_rollback_atomicity/junit_red.xml",
+    "Docs/qa_run_2026-04-17/S6_rollback_atomicity/B11_probe_simulation.json"
+  ],
+  "pass_criteria_checklist": {
+    "new_tests_green": true,
+    "existing_tests_green": true,
+    "import_linter_zero_violation": true,
+    "ruff_zero_error_in_scope": true,
+    "b11_probe_atomic_after_fix": true,
+    "domain_layer_untouched": true,
+    "scope_respected": true
+  },
+  "notes": [
+    "Two files in scope + one new test file + one scope-adjacent test assertion update (test_rollback_promotion.py) — the adjustment was required because the existing test encoded the pre-fix 2-call pattern as a contract.",
+    "mypy reports 3 pre-existing errors in lineage_store.py, submit_learning_proposal.py, work_object_store.py — none touched by S6 and none newly introduced.",
+    "Three additional double-write patterns identified in promote / deprecate / review use cases — recorded in RECOMMENDATIONS.md for follow-up stream; not addressed here per scope constraint."
+  ]
+}

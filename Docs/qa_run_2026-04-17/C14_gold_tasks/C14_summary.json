@@ -1,0 +1,11 @@
+{
+  "domains_run": 6,
+  "tasks_run": 6,
+  "tasks_passed": 6,
+  "max_dim_delta": 0.0,
+  "baseline_exists": false,
+  "alert_dispatch_ok": true,
+  "primary_alerts": 0,
+  "forced_probe_alerts": 12,
+  "fingerprint_sha256_len": 64
+}

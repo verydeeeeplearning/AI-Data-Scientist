@@ -1,0 +1,45 @@
+{
+  "agent_id": "D18",
+  "tier": 4,
+  "role": "final_judge",
+  "role_name": "Release Readiness Auditor",
+  "started_at": "2026-04-17T00:00:00Z",
+  "evidence_dir": "Docs/qa_run_2026-04-17/",
+  "output_dir": "Docs/qa_run_2026-04-17/D18_release/",
+  "tmp_dir": ".tmp/qa_D18/",
+  "plan_reference": "Docs/PRE_RELEASE_AI_TEST_PLAN_2026-04-17.md",
+  "scope": "Aggregate all A01~D17 FINAL.json outputs to render a single Go/No-Go decision.",
+  "principles": [
+    "LLM judgment is not evidence; decisions must be backed by observable artifacts",
+    "No self-reaudit; aggregator only",
+    "Conservative judgment; if ambiguous, prefer CONDITIONAL_GO or NO_GO"
+  ],
+  "constraints": [
+    "no source modifications",
+    "no retesting",
+    "no real external calls",
+    "do not touch data/"
+  ],
+  "aggregation_targets": {
+    "tier1": [
+      "A01_architecture_reaudit",
+      "A02_security_reaudit",
+      "A03_contract_schema_reaudit",
+      "A04_migration_reaudit"
+    ],
+    "tier2": [
+      "B05_agent_core",
+      "B06_tools_registry",
+      "B07_memory_semantic",
+      "B08_task_contract",
+      "B09_autonomy",
+      "B10_comms_export",
+      "B11_portfolio_learning",
+      "B11_portfolio_learning_reaudit",
+      "B12_provider_router"
+    ],
+    "fix_sprint_r3": ["S6_rollback_atomicity"],
+    "tier3": ["C13_parity", "C14_gold_tasks", "C15_packaging"],
+    "tier4": ["D16_chaos", "D17_regression"]
+  }
+}

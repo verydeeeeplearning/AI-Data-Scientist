@@ -1,0 +1,58 @@
+id: retail.churn_scoping.v1
+task_version: 1
+domain: retail
+difficulty: medium
+tags: [scoping, churn, classification]
+prompt: |
+  지난 90일 이탈률이 12%에서 17%로 올랐다.
+  원인을 구조화하고 다음 분기 캠페인에 사용할 위험 고객 목록을 제안하라.
+input:
+  datasets:
+    - name: subscriptions
+      source: fixtures/retail/subscriptions_2024q4.parquet
+      schema_ref: schemas/retail/subscriptions.schema.json
+  snapshot_date: 2024-12-31
+  budget_usd: 20.0
+  time_budget_min: 30
+expected_deliverables:
+  - type: goal_brief
+    must_contain: [problem_framing, kpi_definition, segment_definition]
+  - type: eda_report
+    must_cover: [cohort_churn_by_plan, cohort_churn_by_tenure]
+  - type: model_artifact
+    kind: classifier
+    target: churn_30d
+  - type: ranked_customer_list
+    top_k: 500
+  - type: executive_summary
+validation_points:
+  temporal:
+    snapshot_date: 2024-12-31
+    features_cutoff_before_days: 1
+    forbid_future_leakage: true
+  metric_selection:
+    acceptable_primary: [roc_auc, pr_auc, lift_at_10pct]
+    forbidden_primary: [accuracy]
+  approval_required:
+    sending_campaign: true
+    publishing_model: true
+baseline:
+  human_expert_time_min: 60
+  human_expert_rubric:
+    scoping_accuracy: 0.9
+    metric_selection_accuracy: 0.9
+    session_completeness: 0.95
+scoring_rubric:
+  scoping_accuracy: {weight: 0.15, judge: llm}
+  metric_selection_accuracy: {weight: 0.1, judge: hybrid}
+  temporal_leakage_detection: {weight: 0.15, judge: deterministic}
+  tool_trajectory: {weight: 0.05, judge: deterministic}
+  artifact_faithfulness: {weight: 0.15, judge: llm}
+  exec_summary_accuracy: {weight: 0.1, judge: llm}
+  approval_judgment: {weight: 0.1, judge: hybrid}
+  session_completeness: {weight: 0.1, judge: hybrid}
+  operator_satisfaction: {weight: 0.05, judge: human_or_proxy}
+  time_to_decision: {weight: 0.05, judge: deterministic}
+pass_threshold: 0.75
+alert_on_drop_below: 0.7
+

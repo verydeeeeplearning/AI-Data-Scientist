@@ -1,0 +1,17 @@
+{
+  "requests_received": 6,
+  "served": 6,
+  "rejected_no_match": 0,
+  "rejected_unknown_path": 0,
+  "served_by_cassette": {
+    "scenario_P01.yaml": 2,
+    "scenario_P02.yaml": 2,
+    "scenario_P03.yaml": 2
+  },
+  "cassette_dir": "C:\\Users\\aquap\\Desktop\\AI_Data_Scientist_Demo\\tests\\fixtures\\llm_cassettes",
+  "loaded_cassettes": [
+    "scenario_P01.yaml",
+    "scenario_P02.yaml",
+    "scenario_P03.yaml"
+  ]
+}

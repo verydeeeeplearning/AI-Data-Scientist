@@ -1,0 +1,29 @@
+{
+  "scenario_id": "gemini-P03",
+  "recorded_with_model": "gemini-3-flash-preview",
+  "prompt_system": "You are a data science tutor.",
+  "prompt_user": "In one sentence, what is overfitting?",
+  "response_preview": "Overfitting occurs when a machine learning model learns the noise and specific details of the training data so thoroughly that it fails to generalize well to new, unseen data.",
+  "response_model": "gemini-3-flash-preview",
+  "usage": {
+    "input_tokens": 5560,
+    "output_tokens": 32,
+    "reasoning_tokens": 49
+  },
+  "subprocess": {
+    "cmd": [
+      "cmd.exe",
+      "/c",
+      "C:\\Users\\aquap\\AppData\\Roaming\\npm\\gemini.CMD",
+      "-p",
+      "<PROMPT>",
+      "-o",
+      "json",
+      "-m",
+      "gemini-3-flash-preview"
+    ],
+    "returncode": 0,
+    "stdout": "{\n  \"session_id\": \"359121b8-9320-4b00-9443-02ded1631c2e\",\n  \"response\": \"Overfitting occurs when a machine learning model learns the noise and specific details of the training data so thoroughly that it fails to generalize well to new, unseen data.\",\n  \"stats\": {\n    \"models\": {\n      \"gemini-3-flash-preview\": {\n        \"api\": {\n          \"totalRequests\": 1,\n          \"totalErrors\": 0,\n          \"totalLatencyMs\": 2056\n        },\n        \"tokens\": {\n          \"input\": 5560,\n          \"prompt\": 5560,\n          \"candidates\": 32,\n          \"total\": 5641,\n          \"cached\": 0,\n          \"thoughts\": 49,\n          \"tool\": 0\n        },\n        \"roles\": {\n          \"main\": {\n            \"totalRequests\": 1,\n            \"totalErrors\": 0,\n            \"totalLatencyMs\": 2056,\n            \"tokens\": {\n              \"input\": 5560,\n              \"prompt\": 5560,\n              \"candidates\": 32,\n              \"total\": 5641,\n              \"cached\": 0,\n              \"thoughts\": 49,\n              \"tool\": 0\n            }\n          }\n        }\n      }\n    },\n    \"tools\": {\n      \"totalCalls\": 0,\n      \"totalSuccess\": 0,\n      \"totalFail\": 0,\n      \"totalDurationMs\": 0,\n      \"totalDecisions\": {\n        \"accept\": 0,\n        \"reject\": 0,\n        \"modify\": 0,\n        \"auto_accept\": 0\n      },\n      \"byName\": {}\n    },\n    \"files\": {\n      \"totalLinesAdded\": 0,\n      \"totalLinesRemoved\": 0\n    }\n  }\n}",
+    "stderr": ""
+  }
+}

@@ -1,0 +1,760 @@
+{
+  "path1_matrix": [
+    {
+      "audience": "executive",
+      "format": "markdown",
+      "file_name": "executive\\art-executive-markdown.md",
+      "file_exists": true,
+      "file_bytes": 649,
+      "structure_ok": true,
+      "details": {
+        "h1_count": 1,
+        "h2_count": 4,
+        "total_chars": 439
+      },
+      "error": null
+    },
+    {
+      "audience": "executive",
+      "format": "pptx",
+      "file_name": "executive\\art-executive-pptx.pptx",
+      "file_exists": true,
+      "file_bytes": 31191,
+      "structure_ok": true,
+      "details": {
+        "slide_count": 3
+      },
+      "error": null
+    },
+    {
+      "audience": "executive",
+      "format": "pdf",
+      "file_name": "executive\\art-executive-pdf.pdf",
+      "file_exists": true,
+      "file_bytes": 1468,
+      "structure_ok": true,
+      "details": {
+        "starts_pdf14": true,
+        "page_count": 1,
+        "size_bytes": 1468
+      },
+      "error": null
+    },
+    {
+      "audience": "executive",
+      "format": "ipynb",
+      "file_name": "executive\\art-executive-ipynb.ipynb",
+      "file_exists": true,
+      "file_bytes": 1818,
+      "structure_ok": true,
+      "details": {
+        "cell_count": 6,
+        "nbformat": 4
+      },
+      "error": null
+    },
+    {
+      "audience": "executive",
+      "format": "docx",
+      "file_name": "executive\\art-executive-markdown.docx",
+      "file_exists": true,
+      "file_bytes": 37077,
+      "structure_ok": true,
+      "details": {
+        "zip_entries": 17,
+        "has_document_xml": true,
+        "heading_count": 5,
+        "heading_levels_unique": [
+          "1",
+          "2"
+        ]
+      },
+      "error": null
+    },
+    {
+      "audience": "executive",
+      "format": "html",
+      "file_name": "executive\\art-executive-markdown.html",
+      "file_exists": true,
+      "file_bytes": 2329,
+      "structure_ok": true,
+      "details": {
+        "has_doctype": true,
+        "h1_count": 1,
+        "h2_count": 4,
+        "h3_count": 0
+      },
+      "error": null
+    },
+    {
+      "audience": "pm",
+      "format": "markdown",
+      "file_name": "pm\\art-pm-markdown.md",
+      "file_exists": true,
+      "file_bytes": 492,
+      "structure_ok": true,
+      "details": {
+        "h1_count": 1,
+        "h2_count": 4,
+        "total_chars": 365
+      },
+      "error": null
+    },
+    {
+      "audience": "pm",
+      "format": "pptx",
+      "file_name": "pm\\art-pm-pptx.pptx",
+      "file_exists": true,
+      "file_bytes": 31026,
+      "structure_ok": true,
+      "details": {
+        "slide_count": 3
+      },
+      "error": null
+    },
+    {
+      "audience": "pm",
+      "format": "pdf",
+      "file_name": "pm\\art-pm-pdf.pdf",
+      "file_exists": true,
+      "file_bytes": 1376,
+      "structure_ok": true,
+      "details": {
+        "starts_pdf14": true,
+        "page_count": 1,
+        "size_bytes": 1376
+      },
+      "error": null
+    },
+    {
+      "audience": "pm",
+      "format": "ipynb",
+      "file_name": "pm\\art-pm-ipynb.ipynb",
+      "file_exists": true,
+      "file_bytes": 1548,
+      "structure_ok": true,
+      "details": {
+        "cell_count": 6,
+        "nbformat": 4
+      },
+      "error": null
+    },
+    {
+      "audience": "pm",
+      "format": "docx",
+      "file_name": "pm\\art-pm-markdown.docx",
+      "file_exists": true,
+      "file_bytes": 36958,
+      "structure_ok": true,
+      "details": {
+        "zip_entries": 17,
+        "has_document_xml": true,
+        "heading_count": 5,
+        "heading_levels_unique": [
+          "1",
+          "2"
+        ]
+      },
+      "error": null
+    },
+    {
+      "audience": "pm",
+      "format": "html",
+      "file_name": "pm\\art-pm-markdown.html",
+      "file_exists": true,
+      "file_bytes": 2130,
+      "structure_ok": true,
+      "details": {
+        "has_doctype": true,
+        "h1_count": 1,
+        "h2_count": 4,
+        "h3_count": 0
+      },
+      "error": null
+    },
+    {
+      "audience": "ds_peer",
+      "format": "markdown",
+      "file_name": "ds_peer\\art-ds_peer-markdown.md",
+      "file_exists": true,
+      "file_bytes": 456,
+      "structure_ok": true,
+      "details": {
+        "h1_count": 1,
+        "h2_count": 4,
+        "total_chars": 375
+      },
+      "error": null
+    },
+    {
+      "audience": "ds_peer",
+      "format": "pptx",
+      "file_name": "ds_peer\\art-ds_peer-pptx.pptx",
+      "file_exists": true,
+      "file_bytes": 30949,
+      "structure_ok": true,
+      "details": {
+        "slide_count": 3
+      },
+      "error": null
+    },
+    {
+      "audience": "ds_peer",
+      "format": "pdf",
+      "file_name": "ds_peer\\art-ds_peer-pdf.pdf",
+      "file_exists": true,
+      "file_bytes": 1391,
+      "structure_ok": true,
+      "details": {
+        "starts_pdf14": true,
+        "page_count": 1,
+        "size_bytes": 1391
+      },
+      "error": null
+    },
+    {
+      "audience": "ds_peer",
+      "format": "ipynb",
+      "file_name": "ds_peer\\art-ds_peer-ipynb.ipynb",
+      "file_exists": true,
+      "file_bytes": 1590,
+      "structure_ok": true,
+      "details": {
+        "cell_count": 7,
+        "nbformat": 4
+      },
+      "error": null
+    },
+    {
+      "audience": "ds_peer",
+      "format": "docx",
+      "file_name": "ds_peer\\art-ds_peer-markdown.docx",
+      "file_exists": true,
+      "file_bytes": 36916,
+      "structure_ok": true,
+      "details": {
+        "zip_entries": 17,
+        "has_document_xml": true,
+        "heading_count": 5,
+        "heading_levels_unique": [
+          "1",
+          "2"
+        ]
+      },
+      "error": null
+    },
+    {
+      "audience": "ds_peer",
+      "format": "html",
+      "file_name": "ds_peer\\art-ds_peer-markdown.html",
+      "file_exists": true,
+      "file_bytes": 2110,
+      "structure_ok": true,
+      "details": {
+        "has_doctype": true,
+        "h1_count": 1,
+        "h2_count": 4,
+        "h3_count": 0
+      },
+      "error": null
+    },
+    {
+      "audience": "ml_engineer",
+      "format": "markdown",
+      "file_name": "ml_engineer\\art-ml_engineer-markdown.md",
+      "file_exists": true,
+      "file_bytes": 614,
+      "structure_ok": true,
+      "details": {
+        "h1_count": 1,
+        "h2_count": 5,
+        "total_chars": 493
+      },
+      "error": null
+    },
+    {
+      "audience": "ml_engineer",
+      "format": "pptx",
+      "file_name": "ml_engineer\\art-ml_engineer-pptx.pptx",
+      "file_exists": true,
+      "file_bytes": 32161,
+      "structure_ok": true,
+      "details": {
+        "slide_count": 4
+      },
+      "error": null
+    },
+    {
+      "audience": "ml_engineer",
+      "format": "pdf",
+      "file_name": "ml_engineer\\art-ml_engineer-pdf.pdf",
+      "file_exists": true,
+      "file_bytes": 1504,
+      "structure_ok": true,
+      "details": {
+        "starts_pdf14": true,
+        "page_count": 1,
+        "size_bytes": 1504
+      },
+      "error": null
+    },
+    {
+      "audience": "ml_engineer",
+      "format": "ipynb",
+      "file_name": "ml_engineer\\art-ml_engineer-ipynb.ipynb",
+      "file_exists": true,
+      "file_bytes": 1671,
+      "structure_ok": true,
+      "details": {
+        "cell_count": 7,
+        "nbformat": 4
+      },
+      "error": null
+    },
+    {
+      "audience": "ml_engineer",
+      "format": "docx",
+      "file_name": "ml_engineer\\art-ml_engineer-markdown.docx",
+      "file_exists": true,
+      "file_bytes": 36989,
+      "structure_ok": true,
+      "details": {
+        "zip_entries": 17,
+        "has_document_xml": true,
+        "heading_count": 6,
+        "heading_levels_unique": [
+          "1",
+          "2"
+        ]
+      },
+      "error": null
+    },
+    {
+      "audience": "ml_engineer",
+      "format": "html",
+      "file_name": "ml_engineer\\art-ml_engineer-markdown.html",
+      "file_exists": true,
+      "file_bytes": 2347,
+      "structure_ok": true,
+      "details": {
+        "has_doctype": true,
+        "h1_count": 1,
+        "h2_count": 5,
+        "h3_count": 0
+      },
+      "error": null
+    },
+    {
+      "audience": "auditor",
+      "format": "markdown",
+      "file_name": "auditor\\art-auditor-markdown.md",
+      "file_exists": true,
+      "file_bytes": 443,
+      "structure_ok": true,
+      "details": {
+        "h1_count": 1,
+        "h2_count": 3,
+        "total_chars": 370
+      },
+      "error": null
+    },
+    {
+      "audience": "auditor",
+      "format": "pptx",
+      "file_name": "auditor\\art-auditor-pptx.pptx",
+      "file_exists": true,
+      "file_bytes": 30908,
+      "structure_ok": true,
+      "details": {
+        "slide_count": 3
+      },
+      "error": null
+    },
+    {
+      "audience": "auditor",
+      "format": "pdf",
+      "file_name": "auditor\\art-auditor-pdf.pdf",
+      "file_exists": true,
+      "file_bytes": 1341,
+      "structure_ok": true,
+      "details": {
+        "starts_pdf14": true,
+        "page_count": 1,
+        "size_bytes": 1341
+      },
+      "error": null
+    },
+    {
+      "audience": "auditor",
+      "format": "ipynb",
+      "file_name": "auditor\\art-auditor-ipynb.ipynb",
+      "file_exists": true,
+      "file_bytes": 1298,
+      "structure_ok": true,
+      "details": {
+        "cell_count": 5,
+        "nbformat": 4
+      },
+      "error": null
+    },
+    {
+      "audience": "auditor",
+      "format": "docx",
+      "file_name": "auditor\\art-auditor-markdown.docx",
+      "file_exists": true,
+      "file_bytes": 36909,
+      "structure_ok": true,
+      "details": {
+        "zip_entries": 17,
+        "has_document_xml": true,
+        "heading_count": 4,
+        "heading_levels_unique": [
+          "1",
+          "2"
+        ]
+      },
+      "error": null
+    },
+    {
+      "audience": "auditor",
+      "format": "html",
+      "file_name": "auditor\\art-auditor-markdown.html",
+      "file_exists": true,
+      "file_bytes": 2069,
+      "structure_ok": true,
+      "details": {
+        "has_doctype": true,
+        "h1_count": 1,
+        "h2_count": 3,
+        "h3_count": 0
+      },
+      "error": null
+    }
+  ],
+  "path2_korean_roundtrip": {
+    "per_audience": {
+      "executive": {
+        "missing_fragments": []
+      },
+      "pm": {
+        "missing_fragments": []
+      },
+      "ds_peer": {
+        "missing_fragments": []
+      },
+      "ml_engineer": {
+        "missing_fragments": []
+      },
+      "auditor": {
+        "missing_fragments": []
+      }
+    },
+    "all_equal": true
+  },
+  "path3_quiet_hours": {
+    "window": "[22:00, 08:00) UTC",
+    "in_quiet_at_21_00_utc": false,
+    "in_quiet_at_22_00_utc": true,
+    "in_quiet_at_23_00_utc": true,
+    "in_quiet_at_07_59_utc": true,
+    "in_quiet_at_08_00_utc": false,
+    "in_quiet_at_09_00_utc": false,
+    "sent_immediately": [
+      {
+        "id": "evt-3",
+        "severity": "critical",
+        "kind": "policy.breach"
+      }
+    ],
+    "released_at_boundary": [
+      "evt-1",
+      "evt-2"
+    ],
+    "queue_after_release": [],
+    "pass": true
+  },
+  "path4_rate_limiter": {
+    "attempts": 15,
+    "accepted": 10,
+    "denied": 5,
+    "first_ten_all_accepted": true,
+    "next_five_all_denied": true,
+    "backoffs_no_jitter": [
+      0.1,
+      0.2,
+      0.4,
+      0.8,
+      1.6,
+      3.2
+    ],
+    "backoffs_expected": [
+      0.1,
+      0.2,
+      0.4,
+      0.8,
+      1.6,
+      3.2
+    ],
+    "backoff_monotonic": true,
+    "pass": true
+  },
+  "path5_connectors": {
+    "simulated_dispatch": {
+      "slack": {
+        "success": true,
+        "dry_run_flag": true
+      },
+      "jira": {
+        "success": true,
+        "dry_run_flag": true
+      },
+      "confluence": {
+        "success": true,
+        "dry_run_flag": true
+      },
+      "notion": {
+        "success": true,
+        "dry_run_flag": true
+      },
+      "git": {
+        "success": true,
+        "dry_run_flag": true
+      },
+      "email": {
+        "success": true,
+        "simulated_flag": true
+      },
+      "calendar": {
+        "success": true,
+        "simulated_flag": true
+      }
+    },
+    "forced_real_mode_results": [
+      {
+        "connector": "slack",
+        "success": false,
+        "error_code": "RUNTIMEERROR",
+        "error_message": "KILL_SWITCH_BLOCKED_REAL_EGRESS",
+        "ref_metadata": null
+      },
+      {
+        "connector": "jira",
+        "success": false,
+        "error_code": "RUNTIMEERROR",
+        "error_message": "KILL_SWITCH_BLOCKED_REAL_EGRESS",
+        "ref_metadata": null
+      },
+      {
+        "connector": "confluence",
+        "success": false,
+        "error_code": "RUNTIMEERROR",
+        "error_message": "KILL_SWITCH_BLOCKED_REAL_EGRESS",
+        "ref_metadata": null
+      },
+      {
+        "connector": "notion",
+        "success": false,
+        "error_code": "RUNTIMEERROR",
+        "error_message": "KILL_SWITCH_BLOCKED_REAL_EGRESS",
+        "ref_metadata": null
+      },
+      {
+        "connector": "git",
+        "success": false,
+        "error_code": "RUNTIMEERROR",
+        "error_message": "KILL_SWITCH_BLOCKED_REAL_EGRESS",
+        "ref_metadata": null
+      },
+      {
+        "connector": "email",
+        "success": true,
+        "error_code": null,
+        "error_message": "",
+        "ref_metadata": {
+          "to": [
+            "alice@example.com"
+          ],
+          "subject": "B10 email",
+          "simulated": true,
+          "dry_run": false
+        }
+      },
+      {
+        "connector": "calendar",
+        "success": true,
+        "error_code": null,
+        "error_message": "",
+        "ref_metadata": {
+          "summary": "B10 sync",
+          "start": "2026-04-18T10:00:00Z",
+          "end": "2026-04-18T11:00:00Z",
+          "simulated": true,
+          "dry_run": false
+        }
+      }
+    ],
+    "urlopen_attempts_blocked": 5,
+    "urlopen_attempt_trace": [
+      "blocked:(<urllib.request.Request object at 0x000002080E2BCEC0>,)",
+      "blocked:(<urllib.request.Request object at 0x000002080E2BD0A0>,)",
+      "blocked:(<urllib.request.Request object at 0x000002080E2BD100>,)",
+      "blocked:(<urllib.request.Request object at 0x000002080E2BD0A0>,)",
+      "blocked:(<urllib.request.Request object at 0x000002080E2BD100>,)"
+    ],
+    "pass": true
+  },
+  "path6_dlq_replay": [
+    {
+      "step": "replay_type_mapping",
+      "mapping_observed": {
+        "slack": "SlackMessageRequest",
+        "jira": "JiraIssueRequest",
+        "confluence": "ConfluencePageRequest",
+        "notion": "NotionPageRequest",
+        "github": "GitPRRequest",
+        "gitlab": "GitPRRequest",
+        "git": "GitPRRequest",
+        "email": "EmailRequest",
+        "calendar": "CalendarEventRequest"
+      },
+      "all_match_expected": true
+    },
+    {
+      "step": "initial_dispatch_fail",
+      "result": {
+        "work_object_id": "WO-2026-501",
+        "duplicate": false,
+        "dry_run": false,
+        "status": "failed",
+        "external_ref": null,
+        "event_id": "IE-1776372704686529",
+        "error_code": "CONNECTION_FAILED",
+        "error_message": "simulated flake"
+      }
+    },
+    {
+      "step": "replay_event",
+      "result": {
+        "replay_event_id": "IE-1776372704698990",
+        "original_event_id": "IE-1776372704686529",
+        "status": "success",
+        "attempt": 2,
+        "success": true,
+        "error_code": null,
+        "error_message": null
+      }
+    },
+    {
+      "step": "verdict",
+      "mapping_ok": true,
+      "replay_ok": true,
+      "pass": true
+    }
+  ],
+  "path7_ml_handoff": {
+    "task_id": "TC-2026-1776372704827001",
+    "pack_id": "DP-1776372704836368105",
+    "rendered_format": "markdown",
+    "rendered_path": "C:\\Users\\aquap\\AppData\\Local\\Temp\\tmp691bdkv1\\ws\\artifacts\\DA-1776372704836368104.md",
+    "dispatch_status": "dispatched",
+    "dispatched_count": 2,
+    "channels": [
+      "confluence",
+      "jira_ticket"
+    ],
+    "fields_present_in_rendered_md": {
+      "model_version": true,
+      "owner": true,
+      "rollback_plan": true,
+      "monitoring_setup": true,
+      "serving_config": true
+    },
+    "pass": true
+  },
+  "path8_work_object_lifecycle": {
+    "forward_path_steps": [
+      {
+        "from": "executing",
+        "to": "executing",
+        "ok": true
+      },
+      {
+        "from": "review",
+        "to": "review",
+        "ok": true
+      },
+      {
+        "from": "documenting",
+        "to": "documenting",
+        "ok": true
+      },
+      {
+        "from": "followup",
+        "to": "followup",
+        "ok": true
+      },
+      {
+        "from": "closed",
+        "to": "closed",
+        "ok": true
+      }
+    ],
+    "final_phase": "closed",
+    "reverse_from_closed_blocked": true,
+    "reverse_from_closed_detail": [
+      {
+        "from_CLOSED_to": "intake",
+        "blocked": true,
+        "reason": "Cannot transition work object from closed to intake"
+      },
+      {
+        "from_CLOSED_to": "executing",
+        "blocked": true,
+        "reason": "Cannot transition work object from closed to executing"
+      },
+      {
+        "from_CLOSED_to": "review",
+        "blocked": true,
+        "reason": "Cannot transition work object from closed to review"
+      },
+      {
+        "from_CLOSED_to": "documenting",
+        "blocked": true,
+        "reason": "Cannot transition work object from closed to documenting"
+      },
+      {
+        "from_CLOSED_to": "followup",
+        "blocked": true,
+        "reason": "Cannot transition work object from closed to followup"
+      }
+    ],
+    "reverse_from_review_blocked": true,
+    "reverse_from_review_detail": [
+      {
+        "from_REVIEW_to": "intake",
+        "blocked": true,
+        "reason": "Cannot transition work object from review to intake"
+      },
+      {
+        "from_REVIEW_to": "executing",
+        "blocked": true,
+        "reason": "Cannot transition work object from review to executing"
+      }
+    ],
+    "close_with_pending_blocked": true,
+    "close_blocked_reason": "Cannot close work object while follow-up actions are pending",
+    "pass": true
+  },
+  "summary": {
+    "matrix_total": 30,
+    "matrix_pass": 30,
+    "roundtrip_equal": true,
+    "quiet_hours_pass": true,
+    "rate_limiter_pass": true,
+    "connectors_pass": true,
+    "real_adapter_calls": 5,
+    "dlq_replay_ok": true,
+    "ml_handoff_pass": true,
+    "workflow_lifecycle_pass": true
+  }
+}

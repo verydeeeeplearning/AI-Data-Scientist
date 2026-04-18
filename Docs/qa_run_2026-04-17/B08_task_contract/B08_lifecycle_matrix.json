@@ -1,0 +1,132 @@
+{
+  "generated_at": "2026-04-16T20:30:04.965850+00:00",
+  "state_machine_matrix": {
+    "draft": {
+      "allowed_targets": [
+        "abandoned",
+        "agreed"
+      ],
+      "blocked_targets": [
+        "closed",
+        "draft",
+        "in_progress",
+        "review"
+      ]
+    },
+    "agreed": {
+      "allowed_targets": [
+        "abandoned",
+        "in_progress"
+      ],
+      "blocked_targets": [
+        "agreed",
+        "closed",
+        "draft",
+        "review"
+      ]
+    },
+    "in_progress": {
+      "allowed_targets": [
+        "in_progress",
+        "review"
+      ],
+      "blocked_targets": [
+        "abandoned",
+        "agreed",
+        "closed",
+        "draft"
+      ]
+    },
+    "review": {
+      "allowed_targets": [
+        "abandoned",
+        "closed",
+        "in_progress"
+      ],
+      "blocked_targets": [
+        "agreed",
+        "draft",
+        "review"
+      ]
+    },
+    "closed": {
+      "allowed_targets": [],
+      "blocked_targets": [
+        "abandoned",
+        "agreed",
+        "closed",
+        "draft",
+        "in_progress",
+        "review"
+      ]
+    },
+    "abandoned": {
+      "allowed_targets": [],
+      "blocked_targets": [
+        "abandoned",
+        "agreed",
+        "closed",
+        "draft",
+        "in_progress",
+        "review"
+      ]
+    }
+  },
+  "invalid_reversal_checks": [
+    {
+      "from": "closed",
+      "to": "in_progress",
+      "allowed_by_matrix": false,
+      "blocked": true
+    },
+    {
+      "from": "closed",
+      "to": "draft",
+      "allowed_by_matrix": false,
+      "blocked": true
+    },
+    {
+      "from": "closed",
+      "to": "agreed",
+      "allowed_by_matrix": false,
+      "blocked": true
+    },
+    {
+      "from": "abandoned",
+      "to": "draft",
+      "allowed_by_matrix": false,
+      "blocked": true
+    },
+    {
+      "from": "review",
+      "to": "agreed",
+      "allowed_by_matrix": false,
+      "blocked": true
+    },
+    {
+      "from": "review",
+      "to": "draft",
+      "allowed_by_matrix": false,
+      "blocked": true
+    },
+    {
+      "from": "in_progress",
+      "to": "draft",
+      "allowed_by_matrix": false,
+      "blocked": true
+    },
+    {
+      "from": "in_progress",
+      "to": "agreed",
+      "allowed_by_matrix": false,
+      "blocked": true
+    },
+    {
+      "from": "agreed",
+      "to": "draft",
+      "allowed_by_matrix": false,
+      "blocked": true
+    }
+  ],
+  "all_invalid_reversals_blocked": true
+}

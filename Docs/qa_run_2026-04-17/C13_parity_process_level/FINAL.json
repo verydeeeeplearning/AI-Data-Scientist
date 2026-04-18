@@ -1,0 +1,139 @@
+{
+  "agent": "C13_process_level",
+  "tier": 3,
+  "round": 2,
+  "status": "complete",
+  "self_verdict": null,
+  "self_verdict_reason": "Plan constraint forbids self pass/fail — Tier 3 gate owner decides.",
+  "started_at": "2026-04-17T22:45:00Z",
+  "completed_at": "2026-04-17T14:06:23Z",
+  "metrics": {
+    "scenarios": 3,
+    "channels": 3,
+    "runs_planned": 9,
+    "runs_completed": 9,
+    "parity_match": true,
+    "fallback_used_channels": ["Telegram"],
+    "real_external_calls": 0,
+    "electron_rebuilt": false,
+    "per_scenario_match": {
+      "P-01": true,
+      "P-02": true,
+      "P-03": true
+    },
+    "per_channel_ok_counts": {
+      "CLI": 0,
+      "Telegram": 0,
+      "Electron": 0
+    },
+    "per_channel_error_counts": {
+      "CLI": 3,
+      "Telegram": 3,
+      "Electron": 3
+    },
+    "parity_fields_matched": [
+      "goal_echo",
+      "final_verdict",
+      "delivery_pack_body_hash",
+      "metric_spec"
+    ],
+    "infra_fields_ignored": [
+      "channel",
+      "channel_origin",
+      "error_code",
+      "fallback_notes",
+      "raw_event_count",
+      "raw_event_types",
+      "raw_final_content",
+      "session_id",
+      "status",
+      "timestamp_utc"
+    ],
+    "delivery_pack_body_hash_observed": "51de5976e68aeb2df5e3e1d92a01d7e59a402415109531d52a45e32bbf062585",
+    "wall_time_seconds": 80.9
+  },
+  "fallback_notes": {
+    "Telegram": "python-telegram-bot not installed in venv nor bundled in dist — real Updater polling not exercised. Harness runs backend binary with Telegram-shaped session id ('telegram:{chat_id}:{thread_id}:...') and 'surface=telegram' param so runtime-event classifier + parse_telegram_session_id branches are covered. Factory wiring parity (the original C13 scope) is intact. python-telegram-bot plugin transport path is still a Round-1 residual gap.",
+    "CLI": null,
+    "Electron": null
+  },
+  "mocked_provider_note": "Backend _NoApiKeyProvider path — no API keys in env; backend returns deterministic 'DSA-LLM-001' error body. Hash identical across 9 runs.",
+  "evidence": {
+    "root": "Docs/qa_run_2026-04-17/C13_parity_process_level/",
+    "files": {
+      "start_manifest": "START.json",
+      "final_manifest": "FINAL.json",
+      "report": "C13_process_level_report.md",
+      "diff_markdown": "C13_parity_live_diff.md",
+      "diff_raw": "parity_diff_raw.json",
+      "matrix_csv": "parity_matrix.csv",
+      "consolidated_runs": "all_runs.json",
+      "cli_logs": ["CLI-P-01.log", "CLI-P-02.log", "CLI-P-03.log"],
+      "telegram_logs": ["TG-P-01.log", "TG-P-02.log", "TG-P-03.log"],
+      "electron_logs": ["EL-P-01.log", "EL-P-02.log", "EL-P-03.log"]
+    },
+    "harness_root": "scripts/parity_harness/",
+    "harness_files": [
+      "__init__.py",
+      "scenarios.py",
+      "extract.py",
+      "backend_control.py",
+      "harness_cli.py",
+      "harness_telegram.py",
+      "harness_electron.js",
+      "run_all.py"
+    ]
+  },
+  "reuse_decisions": {
+    "dist_ds_agent_api_exe_reused": true,
+    "dist_ds_agent_api_exe_bytes": 47675753,
+    "dist_ds_agent_api_exe_mtime_utc": "2026-04-17T10:41:00Z",
+    "source_hash_check_latest_py_newer_than_binary": false,
+    "electron_dist_reused": true,
+    "electron_rebuild_performed": false
+  },
+  "scope_adherence": {
+    "source_not_modified": true,
+    "no_real_external_calls": true,
+    "no_full_regression_pytest_run": true,
+    "data_not_touched": true,
+    "out_of_scope_files_not_touched": true,
+    "phase_1_2_territory_untouched": true,
+    "harness_only_additions": [
+      "scripts/parity_harness/__init__.py",
+      "scripts/parity_harness/scenarios.py",
+      "scripts/parity_harness/extract.py",
+      "scripts/parity_harness/backend_control.py",
+      "scripts/parity_harness/harness_cli.py",
+      "scripts/parity_harness/harness_telegram.py",
+      "scripts/parity_harness/harness_electron.js",
+      "scripts/parity_harness/run_all.py"
+    ],
+    "docs_additions": [
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/START.json",
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/FINAL.json",
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/C13_process_level_report.md",
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/C13_parity_live_diff.md",
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/parity_diff_raw.json",
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/parity_matrix.csv",
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/all_runs.json",
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/CLI-P-0{1,2,3}.log",
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/TG-P-0{1,2,3}.log",
+      "Docs/qa_run_2026-04-17/C13_parity_process_level/EL-P-0{1,2,3}.log"
+    ],
+    "dep_additions_to_venv": [
+      "websockets==16.0  (installed with pip — stdlib has no ws client)"
+    ]
+  },
+  "residual_gaps_after_phase_3": [
+    "python-telegram-bot end-to-end polling path still not exercised at process level (Round 1 residual gap). Recommend adding to 'dev' extras.",
+    "DeliveryPack byte-parity is proven identical under the mocked-error body; live byte parity still pending an LLM record-replay fixture (Round 1 gap)."
+  ],
+  "cleanup_confirmed": true,
+  "cleanup_details": {
+    "tasklist_after_run_ds_agent": "empty",
+    "tasklist_after_run_electron": "empty",
+    "tmp_workspace": ".tmp/qa_phase3/ (no lock files, flat outputs)",
+    "method": "BackendManager uses taskkill /F /T /PID on Windows; harness_electron.js adds taskkill /F /T /IM electron.exe as belt-and-braces after app.close()"
+  }
+}

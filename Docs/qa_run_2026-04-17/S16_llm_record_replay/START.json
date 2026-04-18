@@ -1,0 +1,39 @@
+{
+  "agent_id": "S16",
+  "tier": "post-release",
+  "started_at": "2026-04-17T00:00:00Z",
+  "round": 3,
+  "scope": "LLM record-replay cassette for 3-channel live parity (CLI + Electron + Telegram-live) — real OpenAI success responses replayed byte-identically to prove DeliveryPack parity beyond the DSA-LLM-001 error-hash signal used in S15/C13 R2.",
+  "plan_ref": "Docs/plans/PLAN_post_release_followups_2026-04-17.md §10 (Sprint S16)",
+  "predecessors_reused": [
+    "Docs/qa_run_2026-04-17/S15_telegram_live_parity/",
+    "scripts/parity_harness/harness_telegram_v2.py",
+    "scripts/parity_harness/harness_cli.py",
+    "scripts/parity_harness/harness_electron.js",
+    "scripts/parity_harness/backend_control.py",
+    "scripts/parity_harness/extract.py",
+    "scripts/parity_harness/scenarios.py"
+  ],
+  "environment": {
+    "vcrpy": "8.1.1",
+    "pytest_recording": "0.13.4",
+    "openai_sdk_target_version": "2.x (bundled with dist)",
+    "model_for_recording": "gpt-4o-mini",
+    "budget_cap_usd": 1.0,
+    "budget_expected_usd_leq": 0.10
+  },
+  "pass_criteria": {
+    "runs_completed": "9/9 (3 scenarios x 3 channels) under replay-only mode",
+    "byte_identical_per_scenario": "sha256(delivery_pack_body) must be identical across CLI/Electron/Telegram-live for each scenario",
+    "cassette_secret_leak": "0 (automated grep for sk-proj-, long sk- tokens, raw Bearer headers)",
+    "real_api_record": "3 (one OpenAI chat.completions call per scenario)",
+    "real_api_replay": 0,
+    "ci_record_mode_denied": "VCR_RECORD_MODE=none enforced; new requests cause NoneMatchedError"
+  },
+  "artifact_targets": {
+    "rfc": "Docs/rfc/RFC_2026-04_llm_record_replay.md",
+    "cassettes_dir": "tests/fixtures/llm_cassettes/",
+    "ci_hook": "scripts/check_cassette_secrets.py",
+    "report_dir": "Docs/qa_run_2026-04-17/S16_llm_record_replay/"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "overall_parity_match": true,
+  "scenarios": {
+    "P-01": {
+      "match": true,
+      "mismatches": [],
+      "channels_present": [
+        "CLI",
+        "Electron",
+        "Telegram"
+      ]
+    },
+    "P-02": {
+      "match": true,
+      "mismatches": [],
+      "channels_present": [
+        "CLI",
+        "Electron",
+        "Telegram"
+      ]
+    },
+    "P-03": {
+      "match": true,
+      "mismatches": [],
+      "channels_present": [
+        "CLI",
+        "Electron",
+        "Telegram"
+      ]
+    }
+  },
+  "parity_fields_checked": [
+    "goal_echo",
+    "final_verdict",
+    "delivery_pack_body_hash",
+    "metric_spec"
+  ],
+  "infra_fields_ignored": [
+    "channel",
+    "channel_origin",
+    "error_code",
+    "fallback_notes",
+    "raw_event_count",
+    "raw_event_types",
+    "raw_final_content",
+    "session_id",
+    "status",
+    "timestamp_utc"
+  ]
+}

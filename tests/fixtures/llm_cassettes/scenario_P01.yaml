@@ -1,0 +1,120 @@
+interactions:
+- request:
+    body: '{"messages": [{"role": "system", "content": "\ub2f9\uc2e0\uc740 DS Agent\uc758
+      LLM \uc751\ub2f5 \ub179\ud654\uc6a9 \uacbd\ub7c9 assistant\uc785\ub2c8\ub2e4.
+      \ud55c\uad6d\uc5b4\ub85c 2~3\ubb38\uc7a5\uc73c\ub85c \uc9e7\uac8c \uc811\uc218
+      \ud655\uc778\uacfc \ub2e4\uc74c \ub2e8\uacc4\ub9cc \uc81c\uc2dc\ud558\uc138\uc694.
+      \ucf54\ub4dc, \uc22b\uc790 \uacb0\uacfc, \ub0a0\uc9dc, \uc138\uc158 ID\ub97c
+      \ud3ec\ud568\ud558\uc9c0 \ub9c8\uc138\uc694."}, {"role": "user", "content":
+      "tips.csv\uc758 total_bill \uc608\uce21 \u2014 \ub370\uc774\ud130 \ub85c\ub4dc\uc640
+      \ud504\ub85c\ud30c\uc77c\ub9c1, baseline \uc120\ud615 \ud68c\uadc0 \ubaa8\ub378,
+      \ud3c9\uac00, \ucd5c\uc885 DeliveryPack(PDF)\uc744 \uc0dd\uc131\ud558\uc138\uc694."}],
+      "model": "gpt-4o-mini", "max_tokens": 256, "temperature": 0.0}'
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Authorization:
+      - Bearer REDACTED
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '509'
+      Content-Type:
+      - application/json
+      Host:
+      - api.openai.com
+      User-Agent:
+      - AsyncOpenAI/Python 2.32.0
+      X-Stainless-Arch:
+      - other:amd64
+      X-Stainless-Async:
+      - async:asyncio
+      X-Stainless-Lang:
+      - python
+      X-Stainless-OS:
+      - Windows
+      X-Stainless-Package-Version:
+      - 2.32.0
+      X-Stainless-Runtime:
+      - CPython
+      X-Stainless-Runtime-Version:
+      - 3.12.10
+      x-stainless-read-timeout:
+      - '60.0'
+      x-stainless-retry-count:
+      - '0'
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-DVrgNt362nizWMotgxhaMoZ8ZxlVR\",\n  \"object\"\
+        : \"chat.completion\",\n  \"created\": 1776486895,\n  \"model\": \"gpt-4o-mini-2024-07-18\"\
+        ,\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n  \
+        \      \"role\": \"assistant\",\n        \"content\": \"접수 확인했습니다. 데이터 로드와\
+        \ 프로파일링을 시작한 후, baseline 선형 회귀 모델을 구축하고 평가를 진행하겠습니다. 마지막으로 최종 DeliveryPack을\
+        \ PDF 형식으로 생성하겠습니다.\",\n        \"refusal\": null,\n        \"annotations\"\
+        : []\n      },\n      \"logprobs\": null,\n      \"finish_reason\": \"stop\"\
+        \n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 106,\n    \"completion_tokens\"\
+        : 47,\n    \"total_tokens\": 153,\n    \"prompt_tokens_details\": {\n    \
+        \  \"cached_tokens\": 0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\"\
+        : {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"\
+        accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n\
+        \    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\":\
+        \ \"fp_04d92b3965\"\n}\n"
+    headers:
+      CF-Cache-Status:
+      - DYNAMIC
+      CF-Ray:
+      - REDACTED
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Sat, 18 Apr 2026 04:34:56 GMT
+      Server:
+      - cloudflare
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Transfer-Encoding:
+      - chunked
+      X-Content-Type-Options:
+      - nosniff
+      access-control-expose-headers:
+      - X-Request-ID
+      alt-svc:
+      - h3=":443"; ma=86400
+      content-length:
+      - '1047'
+      openai-organization:
+      - REDACTED
+      openai-processing-ms:
+      - '808'
+      openai-project:
+      - REDACTED
+      openai-version:
+      - '2020-10-01'
+      set-cookie:
+      - REDACTED
+      x-openai-proxy-wasm:
+      - v0.1
+      x-ratelimit-limit-requests:
+      - '10000'
+      x-ratelimit-limit-tokens:
+      - '10000000'
+      x-ratelimit-remaining-requests:
+      - '9999'
+      x-ratelimit-remaining-tokens:
+      - '9999902'
+      x-ratelimit-reset-requests:
+      - 6ms
+      x-ratelimit-reset-tokens:
+      - 0s
+      x-request-id:
+      - REDACTED
+    status:
+      code: 200
+      message: OK
+version: 1

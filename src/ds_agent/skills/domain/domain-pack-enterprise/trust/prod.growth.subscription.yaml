@@ -1,0 +1,17 @@
+fqtn: prod.growth.subscription
+grade: gold
+owner: growth_team
+description: "Subscription fact table for active, cancelled, and resumed customer lifecycle events."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+approved_joins:
+  - target_fqtn: prod.growth.customer
+    left_keys:
+      - customer_id
+    right_keys:
+      - customer_id
+    join_type: left
+    cardinality: one_to_one
+grade_rationale: "Certified by analytics engineering and used for KPI scorecards."
+last_audited: 2026-04-15

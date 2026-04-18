@@ -1,0 +1,8 @@
+term_id: term.payback_period
+canonical_form: payback period
+definition: "Time needed for gross margin dollars to recover customer acquisition cost."
+linked_metric_ids:
+  - customer_acquisition_cost
+  - lifetime_value
+category: other
+owner: finance_team

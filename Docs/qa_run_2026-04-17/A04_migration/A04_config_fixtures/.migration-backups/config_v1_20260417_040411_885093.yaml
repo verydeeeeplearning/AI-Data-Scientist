@@ -1,0 +1,6 @@
+connectors:
+  warehouse:
+    type: postgres
+    host: localhost
+    credential_method: env
+    credential_ref: PG_DSN

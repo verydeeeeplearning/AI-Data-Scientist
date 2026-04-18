@@ -1,0 +1,9 @@
+term_id: term.monthly_active_users
+canonical_form: monthly active users
+definition: "Distinct users active at least once during the measurement month."
+synonyms:
+  - mau
+linked_metric_ids:
+  - monthly_active_users
+category: metric
+owner: product_analytics

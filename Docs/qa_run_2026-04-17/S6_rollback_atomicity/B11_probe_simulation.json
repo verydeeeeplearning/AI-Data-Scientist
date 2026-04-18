@@ -1,0 +1,7 @@
+{
+  "exception_raised": true,
+  "item_status_after": "promoted",
+  "any_deprecation_record_persisted": false,
+  "atomic": true,
+  "verdict": "ATOMIC_REVERT (item kept promoted, no deprecation record)"
+}

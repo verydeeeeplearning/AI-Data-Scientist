@@ -1,0 +1,310 @@
+name: Build & Sign Release
+
+# P0-05: Signed-release pipeline.
+# Triggers:
+#   - push of v* tag                → stable channel, full sign+notarize
+#   - workflow_dispatch (channel)   → choose stable/beta/internal manually
+#
+# Required secrets (missing secrets short-circuit signing but still build
+# so that pipeline correctness can be verified before certs arrive):
+#   WINDOWS_CERT_PFX_B64     Windows EV cert as base64 .pfx
+#   WINDOWS_CERT_PASSWORD    .pfx password
+#   MACOS_CERT_P12_B64       Apple Developer ID Application .p12 base64
+#   MACOS_CERT_PASSWORD      .p12 password
+#   MACOS_KEYCHAIN_PASSWORD  ephemeral CI keychain password
+#   APPLE_ID                 Apple Developer account e-mail
+#   APPLE_APP_PASSWORD       app-specific password for notarytool
+#   APPLE_TEAM_ID            Apple Developer team id
+#   VIRUSTOTAL_API_KEY       (optional) scan backend binary post-build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel
+        type: choice
+        default: stable
+        options:
+          - stable
+          - beta
+          - internal
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[providers,gateway,dev]"
+          python -m pip install pyinstaller
+
+      - name: Install Electron deps
+        run: npm ci
+        working-directory: electron
+
+      - name: Build Python backend
+        run: python scripts/build_backend.py --clean
+
+      - name: Check signing cert availability
+        id: cert-check
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.WINDOWS_CERT_PFX_B64 }}" ]; then
+            echo "has_cert=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::WINDOWS_CERT_PFX_B64 not set — skipping signing"
+          else
+            echo "has_cert=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decode signing cert
+        if: steps.cert-check.outputs.has_cert == 'true'
+        shell: bash
+        env:
+          CERT_B64: ${{ secrets.WINDOWS_CERT_PFX_B64 }}
+        run: echo "$CERT_B64" | base64 -d > "${{ runner.temp }}/cert.pfx"
+
+      - name: Sign backend binary
+        if: steps.cert-check.outputs.has_cert == 'true'
+        shell: pwsh
+        env:
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          python scripts/sign_backend.py `
+            --platform win `
+            --pfx "${{ runner.temp }}/cert.pfx" `
+            --password "$env:CERT_PASSWORD" `
+            "build/ds-agent-backend/ds-agent-api.exe"
+
+      - name: Build & sign Electron installer
+        env:
+          # electron-builder auto-signs when CSC_LINK / CSC_KEY_PASSWORD set.
+          # Empty values disable signing so the pipeline still runs on forks.
+          CSC_LINK: ${{ steps.cert-check.outputs.has_cert == 'true' && format('{0}/cert.pfx', runner.temp) || '' }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+          EP_CHANNEL: ${{ github.event.inputs.channel || 'stable' }}
+        run: npm run dist:win
+        working-directory: electron
+
+      - name: Verify installer signature
+        if: steps.cert-check.outputs.has_cert == 'true'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "electron/release/*.exe" | Select-Object -First 1
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe not found" }
+          & $signtool.FullName verify /pa /v $installer.FullName
+
+      - name: Check VirusTotal key availability
+        id: vt-check
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.VIRUSTOTAL_API_KEY }}" ]; then
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: VirusTotal scan (backend)
+        if: steps.vt-check.outputs.has_key == 'true'
+        env:
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+        run: |
+          python -m pip install requests
+          python scripts/check_av_clean.py build/ds-agent-backend/ds-agent-api.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            electron/release/*.exe
+            electron/release/*.blockmap
+            electron/release/latest*.yml
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Delete cert
+        if: always() && steps.cert-check.outputs.has_cert == 'true'
+        shell: bash
+        run: rm -f "${{ runner.temp }}/cert.pfx"
+
+  build-macos:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[providers,gateway,dev]"
+          python -m pip install pyinstaller
+
+      - name: Install Electron deps
+        run: npm ci
+        working-directory: electron
+
+      - name: Check signing cert availability
+        id: cert-check
+        run: |
+          if [ -z "${{ secrets.MACOS_CERT_P12_B64 }}" ]; then
+            echo "has_cert=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::MACOS_CERT_P12_B64 not set — skipping signing / notarization"
+          else
+            echo "has_cert=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Import Apple certificate
+        if: steps.cert-check.outputs.has_cert == 'true'
+        env:
+          CERT_P12_B64: ${{ secrets.MACOS_CERT_P12_B64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN="${RUNNER_TEMP}/build.keychain-db"
+          echo "$CERT_P12_B64" | base64 -d > "${RUNNER_TEMP}/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "${RUNNER_TEMP}/cert.p12" -P "$CERT_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain
+          rm -f "${RUNNER_TEMP}/cert.p12"
+
+      - name: Build Python backend
+        run: python scripts/build_backend.py --clean
+
+      - name: Sign backend binary
+        if: steps.cert-check.outputs.has_cert == 'true'
+        env:
+          MACOS_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          python scripts/sign_backend.py \
+            --platform mac \
+            --identity "${MACOS_IDENTITY:-Developer ID Application}" \
+            --entitlements electron/resources/entitlements.mac.plist \
+            build/ds-agent-backend/ds-agent-api
+
+      - name: Build & sign Electron DMG
+        env:
+          CSC_KEYCHAIN: ${{ runner.temp }}/build.keychain-db
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          EP_CHANNEL: ${{ github.event.inputs.channel || 'stable' }}
+          # Skip notarization on forks without secrets so CI still exercises
+          # the build path.
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ steps.cert-check.outputs.has_cert }}
+        run: npm run dist:mac
+        working-directory: electron
+
+      - name: Verify notarization
+        if: steps.cert-check.outputs.has_cert == 'true'
+        run: |
+          for dmg in electron/release/*.dmg; do
+            echo "== $dmg =="
+            spctl --assess --type open --context context:primary-signature -v "$dmg" || true
+            xcrun stapler validate "$dmg" || {
+              echo "::error::Stapler validation failed for $dmg"
+              exit 1
+            }
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: |
+            electron/release/*.dmg
+            electron/release/*.blockmap
+            electron/release/latest*.yml
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Cleanup keychain
+        if: always() && steps.cert-check.outputs.has_cert == 'true'
+        run: |
+          security delete-keychain "${RUNNER_TEMP}/build.keychain-db" || true
+
+  build-linux:
+    # Linux builds are unsigned by design (AppImage distribution). Include
+    # SHA256 checksum in the release so downstream users can verify.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[providers,gateway,dev]"
+          python -m pip install pyinstaller
+
+      - name: Install Electron deps
+        run: npm ci
+        working-directory: electron
+
+      - name: Build Python backend
+        run: python scripts/build_backend.py --clean
+
+      - name: Build Linux AppImage
+        env:
+          EP_CHANNEL: ${{ github.event.inputs.channel || 'stable' }}
+        run: npm run dist:linux
+        working-directory: electron
+
+      - name: Generate checksums
+        run: |
+          cd electron/release
+          sha256sum *.AppImage > SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: |
+            electron/release/*.AppImage
+            electron/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30

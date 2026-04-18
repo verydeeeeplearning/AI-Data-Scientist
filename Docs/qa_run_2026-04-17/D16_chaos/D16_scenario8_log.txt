@@ -1,0 +1,13 @@
+[2026-04-17T12:23:56Z] Scenario 8 START — incident overlay persistence across restart
+[2026-04-17T12:23:56Z] workspace=C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\.tmp\qa_D16\scenario_8
+[2026-04-17T12:23:56Z] config_path=C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\.tmp\qa_D16\scenario_8\config.yaml
+[2026-04-17T12:24:00Z] A.persist: rc=0
+[2026-04-17T12:24:00Z] A.persist: overlay=incident started_at=2026-04-17T10:00:00+00:00 file_exists=True
+[2026-04-17T12:24:00Z] config file size on disk=1314 bytes
+[2026-04-17T12:24:01Z] B.restart_5min: rc=0
+[2026-04-17T12:24:01Z] B.restart_5min: mode=incident remaining_s=86100.0 expired=False
+[2026-04-17T12:24:02Z] C.restart_12h: rc=0
+[2026-04-17T12:24:02Z] C.restart_12h: mode=incident remaining_s=43200.0 expired=False
+[2026-04-17T12:24:03Z] D.restart_25h: rc=0
+[2026-04-17T12:24:03Z] D.restart_25h: mode=None remaining_s=-3600.0 expired=True
+[2026-04-17T12:24:03Z] PASS: incident overlay survives restart, remaining time computed from persisted started_at (not now), correct expiry post-window

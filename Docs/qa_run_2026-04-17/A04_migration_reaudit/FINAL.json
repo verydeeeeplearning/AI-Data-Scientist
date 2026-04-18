@@ -1,0 +1,90 @@
+{
+  "agent_id": "A04-reaudit",
+  "round": 2,
+  "baseline_final": "Docs/qa_run_2026-04-17/A04_migration/FINAL.json",
+  "fix_sprint_inputs": [
+    "Docs/qa_run_2026-04-17/S3_drift_cleanup/FINAL.json",
+    "Docs/qa_run_2026-04-17/S4_v13_migration/FINAL.json"
+  ],
+  "status": "pass",
+  "ended_at": "2026-04-17T00:00:00Z",
+  "evidence": [
+    "Docs/qa_run_2026-04-17/A04_migration_reaudit/START.json",
+    "Docs/qa_run_2026-04-17/A04_migration_reaudit/A04_report_reaudit.md",
+    "Docs/qa_run_2026-04-17/A04_migration_reaudit/sqlite_inventory_reaudit.json",
+    "Docs/qa_run_2026-04-17/A04_migration_reaudit/junit_central_runner.xml",
+    "Docs/qa_run_2026-04-17/A04_migration_reaudit/junit_drift.xml",
+    "Docs/qa_run_2026-04-17/A04_migration_reaudit/junit_full_migration_scope.xml"
+  ],
+  "prior_failures_resolved": [
+    {
+      "id": "F1-work_object_v12",
+      "resolved": true,
+      "detail": "tests/integration/infrastructure/test_sqlite_work_object_store.py line 139 asserts version == 12; test passes"
+    },
+    {
+      "id": "F2-semantic_v7",
+      "resolved": true,
+      "detail": "tests/integration/semantic/test_migration_v6.py line 43 asserts version == 7; test passes"
+    },
+    {
+      "id": "F3-v13_plan_claim",
+      "resolved": true,
+      "observed_max_schema_version": 13,
+      "central_runner_found": true,
+      "plan_claim_v13_satisfied": true,
+      "central_runner_path": "src/ds_agent/infrastructure/migration/sqlite_migrations.py",
+      "v13_owner_store": "learning_store"
+    }
+  ],
+  "new_regressions": [],
+  "scope_respected": true,
+  "scope_check_detail": {
+    "S3_only_touched_assertion_values": true,
+    "S4_did_not_modify_work_object_store_py": true,
+    "S4_did_not_modify_task_contract_store_py": true,
+    "S4_did_not_modify_semantic_sqlite_base_py": true,
+    "S4_added_central_runner_module": true,
+    "S4_extended_learning_store_with_v13": true
+  },
+  "metrics": {
+    "pytest_central_runner_total": 6,
+    "pytest_central_runner_passed": 6,
+    "pytest_central_runner_failed": 0,
+    "pytest_central_runner_flake_detected": true,
+    "pytest_central_runner_flake_detail": "1 transient sqlite 'no such table' on first run; 3 consecutive reruns all green; direct in-process repro consistently succeeds (classified Windows .tmp flake per work-order guidance)",
+    "pytest_drift_targets_total": 18,
+    "pytest_drift_targets_passed": 18,
+    "pytest_drift_targets_failed": 0,
+    "pytest_migration_scope_total": 112,
+    "pytest_migration_scope_passed": 107,
+    "pytest_migration_scope_failed": 0,
+    "pytest_migration_scope_skipped": 5,
+    "uv_lock_check_exit_code": 0,
+    "uv_sync_all_extras_locked_dry_run_exit_code": 0,
+    "invalid_config_cases_checked": 3,
+    "invalid_config_cases_with_validation_error": 3,
+    "feature_flags_default_off": {
+      "DS_AGENT_PORTFOLIO_ENABLED": true,
+      "DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1": true
+    },
+    "observed_schema_versions": {
+      "learning_store": 13,
+      "task_contract_store": 10,
+      "work_object_store": 12,
+      "semantic_store": 7
+    },
+    "observed_max_schema_version": 13,
+    "plan_claim_v13_satisfied": true,
+    "central_sqlite_v13_runner_found": true,
+    "run_all_migrations_idempotent": true,
+    "backward_load_v13_target_reached": true,
+    "code_sha_available": false
+  },
+  "baseline_delta": {
+    "observed_max_schema_version": {"before": 12, "after": 13},
+    "plan_claim_v13_satisfied": {"before": false, "after": true},
+    "central_sqlite_v13_runner_found": {"before": false, "after": true},
+    "pytest_migration_failures": {"before": 2, "after": 0}
+  }
+}

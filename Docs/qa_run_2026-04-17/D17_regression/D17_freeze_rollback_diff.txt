@@ -1,0 +1,12 @@
+D17 Path 5 - freeze / rollback byte-level diff
+- baseline path: C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\.tmp\qa_D17\d17_freeze_baseline.json
+- original frozen commit_sha: d17-baseline-sha
+- candidate overwrite commit_sha: d17-candidate-sha
+- sha256(before freeze overwrite):   ef5054fd2bf8816af8ec86ac9452fe7d996972749b6cf6b047224dc9d58aceee
+- sha256(after candidate overwrite): d4a5abf524ba93926e5f77173260aa4034ec68964c499317ce5e2a71d028a38e
+- mutated by candidate:              True
+- sha256(after rollback restore):    ef5054fd2bf8816af8ec86ac9452fe7d996972749b6cf6b047224dc9d58aceee
+- byte-level restored == original:   True
+- raw bytes equal:                   True
+- reload via store commit matches:   True
+- snapshot file:                     C:\Users\aquap\Desktop\AI_Data_Scientist_Demo\.tmp\qa_D17\d17_freeze_baseline.snapshot.bytes

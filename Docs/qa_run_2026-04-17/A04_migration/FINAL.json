@@ -1,0 +1,39 @@
+{
+  "status": "fail",
+  "ended_at": "2026-04-16T19:04:54.1007727Z",
+  "duration_sec": 263,
+  "evidence": [
+    "Docs/qa_run_2026-04-17/A04_migration/START.json",
+    "Docs/qa_run_2026-04-17/A04_migration/A04_migration_log.txt",
+    "Docs/qa_run_2026-04-17/A04_migration/junit.xml",
+    "Docs/qa_run_2026-04-17/A04_migration/A04_dependency_check.txt",
+    "Docs/qa_run_2026-04-17/A04_migration/A04_config_validation.json",
+    "Docs/qa_run_2026-04-17/A04_migration/A04_sqlite_inventory.json",
+    "Docs/qa_run_2026-04-17/A04_migration/A04_sqlite_inventory.txt",
+    "Docs/qa_run_2026-04-17/A04_migration/A04_report.md"
+  ],
+  "metrics": {
+    "pytest_total": 50,
+    "pytest_passed": 46,
+    "pytest_failed": 2,
+    "pytest_skipped": 2,
+    "uv_lock_check_exit_code": 0,
+    "uv_sync_all_extras_locked_dry_run_exit_code": 0,
+    "invalid_config_cases_checked": 3,
+    "invalid_config_cases_with_validation_error": 3,
+    "feature_flags_default_off": {
+      "DS_AGENT_PORTFOLIO_ENABLED": true,
+      "DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1": true
+    },
+    "observed_schema_versions": {
+      "learning_store": 1,
+      "task_contract_store": 10,
+      "work_object_store": 12,
+      "semantic_store": 7
+    },
+    "observed_max_schema_version": 12,
+    "plan_claim_v13_satisfied": false,
+    "central_sqlite_v13_runner_found": false,
+    "code_sha_available": false
+  }
+}

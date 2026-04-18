@@ -1,0 +1,38 @@
+{
+  "stream": "S5",
+  "name": "sandbox_port_and_subagent_fixture",
+  "started_at": "2026-04-16T19:51:51+00:00",
+  "operator": "Fix Sprint S5 Agent",
+  "inputs": {
+    "S1_FINAL_json": {
+      "path": "Docs/qa_run_2026-04-17/S1_clean_arch/FINAL.json",
+      "sha256": "e40647607181be332dda6e774bb1c76a8f5c7eb63d802fd83346b80660e34db9"
+    },
+    "work_order": {
+      "path": "Docs/qa_run_2026-04-17/FIX_SPRINT_WORK_ORDER.md",
+      "sha256": "82a9e06d60ca3ec81a3e6332192378dbb979a0740d0e7bd80bc2dfe38e345211"
+    },
+    "A01_report": {
+      "path": "Docs/qa_run_2026-04-17/A01_architecture/A01_arch_report.md",
+      "sha256": "48fe19a2def5d63bb0ef3ebc58d2777143dc1538b5d5fa0a9d481722ab8f29a9"
+    }
+  },
+  "issues_in_scope": [
+    {
+      "id": "R1",
+      "title": "Transitive application->tools.sandbox->infrastructure.sandbox.preamble chain breaks lint-imports",
+      "approach": "Invert via SandboxPort / SandboxFactoryPort; inject adapter at test/callsite; remove direct tools import from execution_router.py."
+    },
+    {
+      "id": "R3",
+      "title": "Subagent tests fail because LineageCaptureHook now requires prior composition-root wiring",
+      "approach": "Add pytest fixture in tests/unit/application/conftest.py that calls set_lineage_service() with an in-memory LineageCaptureService before any subagent test runs."
+    }
+  ],
+  "out_of_scope_acknowledgement": {
+    "tools_sandbox_preamble_lazy_imports": "Leave tools/sandbox.py lines 231/260 untouched per S5 constraints.",
+    "infrastructure_observability": "Owned by S2.",
+    "infrastructure_migration": "Owned by S4.",
+    "tools_learning_and_portfolio": "Owned by S3."
+  }
+}

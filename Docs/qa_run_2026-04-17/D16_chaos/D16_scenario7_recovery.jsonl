@@ -1,0 +1,14 @@
+{"step": "session_identity", "session_id": "telegram:100200300", "surface": "telegram", "label": "tg_dm"}
+{"step": "session_identity", "session_id": "telegram:100200300:topic-A", "surface": "telegram", "label": "tg_topic_A"}
+{"step": "session_identity", "session_id": "telegram:100200300:topic-B", "surface": "telegram", "label": "tg_topic_B"}
+{"step": "session_identity", "session_id": "ws:chrome-abc123", "surface": "ws", "label": "ws_browser"}
+{"step": "session_identity", "session_id": "cli:local-aquap", "surface": "cli", "label": "cli_local"}
+{"step": "channel_identity_roundtrip", "dm": {"conversation_id": "100200300", "thread_id": null, "legacy": null}, "topic_A": {"conversation_id": "100200300", "thread_id": "topic-A", "legacy": "telegram:100200300"}, "topic_B": {"conversation_id": "100200300", "thread_id": "topic-B", "legacy": "telegram:100200300"}}
+{"step": "registry_snapshot", "active_count": 5, "surface_map": {"cli:local-aquap": "cli", "telegram:100200300:topic-B": "telegram", "ws:chrome-abc123": "ws", "telegram:100200300:topic-A": "telegram", "telegram:100200300": "telegram"}, "run_map": {"cli:local-aquap": "run-cli_local", "telegram:100200300:topic-B": "run-tg_topic_B", "ws:chrome-abc123": "run-ws_browser", "telegram:100200300:topic-A": "run-tg_topic_A", "telegram:100200300": "run-tg_dm"}}
+{"step": "checkpoint_isolation", "label": "tg_dm", "ids_in_store": ["telegram:100200300"], "steps_in_store": [2]}
+{"step": "checkpoint_isolation", "label": "tg_topic_A", "ids_in_store": ["telegram:100200300:topic-A"], "steps_in_store": [2]}
+{"step": "checkpoint_isolation", "label": "tg_topic_B", "ids_in_store": ["telegram:100200300:topic-B"], "steps_in_store": [2]}
+{"step": "checkpoint_isolation", "label": "ws_browser", "ids_in_store": ["ws:chrome-abc123"], "steps_in_store": [2]}
+{"step": "checkpoint_isolation", "label": "cli_local", "ids_in_store": ["cli:local-aquap"], "steps_in_store": [2]}
+{"step": "registry_persisted_disk", "persisted_ids": ["cli:local-aquap", "telegram:100200300", "telegram:100200300:topic-A", "telegram:100200300:topic-B", "ws:chrome-abc123"], "session_count": 5}
+{"step": "verdict", "status": "pass"}

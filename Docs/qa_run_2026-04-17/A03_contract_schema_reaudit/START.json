@@ -1,0 +1,26 @@
+{
+  "agent_id": "A03-reaudit",
+  "agent_name": "Contract & Schema Auditor (Round 2 Re-audit)",
+  "tier": 1,
+  "round": 2,
+  "started_at": "2026-04-16T20:04:46Z",
+  "inputs": [
+    "Docs/PRE_RELEASE_AI_TEST_PLAN_2026-04-17.md",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/FINAL.json",
+    "Docs/qa_run_2026-04-17/S3_drift_cleanup/FINAL.json"
+  ],
+  "baseline_final": "Docs/qa_run_2026-04-17/A03_contract_schema/FINAL.json",
+  "baseline_status": "fail",
+  "baseline_findings": [
+    {"id": "F1", "title": "Bare @tool usage breaks 11 tool imports in learning_tools.py and portfolio_tools.py"},
+    {"id": "F2", "title": "WebSocket chat E2E tests use outdated _create_agent monkeypatch that does not accept authority_mode"}
+  ],
+  "fix_sprint_source": "Docs/qa_run_2026-04-17/S3_drift_cleanup/FINAL.json",
+  "code_sha": null,
+  "code_snapshot_id": "855dbf1da5fc0ca74af04d759d3976daf9f773d8a69ca350dd7029c37f06d880",
+  "notes": [
+    "Re-audit runs full §4.3 A03 procedure from PRE_RELEASE_AI_TEST_PLAN_2026-04-17.md.",
+    "Snapshot SHA covers pyproject.toml, uv.lock, electron/package-lock.json, plus the two tool modules and the WS E2E test that S3 claims to have touched.",
+    "Git metadata unavailable; using composite SHA-256."
+  ]
+}

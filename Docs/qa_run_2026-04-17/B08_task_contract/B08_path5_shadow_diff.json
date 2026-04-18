@@ -1,0 +1,77 @@
+{
+  "comparison_id": "shadow-20b8d21fce23",
+  "baseline_run_id": "baseline-run",
+  "shadow_run_id": "shadow-run",
+  "baseline_model": "anthropic/claude-sonnet-4-6",
+  "shadow_model": "openai/gpt-4.1-mini",
+  "baseline_weighted_score": 0.865,
+  "shadow_weighted_score": 0.6300000000000001,
+  "weighted_delta": -0.235,
+  "baseline_passed": true,
+  "shadow_passed": true,
+  "dimension_deltas": [
+    {
+      "dimension": "metric_selection_accuracy",
+      "baseline": 0.85,
+      "shadow": 0.0,
+      "delta": -0.85
+    },
+    {
+      "dimension": "exec_summary_accuracy",
+      "baseline": 1.0,
+      "shadow": 0.25,
+      "delta": -0.75
+    },
+    {
+      "dimension": "operator_satisfaction",
+      "baseline": 1.0,
+      "shadow": 0.5,
+      "delta": -0.5
+    },
+    {
+      "dimension": "session_completeness",
+      "baseline": 1.0,
+      "shadow": 0.5,
+      "delta": -0.5
+    },
+    {
+      "dimension": "approval_judgment",
+      "baseline": 1.0,
+      "shadow": 1.0,
+      "delta": 0.0
+    },
+    {
+      "dimension": "artifact_faithfulness",
+      "baseline": 0.6000000000000001,
+      "shadow": 0.6000000000000001,
+      "delta": 0.0
+    },
+    {
+      "dimension": "scoping_accuracy",
+      "baseline": 0.6,
+      "shadow": 0.6,
+      "delta": 0.0
+    },
+    {
+      "dimension": "temporal_leakage_detection",
+      "baseline": 1.0,
+      "shadow": 1.0,
+      "delta": 0.0
+    },
+    {
+      "dimension": "time_to_decision",
+      "baseline": 1.0,
+      "shadow": 1.0,
+      "delta": 0.0
+    },
+    {
+      "dimension": "tool_trajectory",
+      "baseline": 1.0,
+      "shadow": 1.0,
+      "delta": 0.0
+    }
+  ],
+  "eval_store_record_count": 2,
+  "both_paths_recorded": true,
+  "has_nonzero_deltas": true
+}

@@ -1,0 +1,59 @@
+id: healthcare.readmission_triage.v1
+task_version: 1
+domain: healthcare
+difficulty: hard
+tags: [risk-stratification, triage, classification]
+prompt: |
+  Thirty-day readmission rates rose in the cardiology discharge population.
+  Build a prioritization approach for follow-up outreach, highlight likely
+  drivers, and surface the governance checkpoints needed before contacting
+  patients.
+input:
+  datasets:
+    - name: discharges
+      source: fixtures/healthcare/discharges_2025q1.parquet
+      schema_ref: schemas/healthcare/discharges.schema.json
+    - name: encounters
+      source: fixtures/healthcare/encounters_2025q1.parquet
+  snapshot_date: 2025-03-15
+  budget_usd: 28.0
+  time_budget_min: 40
+expected_deliverables:
+  - type: goal_brief
+    must_contain: [problem_framing, kpi_definition, segment_definition]
+  - type: model_artifact
+    kind: classifier
+    target: readmission_30d
+  - type: risk_queue
+    top_k: 150
+  - type: executive_summary
+validation_points:
+  temporal:
+    snapshot_date: 2025-03-15
+    features_cutoff_before_days: 1
+    forbid_future_leakage: true
+  metric_selection:
+    acceptable_primary: [pr_auc, recall_at_10pct, calibration_error]
+    forbidden_primary: [accuracy]
+  approval_required:
+    contacting_patient: true
+    publishing_model: true
+baseline:
+  human_expert_time_min: 85
+  human_expert_rubric:
+    scoping_accuracy: 0.9
+    metric_selection_accuracy: 0.92
+    session_completeness: 0.91
+scoring_rubric:
+  scoping_accuracy: {weight: 0.15, judge: llm}
+  metric_selection_accuracy: {weight: 0.1, judge: hybrid}
+  temporal_leakage_detection: {weight: 0.15, judge: deterministic}
+  tool_trajectory: {weight: 0.05, judge: deterministic}
+  artifact_faithfulness: {weight: 0.15, judge: llm}
+  exec_summary_accuracy: {weight: 0.1, judge: llm}
+  approval_judgment: {weight: 0.1, judge: hybrid}
+  session_completeness: {weight: 0.1, judge: hybrid}
+  operator_satisfaction: {weight: 0.05, judge: human_or_proxy}
+  time_to_decision: {weight: 0.05, judge: deterministic}
+pass_threshold: 0.76
+alert_on_drop_below: 0.7

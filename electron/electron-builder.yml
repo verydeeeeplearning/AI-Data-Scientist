@@ -1,0 +1,98 @@
+appId: com.ds-agent.desktop
+productName: DS Agent
+copyright: Copyright © 2026 DS Agent
+
+directories:
+  output: release
+  buildResources: resources
+
+files:
+  - dist/**/*
+  - resources/**/*
+
+# Bundle PyInstaller backend alongside Electron
+extraResources:
+  - from: ../build/ds-agent-backend
+    to: ds-agent-backend
+    filter:
+      - "**/*"
+  # P1-08 Phase 3: onboarding sample datasets (CSV + manifest)
+  - from: resources/sample-data
+    to: sample-data
+    filter:
+      - "**/*"
+
+# Windows
+# P0-05: Code signing is driven by CSC_LINK / CSC_KEY_PASSWORD env vars set
+# in CI. When unset (local dev builds) electron-builder skips signing. An EV
+# certificate is required for SmartScreen reputation on first release.
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  # icon: resources/icon.ico  # TODO(P0-05): commit branded icon before signed release
+  artifactName: "${productName}-Setup-${version}-win.${ext}"
+  publisherName: "DS Agent"
+  signingHashAlgorithms:
+    - sha256
+  rfc3161TimeStampServer: http://timestamp.digicert.com
+  signDlls: true
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false  # P0-05: per-user install avoids UAC elevation
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  # installerIcon / uninstallerIcon: re-enable when icon.ico lands
+  shortcutName: DS Agent
+
+# macOS
+# P0-05: Notarization requires APPLE_ID / APPLE_APP_PASSWORD / APPLE_TEAM_ID
+# env vars. Enabled unconditionally so release builds fail loudly if secrets
+# are missing rather than shipping an unnotarized DMG.
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: resources/icon.icns
+  category: public.app-category.developer-tools
+  artifactName: "${productName}-${version}-mac-${arch}.${ext}"
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+  notarize: true
+
+dmg:
+  contents:
+    - x: 410
+      y: 150
+      type: link
+      path: /Applications
+    - x: 130
+      y: 150
+      type: file
+
+# Linux
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: resources/icon.png
+  category: Development
+  artifactName: "${productName}-${version}-linux.${ext}"
+
+# Auto-updater (GitHub releases)
+# P0-05: releaseType defaults to 'draft' so release managers can review the
+# signed artifacts before promoting. CI workflow_dispatch can override via
+# env vars when cutting stable / beta channels.
+publish:
+  provider: github
+  owner: ds-agent
+  repo: ds-agent-desktop
+  releaseType: draft

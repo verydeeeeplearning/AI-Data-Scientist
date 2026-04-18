@@ -1,0 +1,7 @@
+[2026-04-17T01:57:37Z] Scenario 3 START — Keyring unavailable / degraded mode fallback
+[2026-04-17T01:57:37Z] child rc=0
+[2026-04-17T01:57:37Z] backend_name=in_memory
+[2026-04-17T01:57:37Z] persistent=False
+[2026-04-17T01:57:37Z] describe={'backend': 'in_memory', 'persistent': False, 'degraded': True, 'message': 'Secrets are kept in process memory only — the OS keyring backend is unavailable. API keys and tokens will be lost when the process exits. Install/enable a keyring backend (Windows Credential Manager, macOS Keychain, or Secret Service on Linux) to persist credentials securely.'}
+[2026-04-17T01:57:37Z] round_trip={'retrieved_matches_stored': True, 'exists': True, 'deleted': True, 'post_delete_is_none': True}
+[2026-04-17T01:57:37Z] PASS: keyring failure → in_memory fallback with clear degraded warning + session round-trip works

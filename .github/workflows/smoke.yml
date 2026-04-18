@@ -1,0 +1,58 @@
+name: Packaged Smoke Tests
+
+# P0-06: Verify the PyInstaller-built backend boots and serves traffic.
+# Source-level pytest runs in a separate workflow; this one runs against
+# the actual binary that ships to users.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install build & test deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[providers,gateway,dev]"
+          python -m pip install pyinstaller
+
+      - name: Build backend binary
+        run: python scripts/build_backend.py --clean
+
+      - name: Verify binary exists
+        shell: bash
+        run: |
+          if [ ! -f "dist/ds-agent-backend/ds-agent-api.exe" ]; then
+            echo "::error::Binary missing after build"
+            ls -la dist/ds-agent-backend/ || true
+            exit 1
+          fi
+
+      - name: Run smoke suite
+        env:
+          PACKAGED_BINARY_PATH: ${{ github.workspace }}\dist\ds-agent-backend\ds-agent-api.exe
+        run: python -m pytest tests/smoke -v -m smoke
+
+      - name: Upload backend stderr on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-stderr-windows
+          path: |
+            .tmp/pytest/**
+            dist/ds-agent-backend/_internal/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7

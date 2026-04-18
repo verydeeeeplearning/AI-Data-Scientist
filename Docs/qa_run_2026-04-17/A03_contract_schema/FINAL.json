@@ -1,0 +1,65 @@
+{
+  "agent_id": "A03",
+  "agent_name": "Contract & Schema Auditor",
+  "tier": 1,
+  "status": "fail",
+  "started_at": "2026-04-16T19:00:17Z",
+  "finished_at": "2026-04-16T19:07:50Z",
+  "duration_sec": 453,
+  "code_sha": null,
+  "code_snapshot_id": "fd5e256bf0e1f349087e1e28c78adf187a87dc848e67373315aef274b7bd4a6e",
+  "evidence": [
+    "Docs/qa_run_2026-04-17/A03_contract_schema/START.json",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/A03_contract_matrix.csv",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/A03_contract_summary.json",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/A03_report.md",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/pytest_import_tools.log",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/junit_import_tools.xml",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/pytest_contract_suite.log",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/junit_contract_suite.xml",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/pytest_agent_session_registry.log",
+    "Docs/qa_run_2026-04-17/A03_contract_schema/junit_agent_session_registry.xml"
+  ],
+  "metrics": {
+    "contract_rows": 352,
+    "tool_rows": 86,
+    "tool_pass": 75,
+    "tool_fail": 11,
+    "registered_tool_entries": 75,
+    "hook_rows": 30,
+    "hook_fail": 0,
+    "ws_rpc_rows": 80,
+    "ws_rpc_fail": 0,
+    "pydantic_rows": 156,
+    "pydantic_fail": 0,
+    "pytest_import_tools": {
+      "tests": 12,
+      "passed": 11,
+      "failed": 1
+    },
+    "pytest_contract_suite": {
+      "tests": 273,
+      "passed": 271,
+      "failed": 2
+    },
+    "pytest_agent_session_registry": {
+      "tests": 14,
+      "passed": 14,
+      "failed": 0
+    }
+  },
+  "blocking_findings": [
+    {
+      "id": "F1",
+      "title": "Bare @tool usage breaks 11 tool imports in learning_tools.py and portfolio_tools.py"
+    },
+    {
+      "id": "F2",
+      "title": "WebSocket chat E2E tests use outdated _create_agent monkeypatch that does not accept authority_mode"
+    }
+  ],
+  "notes": [
+    "Tier 1 hard gate failed. Do not advance to Tier 2 until F1/F2 are triaged and the contract suite is green.",
+    "Git metadata was unavailable in this workspace; code_snapshot_id was used instead of git SHA."
+  ]
+}

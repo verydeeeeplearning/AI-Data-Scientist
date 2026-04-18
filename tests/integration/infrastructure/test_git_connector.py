@@ -1,0 +1,216 @@
+from __future__ import annotations
+
+import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import ClassVar
+from urllib.parse import urlparse
+
+from ds_agent.infrastructure.external.git_connector import (
+    GitConnector,
+    GitFileChange,
+    GitPRRequest,
+)
+
+
+class _GitHubHandler(BaseHTTPRequestHandler):
+    requests: ClassVar[list[dict[str, object]]] = []
+
+    def do_GET(self) -> None:
+        self.__class__.requests.append(
+            {"method": "GET", "path": self.path, "headers": dict(self.headers.items())}
+        )
+        parsed = urlparse(self.path)
+        if parsed.path.endswith("/git/ref/heads/main"):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"object": {"sha": "mainsha"}}).encode("utf-8"))
+            return
+        if parsed.path.endswith("/git/ref/heads/wo-branch"):
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"message": "Not Found"}).encode("utf-8"))
+            return
+        if parsed.path.endswith("/contents/analysis.sql"):
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"message": "Not Found"}).encode("utf-8"))
+            return
+        self.send_response(500)
+        self.end_headers()
+
+    def do_POST(self) -> None:
+        body = self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("utf-8")
+        payload = json.loads(body)
+        self.__class__.requests.append(
+            {
+                "method": "POST",
+                "path": self.path,
+                "headers": dict(self.headers.items()),
+                "body": payload,
+            }
+        )
+        self.send_response(201)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        if self.path.endswith("/git/refs"):
+            response = {"ref": "refs/heads/wo-branch"}
+        elif self.path.endswith("/pulls"):
+            response = {"number": 17, "html_url": "https://github.example/pr/17"}
+        elif self.path.endswith("/labels"):
+            response = {"labels": payload["labels"]}
+        else:
+            response = {}
+        self.wfile.write(json.dumps(response).encode("utf-8"))
+
+    def do_PUT(self) -> None:
+        body = self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("utf-8")
+        self.__class__.requests.append(
+            {
+                "method": "PUT",
+                "path": self.path,
+                "headers": dict(self.headers.items()),
+                "body": json.loads(body),
+            }
+        )
+        self.send_response(201)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"content": {"path": "analysis.sql"}}).encode("utf-8"))
+
+    def log_message(self, format: str, *args) -> None:
+        return
+
+
+class _GitLabHandler(BaseHTTPRequestHandler):
+    requests: ClassVar[list[dict[str, object]]] = []
+
+    def do_POST(self) -> None:
+        body = self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("utf-8")
+        payload = json.loads(body)
+        self.__class__.requests.append(
+            {
+                "method": "POST",
+                "path": self.path,
+                "headers": dict(self.headers.items()),
+                "body": payload,
+            }
+        )
+        self.send_response(201)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        if self.path.endswith("/repository/branches"):
+            response = {"name": "wo-branch"}
+        elif self.path.endswith("/repository/commits"):
+            response = {"id": "commit-1"}
+        else:
+            response = {"iid": 9, "web_url": "https://gitlab.example/mr/9"}
+        self.wfile.write(json.dumps(response).encode("utf-8"))
+
+    def log_message(self, format: str, *args) -> None:
+        return
+
+
+def test_git_connector_dispatches_github_branch_file_and_pr_flow() -> None:
+    _GitHubHandler.requests = []
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _GitHubHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connector = GitConnector()
+        result = connector.dispatch(
+            GitPRRequest(
+                provider="github",
+                api_base_url=f"http://127.0.0.1:{server.server_port}",
+                repository="org/repo",
+                token="secret",
+                base_branch="main",
+                head_branch="wo-branch",
+                pr_title="[DS] Churn updates",
+                pr_body_markdown="Generated by ds-agent",
+                labels=["ds-agent"],
+                files=[
+                    GitFileChange(
+                        path="analysis.sql",
+                        content_base64="c2VsZWN0IDE7Cg==",
+                        mode="add",
+                    )
+                ],
+            ),
+            idempotency_key="wo_WO-2026-001:github:open_pull_request:ghi789",
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert result.success is True
+    assert result.external_ref is not None
+    assert result.external_ref.system == "github"
+    assert result.external_ref.resource_type == "pull_request"
+    assert result.external_ref.resource_id == "17"
+    assert result.external_ref.url == "https://github.example/pr/17"
+    assert _GitHubHandler.requests[0]["path"] == "/repos/org/repo/git/ref/heads/wo-branch"
+    assert _GitHubHandler.requests[1]["path"] == "/repos/org/repo/git/ref/heads/main"
+    assert _GitHubHandler.requests[2]["path"] == "/repos/org/repo/git/refs"
+    assert (
+        _GitHubHandler.requests[3]["path"]
+        == "/repos/org/repo/contents/analysis.sql?ref=wo-branch"
+    )
+    assert _GitHubHandler.requests[4]["path"] == "/repos/org/repo/contents/analysis.sql"
+    assert _GitHubHandler.requests[4]["body"]["branch"] == "wo-branch"
+    assert _GitHubHandler.requests[4]["body"]["content"] == "c2VsZWN0IDE7Cg=="
+    assert _GitHubHandler.requests[5]["path"] == "/repos/org/repo/pulls"
+    assert _GitHubHandler.requests[5]["body"]["draft"] is False
+    assert _GitHubHandler.requests[6]["path"] == "/repos/org/repo/issues/17/labels"
+
+
+def test_git_connector_dispatches_gitlab_branch_commit_and_merge_request() -> None:
+    _GitLabHandler.requests = []
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _GitLabHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connector = GitConnector()
+        result = connector.dispatch(
+            GitPRRequest(
+                provider="gitlab",
+                api_base_url=f"http://127.0.0.1:{server.server_port}/api/v4",
+                repository="group/repo",
+                token="secret",
+                base_branch="main",
+                head_branch="wo-branch",
+                pr_title="[DS] Churn updates",
+                pr_body_markdown="Generated by ds-agent",
+                draft=True,
+                labels=["ds-agent", "wo-wo-2026-001"],
+                files=[
+                    GitFileChange(
+                        path="analysis.sql",
+                        content_base64="c2VsZWN0IDE7Cg==",
+                        mode="add",
+                    )
+                ],
+            ),
+            idempotency_key="wo_WO-2026-001:gitlab:open_pull_request:jkl012",
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert result.success is True
+    assert result.external_ref is not None
+    assert result.external_ref.system == "gitlab"
+    assert result.external_ref.resource_type == "merge_request"
+    assert result.external_ref.resource_id == "9"
+    assert result.external_ref.url == "https://gitlab.example/mr/9"
+    assert _GitLabHandler.requests[0]["path"] == "/api/v4/projects/group%2Frepo/repository/branches"
+    assert _GitLabHandler.requests[0]["headers"]["Private-Token"] == "secret"
+    assert _GitLabHandler.requests[1]["path"] == "/api/v4/projects/group%2Frepo/repository/commits"
+    assert _GitLabHandler.requests[1]["body"]["actions"][0]["encoding"] == "base64"
+    assert _GitLabHandler.requests[2]["path"] == "/api/v4/projects/group%2Frepo/merge_requests"
+    assert _GitLabHandler.requests[2]["body"]["title"].startswith("Draft: ")

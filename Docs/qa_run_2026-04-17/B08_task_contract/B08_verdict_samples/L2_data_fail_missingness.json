@@ -1,0 +1,81 @@
+{
+  "case": "L2_data_fail_missingness",
+  "verdict_id": "RV-1776371632958557800",
+  "overall": "fail",
+  "result": "fail",
+  "confidence": {
+    "score": 0.58125,
+    "grade": "medium"
+  },
+  "layer_results": [
+    {
+      "layer": "statistical",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "statistical_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "stable"
+        }
+      ]
+    },
+    {
+      "layer": "data",
+      "overall": "fail",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "data_check",
+          "status": "fail",
+          "score": 0.1,
+          "message": "Column `score` has 62% missing values"
+        }
+      ]
+    },
+    {
+      "layer": "policy",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "policy_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "safe"
+        }
+      ]
+    },
+    {
+      "layer": "narrative",
+      "overall": "pass",
+      "partial_failure": false,
+      "check_count": 1,
+      "checks": [
+        {
+          "id": "narrative_check",
+          "status": "pass",
+          "score": 1.0,
+          "message": "aligned"
+        }
+      ]
+    }
+  ],
+  "blocking_issues": [
+    {
+      "severity": "high",
+      "message": "Column `score` has 62% missing values",
+      "blocking": true,
+      "layer": "data"
+    }
+  ],
+  "recommended_actions": [
+    {
+      "action": null
+    }
+  ]
+}

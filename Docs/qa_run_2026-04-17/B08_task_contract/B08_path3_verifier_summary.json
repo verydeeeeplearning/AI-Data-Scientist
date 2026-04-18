@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-04-16T20:33:52.971339+00:00",
+  "cases": {
+    "L1_statistical_fail": {
+      "overall": "fail",
+      "blocking_issues": 1
+    },
+    "L2_data_fail_missingness": {
+      "overall": "fail",
+      "blocking_issues": 1
+    },
+    "L3_policy_fail_pii": {
+      "overall": "fail",
+      "blocking_issues": 1
+    },
+    "L4_narrative_judge_fail": {
+      "overall": "fail",
+      "blocking_issues": 1
+    },
+    "HAPPY_all_layers_pass": {
+      "overall": "pass",
+      "blocking_issues": 0
+    }
+  },
+  "invariant_each_layer_fail_produces_fail_verdict": true,
+  "happy_path_is_pass": true
+}

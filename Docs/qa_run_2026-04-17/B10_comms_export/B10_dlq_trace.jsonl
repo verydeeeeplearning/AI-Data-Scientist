@@ -1,0 +1,4 @@
+{"step": "replay_type_mapping", "mapping_observed": {"slack": "SlackMessageRequest", "jira": "JiraIssueRequest", "confluence": "ConfluencePageRequest", "notion": "NotionPageRequest", "github": "GitPRRequest", "gitlab": "GitPRRequest", "git": "GitPRRequest", "email": "EmailRequest", "calendar": "CalendarEventRequest"}, "all_match_expected": true}
+{"step": "initial_dispatch_fail", "result": {"work_object_id": "WO-2026-501", "duplicate": false, "dry_run": false, "status": "failed", "external_ref": null, "event_id": "IE-1776372704686529", "error_code": "CONNECTION_FAILED", "error_message": "simulated flake"}}
+{"step": "replay_event", "result": {"replay_event_id": "IE-1776372704698990", "original_event_id": "IE-1776372704686529", "status": "success", "attempt": 2, "success": true, "error_code": null, "error_message": null}}
+{"step": "verdict", "mapping_ok": true, "replay_ok": true, "pass": true}

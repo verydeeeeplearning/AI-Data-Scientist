@@ -1,0 +1,37 @@
+{
+  "stream": "S4",
+  "name": "v13_migration",
+  "started_at": "2026-04-17T00:00:00Z",
+  "inputs": {
+    "work_order": "Docs/qa_run_2026-04-17/FIX_SPRINT_WORK_ORDER.md",
+    "a04_report": "Docs/qa_run_2026-04-17/A04_migration/A04_report.md",
+    "a04_sqlite_inventory": "Docs/qa_run_2026-04-17/A04_migration/A04_sqlite_inventory.json"
+  },
+  "decision_user": "v13 is the source of truth; add v13 migration in code",
+  "observed_baseline": {
+    "learning_store": 1,
+    "task_contract_store": 10,
+    "work_object_store": 12,
+    "semantic_store": 7,
+    "observed_max": 12,
+    "plan_claim_v13_satisfied": false
+  },
+  "v13_owner_decision": "learning_store",
+  "v13_owner_rationale": "learning_store is the only store NOT in scope of S3 drift assertions (test_sqlite_work_object_store.py expects 11/12; test_sqlite_task_contract_store.py expects 10; test_migration_v6.py expects 6/7). learning_store currently at v1 and has no conflicting version assertions in existing tests; adding v13 is safe. v13 schema change is defensive/audit-only: add 'description' column to schema_migrations for audit trail. See RECOMMENDATIONS.md.",
+  "plan": [
+    "RED: write tests/integration/infrastructure/test_central_migration_runner.py (5 cases)",
+    "GREEN: src/ds_agent/infrastructure/migration/sqlite_migrations.py (inventory + runner)",
+    "GREEN: add v13 migration to src/ds_agent/infrastructure/persistence/learning_store.py",
+    "INTEGRATE: minimal wiring via __init__.py export; no factory.py change required (stores self-migrate on __init__)",
+    "VERIFY: pytest, ruff, mypy",
+    "DOCUMENT: RECOMMENDATIONS.md + DIFF_SUMMARY.md + TEST_RESULTS.md + CHANGELOG.md",
+    "FINAL.json"
+  ],
+  "constraints": [
+    "No change to work_object_store / task_contract_store / semantic_store migration code",
+    "No change to domain layer",
+    "No change to tests S3 owns (test_sqlite_work_object_store.py, test_migration_v6.py)",
+    "Factory.py touched at most minimally (S1 may also edit it)",
+    "Scope: infrastructure/migration/ + learning_store.py v13 block + new test file + RECOMMENDATIONS.md"
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "agent_id": "B06",
+  "agent_name": "Tools Registry Fuzz Tester",
+  "tier": 2,
+  "status": "pass",
+  "code_sha": "git-unavailable",
+  "started_at": "2026-04-17T00:00:00Z",
+  "completed_at": "2026-04-17T00:30:00Z",
+  "duration_min": 30,
+  "dependencies": [
+    "A01_architecture_reaudit PASS",
+    "A02_security_reaudit PASS",
+    "A03_contract_schema_reaudit PASS (86 tools confirmed)",
+    "A04_migration_reaudit PASS"
+  ],
+  "metrics": {
+    "total_tools": 86,
+    "covered": 86,
+    "total_cells": 430,
+    "critical_failures": 0,
+    "sandbox_blocks": 10,
+    "outcome_counts": {
+      "pass": 346,
+      "fail": 0,
+      "skipped": 84
+    },
+    "per_input_type": {
+      "normal":            { "pass": 86, "fail": 0, "skipped": 0 },
+      "schema_violation":  { "pass": 86, "fail": 0, "skipped": 0 },
+      "timeout":           { "pass": 86, "fail": 0, "skipped": 0 },
+      "sandbox_violation": { "pass": 2,  "fail": 0, "skipped": 84 },
+      "boundary":          { "pass": 86, "fail": 0, "skipped": 0 }
+    },
+    "ast_vs_registry": {
+      "ast_count": 86,
+      "runtime_count": 86,
+      "only_ast": [],
+      "only_runtime": [],
+      "match": true
+    },
+    "sandbox_payload_matrix": {
+      "tools": ["execute_code", "distributed_exec"],
+      "payloads": [
+        "import socket",
+        "open('/etc/passwd')",
+        "os.system",
+        "urllib.request.urlopen",
+        "__import__('os').system"
+      ],
+      "blocked": 10,
+      "total": 10
+    },
+    "sql_injection_blocked": true,
+    "workspace_path_bound_enforced": true,
+    "schema_violation_returns_tool_validation_error": true,
+    "timeout_enforced": true,
+    "idempotent_tools_verified": 26,
+    "scope_isolated_pytest": {
+      "collected": 26,
+      "passed": 26,
+      "failed": 0,
+      "duration_sec": 7.31,
+      "junit_xml": "Docs/qa_run_2026-04-17/B06_tools_registry/pytest_scope.xml"
+    }
+  },
+  "evidence": [
+    "Docs/qa_run_2026-04-17/B06_tools_registry/START.json",
+    "Docs/qa_run_2026-04-17/B06_tools_registry/B06_report.md",
+    "Docs/qa_run_2026-04-17/B06_tools_registry/B06_tools_fuzz.csv",
+    "Docs/qa_run_2026-04-17/B06_tools_registry/summary.json",
+    "Docs/qa_run_2026-04-17/B06_tools_registry/ast_scan.json",
+    "Docs/qa_run_2026-04-17/B06_tools_registry/live_full.json",
+    "Docs/qa_run_2026-04-17/B06_tools_registry/pytest_scope.xml",
+    "Docs/qa_run_2026-04-17/B06_tools_registry/run_fuzz.py",
+    "Docs/qa_run_2026-04-17/B06_tools_registry/B06_failures/README.md"
+  ],
+  "pass_criteria": {
+    "zero_critical_failures_across_430_cells": true,
+    "all_five_sandbox_payloads_blocked_on_both_exec_tools": true,
+    "sql_injection_neutralised": true
+  },
+  "constraints_observed": {
+    "no_source_modification": true,
+    "sandbox_only_for_code_exec": true,
+    "scope_isolated_pytest": true,
+    "no_files_outside_tmp_qa_b06_except_report_dir": true,
+    "no_self_pass_judgment": "result handed to next-tier judge"
+  },
+  "notes": [
+    "86-tool count matches Fix Sprint S3 post-drift-cleanup figure and A03 Round 2.",
+    "Fix Sprint S5 SandboxPort honoured — execute_code/distributed_exec now route through ExecutionRouter→SandboxPort→ProcessSandbox, confirmed by _ds_sandbox_runner.py.",
+    "Schema validation via ToolRegistry._validate_arguments returns a structured JSON ToolValidationError-equivalent for all 86 tools when required fields are missing or unknown keys are passed.",
+    "Workspace path boundary tested with set_active_workspace(.tmp/qa_B06/workspace); file_ops tools reject traversal via is_within_workspace.",
+    "SQL injection payload intercepted at domain-level validate_sql_safety (connector.py) before reaching any adapter."
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "agent_id": "B09",
+  "tier": 2,
+  "started_at": "2026-04-17T00:00:00Z",
+  "code_sha": "git-unavailable",
+  "scope": "autonomy control plane: Authority / Audience / Mission / ActionMatrix / ActionClassifier / incident override / freeze / certification / PolicyStudio"
+}

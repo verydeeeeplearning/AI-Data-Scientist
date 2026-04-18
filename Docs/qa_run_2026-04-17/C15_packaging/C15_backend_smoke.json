@@ -1,0 +1,40 @@
+{
+  "check_1_ready_emit": true,
+  "check_2_health": true,
+  "check_3_api_status": true,
+  "check_4_ws_handshake": true,
+  "check_5_ws_ping": true,
+  "port": 18877,
+  "token_prefix": "f772a207",
+  "detail": {
+    "token_length": 64,
+    "health_status": 200,
+    "health_body": "{\"status\":\"ok\"}",
+    "api_status_status": 200,
+    "api_status_body_prefix": "{\"model\":\"gemini/gemini-2.5-flash\",\"qualityPreset\":\"custom\",\"mode\":\"auto\",\"activeSessions\":0,\"activeRuns\":0,\"activeTasks\":0,\"pendingApprovals\":0,\"autonomousRuntimeEnabled\":false,\"autonomousRuntimeRunning\":false,\"sensorBacklog\":0,\"recoveredSessions\":0,\"automationProfile\":\"balanced\",\"recurringGoalCoun",
+    "api_status_keys": [
+      "activeRuns",
+      "activeSessions",
+      "activeTasks",
+      "authorityOverlay",
+      "authorityOverlayExpiresAt",
+      "authorityOverlayStartedAt",
+      "automationProfile",
+      "autonomousRuntimeEnabled",
+      "autonomousRuntimeRunning",
+      "effectiveAuthorityMode",
+      "mode",
+      "model",
+      "pendingApprovals",
+      "qualityPreset",
+      "recoveredSessions",
+      "recurringGoalCount",
+      "resourcePressure",
+      "sensorBacklog",
+      "standingOrderCount"
+    ],
+    "ws_reply_prefix": "{\"type\":\"res\",\"id\":\"c15-smoke\",\"ok\":false,\"error\":{\"code\":\"INVALID_TYPE\",\"message\":\"Expected type 'req'\"}}"
+  },
+  "pass_count": 5,
+  "total_checks": 5
+}

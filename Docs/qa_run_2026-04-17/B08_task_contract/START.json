@@ -1,0 +1,33 @@
+{
+  "agent": "B08",
+  "role": "Task Contract / Verifier / Decision OS Tester",
+  "started_at": "2026-04-17T00:00:00Z",
+  "project_root": "C:/Users/aquap/Desktop/AI_Data_Scientist_Demo",
+  "specs": ["Spec 01 (Task Contract)", "Spec 03 (Verifier)", "Spec 06 (Decision OS)"],
+  "paths_in_scope": [
+    "1. Task Contract lifecycle (draft->agreed->in_progress->review->closed) + invalid reversal blocking",
+    "2. AssumptionLog verify (2 created, 1 verified, confidence delta)",
+    "3. 4-Layer Verifier (L1 stats, L2 missing, L3 PII, L4 LLM judge) + happy path",
+    "4. 10-Dim Scorer min/max fixture delta >= 0.5",
+    "5. Shadow Evaluation model A/B diff",
+    "6. Decision OS Promotion Gate 3-role (DS/Lead/MLOps)",
+    "7. RunDiffEngine byte-level determinism",
+    "8. DS_REVIEW_ARTIFACTS auto-capture from hidden LLM block"
+  ],
+  "constraints": {
+    "source_modification": "prohibited",
+    "full_regression_pytest": "prohibited",
+    "out_of_scope_files": "prohibited",
+    "real_external_delivery": "prohibited",
+    "self_pass_judgement": "prohibited",
+    "data_dir_modification": "prohibited"
+  },
+  "output_folder": "Docs/qa_run_2026-04-17/B08_task_contract/",
+  "tmp_folder": ".tmp/qa_B08/",
+  "environment": {
+    "os": "Windows 11",
+    "shell": "bash",
+    "python": ">=3.11",
+    "schema_max_version": 13
+  }
+}

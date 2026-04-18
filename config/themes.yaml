@@ -1,0 +1,4 @@
+default_theme: default_v1
+tenant_defaults:
+  default: default_v1
+  deloitte: deloitte_v1

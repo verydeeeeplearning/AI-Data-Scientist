@@ -1,0 +1,43 @@
+{
+  "sentry_redaction_sample": {
+    "message": "Contact jane.doe@example.com or +1-202-555-0199 with card 4111 1111 1111 1111",
+    "extra": {
+      "notes": "email=jane.doe@example.com phone=202-555-0199 card=4111111111111111",
+      "customer_email": "jane.doe@example.com",
+      "token": "super-secret-value"
+    }
+  },
+  "sentry_pii_redacted": {
+    "message_email_removed": true,
+    "message_phone_removed": true,
+    "message_card_removed": true,
+    "extra_notes_email_removed": true,
+    "extra_notes_phone_removed": true,
+    "extra_notes_card_removed": true,
+    "field_token_redacted": true,
+    "field_customer_email_redacted": true
+  },
+  "nested_user_email_clean": true,
+  "phone_number_field_redacted": true,
+  "redacted_event_message": "Contact ***EMAIL*** or ***PHONE*** with card ***CARD***",
+  "redacted_event_extra": {
+    "notes": "email=***EMAIL*** phone=***PHONE*** card=***CARD***",
+    "customer_email": "***REDACTED***",
+    "token": "***REDACTED***"
+  },
+  "false_positive_checks": {
+    "uuid_not_redacted": true,
+    "sha_not_redacted": true,
+    "long_digits_not_redacted": true,
+    "no_phony_card_mask": true,
+    "no_phony_email_mask": true,
+    "no_phony_phone_mask": true
+  },
+  "preamble_checks": {
+    "starts_with_guard_header": true,
+    "contains_policy_object": true,
+    "placeholder_removed": true,
+    "user_code_present": true,
+    "commented_policy_guard_found": false
+  }
+}

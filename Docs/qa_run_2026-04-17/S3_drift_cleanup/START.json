@@ -1,0 +1,22 @@
+{
+  "stream": "S3",
+  "name": "drift_cleanup",
+  "started_at": "2026-04-17T00:00:00Z",
+  "inputs": {
+    "work_order": "Docs/qa_run_2026-04-17/FIX_SPRINT_WORK_ORDER.md",
+    "a03_report": "Docs/qa_run_2026-04-17/A03_contract_schema/A03_report.md",
+    "a04_report": "Docs/qa_run_2026-04-17/A04_migration/A04_report.md"
+  },
+  "issues_in_scope": [
+    "A03-F1: learning_tools.py (6) + portfolio_tools.py (5) bare @tool",
+    "A03-F2: tests/e2e/test_ws_e2e.py monkeypatch authority_mode kwarg",
+    "A04-F1: test_sqlite_work_object_store.py schema version 11 -> 12",
+    "A04-F2: test_migration_v6.py schema version 6 -> 7"
+  ],
+  "constraints": [
+    "No tool() decorator signature change",
+    "No migration code change (assertions only)",
+    "No v13 migration addition (S4 scope)",
+    "No file rename"
+  ]
+}

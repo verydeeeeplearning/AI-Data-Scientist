@@ -1,0 +1,7 @@
+term_id: term.gross_profit
+canonical_form: gross profit
+definition: "Revenue after direct cost of service, used as the numerator for gross margin."
+linked_metric_ids:
+  - gross_margin
+category: metric
+owner: finance_team

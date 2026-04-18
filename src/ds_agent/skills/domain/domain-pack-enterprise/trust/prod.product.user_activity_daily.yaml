@@ -1,0 +1,9 @@
+fqtn: prod.product.user_activity_daily
+grade: gold
+owner: product_analytics
+description: "Daily user activity mart with bot-filtered engagement signals."
+refresh:
+  cadence: daily
+  max_staleness_minutes: 1440
+grade_rationale: "Certified product mart used for MAU and WAU reporting."
+last_audited: 2026-04-15
