@@ -19,6 +19,16 @@ export default {
         },
       },
       fontFamily: {
+        sans: [
+          'Inter',
+          'Noto Sans KR',
+          'Noto Sans JP',
+          'system-ui',
+          '-apple-system',
+          'Segoe UI',
+          'Roboto',
+          'sans-serif',
+        ],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
     },
