@@ -11,5 +11,5 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["tests/smoke/**/*.spec.ts"]
+  "include": ["tests/smoke/**/*.spec.ts", "tests/e2e/**/*.ts"]
 }

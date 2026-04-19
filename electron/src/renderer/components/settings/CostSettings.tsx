@@ -64,6 +64,7 @@ export function CostSettings({ rpc }: { rpc: RpcFn }) {
             value={maxBudgetUsd}
             min={0}
             step={1}
+            aria-label="Maximum budget in USD"
             onChange={(event) => setMaxBudget(parseFloat(event.target.value) || 0)}
             onBlur={(event) => {
               const value = parseFloat(event.target.value) || 0;
@@ -79,6 +80,7 @@ export function CostSettings({ rpc }: { rpc: RpcFn }) {
           <span className="text-xs text-ds-muted">Warn at</span>
           <select
             value={budgetWarningThresholdPct}
+            aria-label="Budget warning threshold percentage"
             onChange={(event) => {
               const value = Number(event.target.value) || 80;
               setBudgetWarningThresholdPct(value);

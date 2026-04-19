@@ -175,6 +175,7 @@ function ToggleCard({
           type="button"
           role="switch"
           aria-checked={enabled}
+          aria-label={title}
           disabled={loading}
           onClick={() => onToggle(!enabled)}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${

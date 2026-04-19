@@ -978,6 +978,7 @@ export function PolicyStudio() {
                               )
                             }
                             data-testid={`policy-matrix-${row.actionClass}-${column.value}`}
+                            aria-label={`${row.actionClass} verdict for ${column.label}`}
                             disabled={matrixSaving}
                             className={`w-full rounded border px-2 py-1.5 text-xs ${
                               changed
