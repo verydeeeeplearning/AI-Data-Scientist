@@ -1,0 +1,275 @@
+# DECISIONS — 의사결정 로그 (ADR)
+
+PLAN에 명시되지 않았으나 구현 중 발생한 결정을 ADR(Architecture Decision Record) 형식으로 기록한다.
+
+**규칙**:
+- 추가만 (수정 시 새 ADR로 supersede)
+- ID는 `ADR-NNNN` 순번
+- 모든 agent가 작업 시작 전 본 문서 전체 확인
+- 기존 ADR 위반은 PR reject
+
+---
+
+## ADR 템플릿
+
+```markdown
+## ADR-NNNN: <한 줄 결정 요약>
+
+**일자**: YYYY-MM-DD
+**상태**: Proposed | Accepted | Superseded by ADR-MMMM | Deprecated
+**제안자**: <agent ID 또는 leader>
+**관련 PLAN**: <plan path>
+
+### 컨텍스트
+무엇이 결정을 필요하게 만들었는가.
+
+### 결정
+무엇을 결정했는가.
+
+### 근거
+왜 이 결정이 다른 옵션보다 나은가.
+
+### 대안 (검토했으나 기각)
+- Option A: ... (기각 사유)
+- Option B: ... (기각 사유)
+
+### 결과 / 영향
+- 어떤 PLAN/파일에 영향
+- 마이그레이션 필요 여부
+```
+
+---
+
+## 결정 등록부
+
+### ADR-0001: PLAN 디렉토리 구조 = phase × cross_cutting × overview × SHARED
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: leader
+**관련 PLAN**: 전체
+
+#### 컨텍스트
+24개 PLAN을 어떻게 디렉토리로 조직할지 결정 필요.
+
+#### 결정
+- `00_overview/` — 공통 사항
+- `phase{1-4}_<name>/` — phase별 디렉토리
+- `cross_cutting/` — 횡단
+- `SHARED/` — agent 협업 자산
+
+#### 근거
+- Phase 단위가 시간 축으로 자연스러움
+- Cross-cutting을 phase에 끼우면 의존성 표현 어려움
+- SHARED를 별도 분리하여 협업 자산을 명확히
+
+#### 대안
+- 도메인별 (Mission/Run/Artifact/...) 묶기 — 시간 축 사라짐, 진입 어려움
+- 단일 flat — 24개 파일 navigation 어려움
+
+#### 결과
+모든 PLAN이 본 구조 기반으로 작성됨.
+
+---
+
+### ADR-0002: 모든 PLAN은 RED → GREEN → REFACTOR 순서로 sub-phase 구성
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: leader
+**관련 PLAN**: 전체
+
+#### 컨텍스트
+TDD를 강제할지, 권장 수준으로 둘지 결정.
+
+#### 결정
+강제. 각 sub-phase의 §7 task는 반드시 RED → GREEN → REFACTOR.
+
+#### 근거
+- CLAUDE.md 가 TDD 강제 명시
+- AI agent가 테스트 없이 구현하면 회귀 검증 어려움
+- 백엔드가 762/762 baseline — UI도 동등 수준 필요
+
+#### 대안
+- Sketch first, then test — 거부: AI agent의 over-engineering 위험
+- Test optional — 거부: 일관성 없음
+
+#### 결과
+모든 sub-phase에 RED/GREEN/REFACTOR 명시.
+
+---
+
+### ADR-0003: i18n 라이브러리는 i18next + react-i18next
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: leader (Phase 1 PLAN_01 작성 시)
+**관련 PLAN**: phase1/PLAN_01
+
+#### 컨텍스트
+i18n 라이브러리 선택.
+
+#### 결정
+`i18next` + `react-i18next` + `i18next-browser-languagedetector` + `i18next-parser`.
+
+#### 근거
+- Electron + React 생태계 최강 지원
+- namespace 분할 → PLAN별 충돌 회피 가능
+- i18next-parser 로 누락 키 자동 검출
+
+#### 대안
+- `formatjs/react-intl` — ICU MessageFormat 강력하나 namespace 분할 약함
+- `lingui` — 컴파일 타임 추출 좋으나 생태계 작음
+
+#### 결과
+PLAN_01 Sub-Phase 1.1에서 도입.
+
+---
+
+### ADR-0004: WS 이벤트 envelope은 cross_cutting/PLAN_03에서 정의, 모든 신규 이벤트가 사용
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: leader
+**관련 PLAN**: cross_cutting/PLAN_03 + Phase 1+ 의 WS 이벤트 추가 PLAN 전체
+
+#### 컨텍스트
+Phase 2-3에서 신규 WS 이벤트 다수 추가 예정. backward compatibility 위험.
+
+#### 결정
+모든 WS 이벤트는 envelope wrapping (`type / version / ts / payload`). Schema는 zod로 검증.
+
+#### 근거
+- 클라이언트 버전 다양화 시 graceful 처리 필요
+- 단일 이벤트 추가에 backward compatibility 깨질 위험 차단
+
+#### 결과
+cross_cutting/PLAN_03 가 baseline 인프라 제공. 모든 신규 이벤트 PLAN은 본 인프라 사용.
+
+---
+
+### ADR-0005: Result Card 분류 mismatch 시 "other" fallback 채택
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: leader (Phase 2 PLAN_02 작성 시)
+**관련 PLAN**: phase2/PLAN_02
+
+#### 컨텍스트
+LLM이 4종 카드 분류와 일치하지 않는 응답을 emit할 가능성.
+
+#### 결정
+4종 + `other` (5종)으로 확장. `other`는 markdown body 단순 표시.
+
+#### 근거
+- LLM 출력 100% 분류 강제는 unrealistic
+- 사용자 응답 손실 방지
+
+#### 대안
+- LLM이 새 카드 타입 정의 가능 — 결정 보류 (Phase 3+)
+- 잘못된 카드는 reject — 거부: 응답 손실
+
+#### 결과
+PLAN_02의 도메인 모델에 OtherCard 추가.
+
+---
+
+### ADR-0006: Clean Architecture layer enforcement = standalone Node script + ESLint config (dual)
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: agent-w0-foundation-001
+**관련 PLAN**: cross_cutting/PLAN_02
+
+#### 컨텍스트
+PLAN_02 Sub-Phase 1.1은 "domain은 react/zustand/axios import 금지" 를 ESLint custom rule로 enforce해야 한다. 그러나 현재 `electron/` 에는 ESLint 가 devDependency 로 설치되어 있지 않고, npm install 로 추가하면 의존 트리가 커진다 (eslint + parser + plugin 들). 또 후속 모든 wave가 본 lint 검사에 의존하므로 zero-install 로 동작 가능해야 CI 에서 빠르게 회귀 검출 가능.
+
+#### 결정
+**dual approach**:
+1. **Primary (CI 차단)**: standalone Node.js script `electron/scripts/lint-arch.mjs` — 외부 의존 0, regex + import statement 파싱으로 layer rule 검사. `npm run lint:arch` 로 실행.
+2. **Secondary (개발자 IDE)**: `electron/eslint.config.mjs` — `no-restricted-imports` 규칙 정의. ESLint 가 설치되면 IDE 가 즉시 빨간 줄 표시. CI 에서는 옵션 (eslint 없으면 skip).
+
+#### 근거
+- standalone script 는 Node 만으로 동작 → CI 빠름, contract-test 와 동일 패턴 (이미 `node_modules` 외 zero-dep 로 검증)
+- ESLint config 는 개발자 경험 (DX) 용 — IDE 통합으로 작성 시점에 발견
+- 향후 npm install eslint 추가 시 자동 활성, 추가 작업 0
+- `tach` (Python 용) 또는 `dependency-cruiser` 도입은 추가 의존성 부담 → 미채택
+
+#### 대안
+- ESLint only — 거부: npm install 필요, CI 에서 캐시 미스 시 느림
+- dependency-cruiser only — 거부: 동일 의존성 부담 + custom rule 작성 cost 동일
+- TypeScript path mapping 으로만 강제 — 거부: 강제력 없음, 우회 가능
+
+#### 결과 / 영향
+- `electron/scripts/lint-arch.mjs` 신설 — agent-w0 가 작성
+- `electron/eslint.config.mjs` 신설 — flat config 형식 (ESLint v9+)
+- `electron/package.json` scripts 에 `lint:arch` 추가
+- 후속 wave: 본 script 가 PR 차단 게이트로 작동 → Clean Architecture 위반 자동 검출
+- sample 양/음성 fixture 로 self-test (`tests/contract/eslintArchRule.spec.ts`)
+
+---
+
+### ADR-0007: WS event envelope schema = inline TypeScript validator + Python dataclass (no zod/pydantic-extra)
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: agent-w0-foundation-001
+**관련 PLAN**: cross_cutting/PLAN_03
+
+#### 컨텍스트
+PLAN_03 §5 는 envelope 와 per-event schema 를 zod 로 검증하라고 명시. 그러나 `electron/` 에 zod 미설치. 백엔드도 별도 schema lib 도입 시 dependency 증가.
+
+#### 결정
+- TypeScript 측: 외부 lib 없이 `electron/src/renderer/infrastructure/ws/eventEnvelope.ts` 에 `parseEnvelope()` 순수 함수 — discriminated union + runtime guard 로 검증. 향후 zod 도입 시 adapter 만 교체.
+- Python 측: `src/ds_agent/api/event_envelope.py` 에 dataclass + `wrap_event()` 함수. 기존 emit 경로 (`callbacks._emit`) 가 본 함수 경유.
+- 양측 동일 envelope: `{type, version, ts, source?, correlationId?, payload}` (PLAN_03 §2 그대로).
+- handshake: client 가 connect 시 supportedVersions 전송, server 가 selectedVersion ack. 본 단계에서는 negotiation 은 protocol 정의 + round-trip 테스트만 (사용자 안내 UI 는 후속 wave).
+
+#### 근거
+- 본 단계의 검증 핵심은 "envelope 양/음성 round-trip" 이며 schema lib 의 풍부한 API 는 over-engineering
+- zod 미설치 → 도입은 후속 wave 가 필요 시 ADR 로 결정
+- 양측 dataclass / TypeScript interface 가 동일 shape 이므로 새 이벤트 추가 시 양측 동기화 부담은 기존 event_schemas.py / events.ts 와 동일
+
+#### 대안
+- zod 즉시 도입 — 거부: 의존성 / 본 단계 핵심 가치 대비 과대
+- Protocol Buffers / msgpack — 거부: JSON 호환성 손실
+- JSON Schema + ajv — 거부: zod 와 동일 부담 + DX 떨어짐
+
+#### 결과 / 영향
+- 후속 wave 는 본 envelope 만 사용 (직접 `send_json` 금지 대신 `wrap_event()` 경유)
+- minor version 변경: payload optional 필드 추가만 — 기존 consumer crash 없음
+- major version 변경 (1.x → 2.0): `WsEventEnvelopeMajorMismatch` 에러 발생, handshake 단계에서 차단
+
+---
+
+### ADR-0008: a11y baseline = standalone axe-core script (CI 통합), focus/reducedMotion 은 framework 독립 utility
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: agent-w0-foundation-001
+**관련 PLAN**: cross_cutting/PLAN_01
+
+#### 컨텍스트
+PLAN_01 Sub-Phase 1.1 은 `@axe-core/playwright` 통합을, Sub-Phase 1.2 는 focus + prefers-reduced-motion utility 를 요구. 그러나 axe-core 는 미설치. focus trap 라이브러리 (focus-trap, react-focus-lock) 도입은 추가 의존.
+
+#### 결정
+- **a11y CI**: `electron/scripts/lint-a11y.mjs` 라는 placeholder 스크립트 신설 — 실제 axe-core 가 설치되면 자동 활성화 (`require('@axe-core/playwright')` 시도 후 fail-soft skip + 명확한 메시지 출력). 본 단계에서는 PR 차단 X 이지만 CI step 자리 확보. 또 contract-style spec 으로 a11y rule 메타데이터를 검증 (color contrast threshold, focus indicator 두께 등).
+- **Focus utility**: `electron/src/renderer/application/a11y/focusManagement.ts` — 순수 함수. trap (`createFocusTrap(container)`), restore (`captureFocus()` / `restoreFocus(token)`), first focusable element 검색. React-independent (modal 등 컴포넌트 hook 은 후속 wave 가 wrapping).
+- **Reduced motion**: `electron/src/renderer/application/a11y/reducedMotion.ts` — `prefersReducedMotion()` 함수, `subscribeReducedMotion(callback)` 함수. matchMedia 추상화. infrastructure 가 아닌 application 에 둠 (DOM 의존 있지만 외부 lib 0).
+
+#### 근거
+- 외부 lib 0 으로 즉시 동작 (focus-trap 같은 npm 패키지 의존 없음)
+- axe-core 도입은 향후 npm install 시 자동 활성 → 본 단계 산출물은 placeholder + 양/음성 fixture 로 자체 검증
+- focusManagement 는 순수 DOM API 만 사용 → application 레이어로 분류 가능 (domain 은 DOM도 모름)
+
+#### 대안
+- focus-trap npm install — 거부: 의존성, 100 LOC 미만으로 직접 작성 가능
+- @axe-core/playwright 즉시 install — 거부: 본 worktree 에서 npm install 부담 + Playwright 도 별도 install 필요
+
+#### 결과 / 영향
+- 후속 wave 가 modal / drawer 만들 때 본 utility 가 baseline
+- `tests/contract/focusManagement.spec.ts` 가 trap / restore / cycle 시나리오 검증
+- npm install 후 axe-core 자동 활성: `lint-a11y.mjs` 에 detect 로직 포함
+
+> 새 ADR 작성 시 일자/상태/제안자/관련 PLAN을 정확히 기록.
+> 기존 ADR을 supersede할 때는 새 ADR 작성 + 기존 상태를 `Superseded by ADR-NNNN` 으로 변경.

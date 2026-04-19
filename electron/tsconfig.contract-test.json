@@ -9,7 +9,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "types": ["node"]
   },
   "include": [
     "tests/contract/**/*.spec.ts",
@@ -19,6 +21,9 @@
     "src/renderer/components/workflow/workObjectPanelModel.ts",
     "src/renderer/components/workflow/qualityPanelModel.ts",
     "src/renderer/types/taskContract.ts",
-    "src/renderer/types/workObject.ts"
+    "src/renderer/types/workObject.ts",
+    "src/renderer/domain/**/*.ts",
+    "src/renderer/application/**/*.ts",
+    "src/renderer/infrastructure/**/*.ts"
   ]
 }
