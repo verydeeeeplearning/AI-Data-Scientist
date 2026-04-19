@@ -1,38 +1,48 @@
 #!/usr/bin/env node
-// a11y CI step (cross_cutting/PLAN_01 Sub-Phase 1.1).
+// a11y CI step (cross_cutting/PLAN_01 Sub-Phase 1.1 + Phase B finalization).
 //
-// When @axe-core/playwright is installed, this script runs automated WCAG
-// 2.1 AA scans against the renderer build. Until then it acts as a CI
-// placeholder + emits an informational log so downstream steps know a11y
-// gating exists. See ADR-0008.
+// Strict mode (ADR-0010, supersedes placeholder policy of ADR-0008): the
+// presence of @axe-core/playwright is now mandatory. Missing install → exit 1
+// with an actionable message. Successful sanity check just verifies the
+// AxeBuilder constructor can be imported; the actual scans live in
+// tests/e2e/a11y/*.a11y.spec.ts and run via `npm run test:e2e:a11y`.
 
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
 const require = createRequire(import.meta.url);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-let axe;
+let axeModule;
 try {
-  axe = require('@axe-core/playwright');
-} catch {
-  console.log(
-    '[lint:a11y] SKIP — @axe-core/playwright is not installed.',
-  );
-  console.log('[lint:a11y]   Install via: npm install --save-dev @axe-core/playwright playwright');
-  console.log('[lint:a11y]   Until then, a11y is enforced via:');
-  console.log('[lint:a11y]     - tests/contract/focusManagement.spec.ts (focus trap utility)');
-  console.log('[lint:a11y]     - tests/contract/reducedMotion.spec.ts (prefers-reduced-motion utility)');
-  console.log('[lint:a11y]     - PR review checklist (see SHARED/CONVENTIONS.md)');
-  process.exit(0);
-}
-
-if (!axe) {
-  console.error('[lint:a11y] FAIL — @axe-core/playwright loaded but exports are empty');
+  axeModule = require('@axe-core/playwright');
+} catch (err) {
+  console.error('[lint:a11y] FAIL — @axe-core/playwright is not installed.');
+  console.error('[lint:a11y]   Required by ADR-0010 (Wave 0–1 finalization Phase B).');
+  console.error('[lint:a11y]   Run from electron/:');
+  console.error('[lint:a11y]     npm install --save-dev @axe-core/playwright');
+  console.error('[lint:a11y]   Underlying error: ' + (err && err.message ? err.message : String(err)));
   process.exit(1);
 }
 
-console.log('[lint:a11y] OK — @axe-core/playwright detected, integrate scans in your E2E suite');
-console.log('[lint:a11y]   Example:');
-console.log('[lint:a11y]     import { AxeBuilder } from "@axe-core/playwright";');
-console.log('[lint:a11y]     const result = await new AxeBuilder({ page }).analyze();');
-console.log('[lint:a11y]     expect(result.violations).toEqual([]);');
+const AxeBuilder = axeModule.default ?? axeModule.AxeBuilder ?? axeModule;
+if (typeof AxeBuilder !== 'function') {
+  console.error('[lint:a11y] FAIL — @axe-core/playwright resolved but AxeBuilder is not a constructor.');
+  console.error('[lint:a11y]   Got: ' + typeof AxeBuilder);
+  process.exit(1);
+}
+
+let version = 'unknown';
+try {
+  const pkgPath = resolve(__dirname, '..', 'node_modules', '@axe-core', 'playwright', 'package.json');
+  version = JSON.parse(readFileSync(pkgPath, 'utf8')).version;
+} catch {
+  // version string is informational only; missing metadata does not fail the gate.
+}
+
+console.log('[lint:a11y] OK — @axe-core/playwright loaded (version: ' + version + ').');
+console.log('[lint:a11y]   Run E2E axe scans with: npm run test:e2e:a11y');
+console.log('[lint:a11y]   Coverage: WCAG 2.1 A + AA on 5 surfaces (mission, onboarding, chat, settings, sidebar).');
 process.exit(0);
