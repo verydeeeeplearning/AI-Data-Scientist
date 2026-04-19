@@ -8,6 +8,7 @@ import time
 import structlog
 from starlette.websockets import WebSocket, WebSocketState
 
+from ds_agent.api.event_envelope import ENVELOPE_VERSION, wrap_event
 from ds_agent.domain.value_objects.budget import BudgetThresholdEvent
 
 logger = structlog.get_logger()
@@ -102,18 +103,42 @@ class WsAgentCallbacks:
         """Emit file.created event when agent produces an artifact."""
         await self._emit("file.created", {"path": path, "type": file_type, "size": size})
 
-    async def _emit(self, event: str, payload: dict) -> None:
-        """Send a WsEvent frame to the client."""
+    async def _emit(
+        self,
+        event: str,
+        payload: dict,
+        *,
+        source: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Send a WsEvent frame to the client.
+
+        Frame is envelope-versioned per cross_cutting/PLAN_03 (ADR-0007). The
+        outer ``type:"event"`` discriminator stays for RPC-vs-event routing on
+        the wire; the envelope fields (version, ts, source, correlationId) are
+        inlined alongside it for backward compatibility with the existing
+        renderer message handler.
+        """
         if self._ws.client_state != WebSocketState.CONNECTED:
             return
+        envelope = wrap_event(event, payload, source=source, correlation_id=correlation_id)
+        frame: dict[str, object] = {
+            "type": "event",
+            "event": event,
+            "version": envelope.version,
+            "payload": payload,
+            "ts": envelope.ts,
+        }
+        if envelope.source is not None:
+            frame["source"] = envelope.source
+        if envelope.correlation_id is not None:
+            frame["correlationId"] = envelope.correlation_id
         try:
-            await self._ws.send_json(
-                {
-                    "type": "event",
-                    "event": event,
-                    "payload": payload,
-                    "ts": time.time(),
-                }
-            )
+            await self._ws.send_json(frame)
         except Exception as e:
             logger.warning("ws_emit_failed", event=event, error=str(e))
+
+    @staticmethod
+    def envelope_version() -> str:
+        """Expose current envelope version for handshake responses."""
+        return ENVELOPE_VERSION

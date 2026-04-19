@@ -35,6 +35,9 @@ interface WsEvent {
   event: string;
   payload?: Record<string, unknown>;
   ts?: number;
+  version?: string;
+  source?: string;
+  correlationId?: string;
 }
 
 type WsMessage = WsResponse | WsEvent;
