@@ -1,0 +1,75 @@
+name: A11y Gate
+
+# Phase B (Wave 0–1 finalization): runs axe-core scans against the renderer on
+# 5 surfaces (onboarding / mission / chat / settings / sidebar). Independent
+# of Phase A's wave0 contract gate so the long PyInstaller + axe scan cycle
+# does not block faster checks. See ADR-0010.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  a11y-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[providers,gateway,dev]"
+          python -m pip install pyinstaller
+
+      - name: Build backend binary
+        run: python scripts/build_backend.py --clean
+
+      - name: Verify binary exists
+        run: |
+          if [ ! -f "dist/ds-agent-backend/ds-agent-api.exe" ]; then
+            echo "::error::Backend binary missing after build"
+            ls -la dist/ds-agent-backend/ || true
+            exit 1
+          fi
+
+      - name: Install electron deps
+        working-directory: electron
+        run: npm ci
+
+      - name: Verify axe-core wired
+        working-directory: electron
+        run: npm run lint:a11y
+
+      - name: Run a11y E2E suite
+        working-directory: electron
+        run: npm run test:e2e:a11y
+
+      - name: Upload electron logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-failure-logs
+          path: |
+            electron/tests/.compiled/**/*.log
+            electron/dist/main/**/*.log
+            dist/ds-agent-backend/_internal/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
