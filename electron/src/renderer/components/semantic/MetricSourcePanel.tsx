@@ -1,8 +1,7 @@
 import { BookOpen, Database, Search, ShieldCheck } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useSemanticSource } from '../../hooks/useSemanticSource';
-
-const SUGGESTED_QUERIES = ['이탈률', 'MAU', 'LTV'] as const;
+import { useI18n } from '../../stores/i18nStore';
 
 function toneForGrade(grade: string): string {
   switch (grade) {
@@ -59,6 +58,15 @@ export function MetricSourcePanel({
 }: {
   metricQuery?: string | null;
 }) {
+  const { t } = useI18n();
+  const suggestedQueries = useMemo(
+    () => [
+      t('cards.metricSource.suggested.churnRate'),
+      t('cards.metricSource.suggested.mau'),
+      t('cards.metricSource.suggested.ltv'),
+    ],
+    [t],
+  );
   const [queryInput, setQueryInput] = useState(metricQuery ?? '');
 
   useEffect(() => {
@@ -99,13 +107,13 @@ export function MetricSourcePanel({
           <input
             value={queryInput}
             onChange={(event) => setQueryInput(event.target.value)}
-            placeholder="Hover a metric header or type MAU / 이탈률 / LTV"
+            placeholder={t('cards.metricSource.placeholder')}
             className="w-full rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-[11px] text-ds-text outline-none placeholder:text-ds-muted/70 focus:border-ds-accent"
           />
         </label>
 
         <div className="flex flex-wrap gap-1">
-          {SUGGESTED_QUERIES.map((query) => (
+          {suggestedQueries.map((query) => (
             <button
               key={query}
               type="button"
