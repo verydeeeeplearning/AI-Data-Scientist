@@ -33,12 +33,29 @@
     "test:contract:semantic-metric-panel": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/semantic-metric-panel.spec.js",
     "test:contract:project-control-tower": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/project-control-tower.spec.js",
     "test:contract:learning-inbox": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/learning-inbox.spec.js",
+    "test:contract:suggested-actions-wiring": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/suggestedActionsWiring.spec.js",
+    "test:contract:global-drop-overlay": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/globalDropOverlay.spec.js",
+    "test:contract:upload-error-states": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/uploadErrorStates.spec.js",
+    "test:contract:upload-ui": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/suggestedActionsWiring.spec.js && node tests/.compiled-contract/tests/contract/globalDropOverlay.spec.js && node tests/.compiled-contract/tests/contract/uploadErrorStates.spec.js",
+    "test:contract:execution-timeline-stages": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/executionTimelineStages.spec.js",
+    "test:contract:execution-timeline-feature-flag": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/executionTimelineFeatureFlag.spec.js",
+    "test:contract:use-execution-timeline": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/useExecutionTimeline.spec.js",
+    "test:contract:stage-outcome-link": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/stageOutcomeLink.spec.js",
+    "test:contract:execution-timeline-a11y": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/executionTimelineA11y.spec.js",
+    "test:contract:execution-timeline": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/executionTimelineStages.spec.js && node tests/.compiled-contract/tests/contract/executionTimelineFeatureFlag.spec.js && node tests/.compiled-contract/tests/contract/useExecutionTimeline.spec.js && node tests/.compiled-contract/tests/contract/stageOutcomeLink.spec.js && node tests/.compiled-contract/tests/contract/executionTimelineA11y.spec.js",
+    "test:contract:mission-context": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/missionContext.spec.js",
+    "test:contract:mission-header-flag": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/missionHeaderFlag.spec.js",
+    "test:contract:mission-header-integration": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/missionHeaderIntegration.spec.js",
+    "test:contract:mission-header-shortcut": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/missionHeaderShortcut.spec.js",
+    "test:contract:ws-mission-resubscribe": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/wsMissionResubscribe.spec.js",
+    "test:contract:mission-header": "tsc -p tsconfig.contract-test.json && node tests/.compiled-contract/tests/contract/missionContext.spec.js && node tests/.compiled-contract/tests/contract/missionHeaderFlag.spec.js && node tests/.compiled-contract/tests/contract/missionHeaderIntegration.spec.js && node tests/.compiled-contract/tests/contract/missionHeaderShortcut.spec.js && node tests/.compiled-contract/tests/contract/wsMissionResubscribe.spec.js",
     "test:e2e:smoke": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/diagnostic-window.spec.js",
     "test:e2e:happy": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/happy-path.spec.js",
     "test:e2e:autonomy": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/autonomy-control-plane.spec.js",
     "test:e2e:task-contract": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/task-contract-assumptions.spec.js && node tests/.compiled/smoke/task-contract-lifecycle.spec.js && node tests/.compiled/smoke/task-contract-governance.spec.js",
     "test:e2e:decision-os": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/decision-os-review.spec.js",
-    "test:e2e:workflow": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/workflow-integration.spec.js"
+    "test:e2e:workflow": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/workflow-integration.spec.js",
+    "test:e2e:a11y": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/e2e/a11y/onboarding.a11y.spec.js && node tests/.compiled/e2e/a11y/mission.a11y.spec.js && node tests/.compiled/e2e/a11y/chat.a11y.spec.js && node tests/.compiled/e2e/a11y/settings.a11y.spec.js && node tests/.compiled/e2e/a11y/sidebar.a11y.spec.js"
   },
   "dependencies": {
     "@sentry/electron": "^7.11.0",
@@ -53,6 +70,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/react-syntax-highlighter": "^15.5.13",
