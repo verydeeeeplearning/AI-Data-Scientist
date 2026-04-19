@@ -271,5 +271,97 @@ PLAN_01 Sub-Phase 1.1 은 `@axe-core/playwright` 통합을, Sub-Phase 1.2 는 fo
 - `tests/contract/focusManagement.spec.ts` 가 trap / restore / cycle 시나리오 검증
 - npm install 후 axe-core 자동 활성: `lint-a11y.mjs` 에 detect 로직 포함
 
+### ADR-0009: WS envelope `ts` 단위 = milliseconds since epoch (integer)
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: agent-phaseA-wave0-fixes-001
+**관련 PLAN**: cross_cutting/PLAN_03 + SHARED/WAVE_FINALIZATION_PLAN §3 Phase A (ID A4)
+
+#### 컨텍스트
+ADR-0007 의 envelope baseline 은 `ts: float` 만 명시했고 단위를 못 박지 않았다. 결과:
+- Python `wrap_event` 가 `time.time()` (epoch seconds, float ~10^9) 을 기본으로 채움
+- TypeScript `wrapEvent` 가 `Date.now()` (epoch milliseconds, integer ~10^12) 를 기본으로 채움
+
+수신 측이 단위를 안 가정하고 정렬하면 같은 stream 안에 1000배 차이의 ts 가 섞여 정렬·집계·diff 가 깨진다 (외부 감사 finding F5).
+
+#### 결정
+**ms 단위 정수 (epoch milliseconds, JS `Date.now()` 표준) 로 통일**.
+
+- Python `wrap_event` 의 default `ts = int(time.time() * 1000)` (이전: `time.time()`)
+- TypeScript `wrapEvent` 는 이미 `Date.now()` 사용 (변경 없음)
+- envelope dataclass / interface 의 `ts` 필드 type 은 그대로 (Python `float`, TS `number`) — 수신 측은 number 면 OK, default 만 ms 정수
+- `parse_envelope` 의 ts 검증은 변경 없음 (수신은 number 면 OK)
+- `CONVENTIONS.md §7.3` 신규 이벤트 체크리스트에 "ts 는 ms 정수" 1줄 추가
+
+#### 근거
+- **JS 표준 일치**: 브라우저 `Date.now()`, `performance.now()` 의 epoch 기반 ms 표현이 사실상 표준
+- **분산 시스템 표준 일치**: Kafka, Kinesis, Pub/Sub 의 record timestamp 는 모두 ms (long integer)
+- **정수 정렬 안정**: float ts 는 비교 시 부동소수점 epsilon 문제 가능 (대용량 batch 정렬에서 미세한 순서 뒤바뀜)
+- **수정 범위 최소**: Python 측 1줄만 변경; TypeScript는 이미 ms
+
+#### 대안 (검토했으나 기각)
+- **Option A (TS 를 seconds 로 변경)**: 모든 frontend 코드 (Date.now() 사용처) 가 `Date.now() / 1000` 로 변경 — 광범위 회귀 + JS 관행 위반 → 기각
+- **Option B (microseconds = 10^15 정수)**: ms 보다 정밀하지만 분산 시스템 표준 아님 + JSON 정수 안정성 (53-bit) 한계 접근 → 기각
+- **Option C (RFC3339 string)**: 사람 가독성 좋으나 정렬 시 string 비교 비효율 + parsing 오버헤드 → 기각
+
+#### 결과 / 영향
+- `src/ds_agent/api/event_envelope.py:wrap_event` 의 default ts 변경
+- `tests/unit/api/test_event_envelope.py` 에 `TestTimestampIsMilliseconds` 4 케이스 추가 (default ts 가 int 이고 >= 10^12, time window, override pass-through, round-trip 보존)
+- `tests/unit/api/test_ws_callbacks_envelope.py` 의 `isinstance(frame["ts"], float)` → `isinstance(frame["ts"], int)` + window 검증
+- 수신 클라이언트는 단위 변경 없음 (TS 측 default 가 이미 ms)
+- 기존 Python emit 코드 중 explicit `ts=...` 를 넘기던 곳은 ms 정수로 호출하도록 후속 PR 에서 정렬 (현재 별도 emit 경로 0건)
+
+---
+
+### ADR-0010: a11y baseline = @axe-core/playwright dev 필수, lint:a11y exit 1 on missing, CI gate 강제
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: agent-phaseB-a11y-baseline-001
+**관련 PLAN**: cross_cutting/PLAN_01 — Wave 0–1 finalization Phase B
+
+#### 컨텍스트
+ADR-0008 은 `@axe-core/playwright` 미설치 환경에서 `lint-a11y.mjs` 가 SKIP + exit 0 하는 placeholder 정책을 채택했었음. 외부 감사 결과 (2026-04-19) — F4: "axe E2E assertion / CI gate 모두 미구현" 으로 baseline enforcement 가 실질적으로 비어 있었다는 지적. Wave 1+ 가 진행되면서 실측 axe scan 없는 a11y baseline 은 회귀 추적이 불가능.
+
+#### 결정
+1. `@axe-core/playwright` (4.11.2) 를 `electron/devDependencies` 에 명시. `npm ci` 환경에서 항상 install. `dependencies` 변경 0.
+2. `electron/scripts/lint-a11y.mjs` 는 strict mode — axe-core 미설치 시 명확한 에러 메시지 + `exit 1` (placeholder 정책 종료).
+3. E2E a11y suite 5 spec (`tests/e2e/a11y/{onboarding,mission,chat,settings,sidebar}.a11y.spec.ts`) — WCAG 2.1 A + AA 태그로 axe scan, critical/serious violation 0 강제. 각 spec 는 `playwright._electron` 기반 standalone Node 스크립트 (기존 smoke 패턴 답습).
+4. `npm run test:e2e:a11y` 신규 script — build 후 5 spec 순차 실행.
+5. CI gate `.github/workflows/a11y.yml` 신규 — backend binary build 후 a11y suite 실행. Phase A 의 wave0 gate 와는 별도 job 으로 격리 (병렬 실행 가능).
+6. AxeBuilder 는 `setLegacyMode(true)` 호출 — Electron BrowserWindow 가 `Target.createTarget` 미지원하므로 in-context 단일 frame scan 으로 동작.
+7. 기존 ADR-0008 의 framework-independent focus / reducedMotion / ariaLive utility 결정은 보존 — 본 ADR 은 axe 통합 정책만 강화.
+
+#### 근거
+- placeholder 가 baseline 의 **실질적 검증을 비움** — 회귀를 막지 못함
+- 4.11.2 install 부담은 미미 (2 package, dev only) 대비 baseline 의 안정성 이득 큼
+- 5 surface 가 현재 시점 거의 모든 user-facing flow 를 커버 (onboarding 첫진입 + main 작업환경 + 모달)
+- Phase A (wave0 contract) 와 동일 workflow 로 묶지 않음 — 빌드 시간 (PyInstaller) 분리, 병렬 실행으로 PR 피드백 빠름
+- `setLegacyMode` 는 axe-core/playwright maintainer 가 multi-process Electron 환경에 권장한 호환 모드
+
+#### 대안 (검토했으나 기각)
+- placeholder 유지 — 거부: 외부 감사 F4 그대로 (실효성 0)
+- vitest-axe 같은 jsdom 기반 수단 — 거부: jsdom 의 layout 미지원으로 color-contrast / focus-visible 같은 visual rule 검증 불가
+- @axe-core/playwright 즉시 install + monorepo lockfile 통합 (root package.json) — 거부: 본 프로젝트는 electron/ 가 자체 lockfile 을 가짐, root scope 변경은 본 PLAN 범위 밖
+- known-violation allowlist (snapshot) 도입 — 거부: 부채 누적 위험. 발견 즉시 fix 가 baseline 의 가치
+- Phase A workflow 와 단일 job 통합 — 거부: 본 job 이 PyInstaller build 까지 포함 → 30+ min, wave0 gate 의 빠른 피드백 손실
+
+#### 결과 / 영향
+- `electron/package.json` devDependencies + scripts 1개 append (`test:e2e:a11y`)
+- `electron/package-lock.json` 갱신 (axe 트리)
+- `electron/scripts/lint-a11y.mjs` placeholder → strict
+- `electron/tsconfig.test.json` include glob 에 `tests/e2e/**/*.ts` 추가
+- `electron/tests/e2e/a11y/_helpers.ts` + 5 spec 신규
+- `.github/workflows/a11y.yml` 신규
+- `electron/src/renderer/styles/globals.css` 의 `--ds-muted` / `--ds-accent` / `--ds-accent-hover` 토큰 dark mode + light mode 값 contrast 보강 (WCAG 1.4.3) + `button.bg-ds-accent` color override rule (light accent 위 dark text)
+- `electron/src/renderer/components/settings/{PrivacySettings,CostSettings,PolicyStudio}.tsx` 에 `aria-label` 4 곳 추가 (button-name / select-name / form-label rule fix)
+- 후속: minor / moderate violations 는 발견 즉시 PLAN_01 §12 에 기록, 즉시 fix 의무 없음. critical / serious 는 0 강제 (CI fail).
+
+#### Migration note
+ADR-0008 의 placeholder 정책은 본 ADR 로 superseded — `lint:a11y` 가 strict 모드. 신규 worktree / fresh clone 시 `npm ci` 후 lint:a11y 가 자동으로 4.11.2 detect 후 OK 출력.
+
+---
+
 > 새 ADR 작성 시 일자/상태/제안자/관련 PLAN을 정확히 기록.
 > 기존 ADR을 supersede할 때는 새 ADR 작성 + 기존 상태를 `Superseded by ADR-NNNN` 으로 변경.

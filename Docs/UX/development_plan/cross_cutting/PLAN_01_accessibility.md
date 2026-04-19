@@ -101,7 +101,7 @@ WCAG 2.1 AA 자동 스캔 통과율 > 95%, 키보드 only 핵심 플로우 완�
 
 ### Sub-Phase 진행
 
-- [x] 1.1 자동 스캔 (1일) — agent-w0-foundation-001 / 2026-04-19 (axe-core 미설치 환경에서는 placeholder, 설치 시 자동 활성)
+- [x] 1.1 자동 스캔 (1일) — agent-w0-foundation-001 / 2026-04-19 (placeholder), agent-phaseB-a11y-baseline-001 / 2026-04-19 (Phase B finalize: @axe-core/playwright 4.11.2 install, lint:a11y strict, 5 E2E spec, CI gate — ADR-0010)
 - [x] 1.2 Focus + Reduced motion + 공통 utility (1일) — agent-w0-foundation-001 / 2026-04-19
 
 ### Phase audit 결과
@@ -149,3 +149,47 @@ WCAG 2.1 AA 자동 스캔 통과율 > 95%, 키보드 only 핵심 플로우 완�
 **회귀 영향**:
 - 0 — globals.css 의 `:focus-visible` / `@media reduced-motion` 추가는 기존 컴포넌트에 누락이었던 baseline 추가 (이전엔 default browser outline)
 - 모든 contract test (17개 = 기존 11 + W0 신규 6) PASS
+
+### Phase B finalize (agent-phaseB-a11y-baseline-001, 2026-04-19)
+
+**산출물**:
+- `electron/package.json` — devDependencies 에 `@axe-core/playwright@4.11.2` append + `test:e2e:a11y` script append
+- `electron/package-lock.json` — axe 트리 갱신 (2 packages)
+- `electron/scripts/lint-a11y.mjs` — placeholder → strict (axe 미설치 시 exit 1, 설치 시 version detect 후 OK)
+- `electron/tests/e2e/a11y/_helpers.ts` — 공통 launch + axe scan helper (setLegacyMode true, WCAG 2.1 A+AA tags, blocking impact = critical/serious)
+- `electron/tests/e2e/a11y/onboarding.a11y.spec.ts` — first-run wizard scan
+- `electron/tests/e2e/a11y/mission.a11y.spec.ts` — MainPanel + MissionHeader baseline
+- `electron/tests/e2e/a11y/chat.a11y.spec.ts` — ChatPanel + textarea + ChatMessage
+- `electron/tests/e2e/a11y/settings.a11y.spec.ts` — SettingsPanel modal (Ctrl+, 로 open) + LocaleSelector
+- `electron/tests/e2e/a11y/sidebar.a11y.spec.ts` — Sidebar 양쪽 상태 (expanded + Ctrl+\ collapsed)
+- `electron/tsconfig.test.json` — include 에 `tests/e2e/**/*.ts` 추가
+- `.github/workflows/a11y.yml` — windows-latest, PyInstaller backend build → npm ci → lint:a11y → test:e2e:a11y, Phase A 의 wave0 gate 와 별도 job
+
+**디자인 결정 (ADR-0010)**:
+- ADR-0008 의 placeholder 정책 supersede — strict mode + CI gate 강제
+- Electron BrowserWindow 가 Target.createTarget 미지원 → AxeBuilder.setLegacyMode(true) 필수
+- known-violation allowlist 미도입 — 발견 즉시 fix 정책
+- workflow 분리 (a11y job 독립) — wave0 gate 의 빠른 피드백 보존
+
+**WCAG 보강 (5 spec PASS 위해)**:
+- 1.4.3 Contrast (Minimum): `globals.css` 의 dark mode `--ds-muted: #71717a → #a1a1aa`, `--ds-accent: #6366f1 → #818cf8`, `--ds-accent-hover: #818cf8 → #a5b4fc`, light mode 의 muted/accent 도 동시 보강. `button.bg-ds-accent { color: var(--ds-bg) }` rule 추가 — light accent 위 dark text 강제 (white text 대비 4.5:1 보장)
+- 4.1.2 Name, Role, Value: `PrivacySettings.tsx` ToggleCard button 에 `aria-label={title}` / `CostSettings.tsx` budget input + warning select 에 `aria-label` / `PolicyStudio.tsx` matrix select 에 `aria-label` 4 곳 추가
+
+**검증 결과 (2026-04-19)**:
+| Surface | critical/serious | minor/moderate | 상태 |
+|---------|------------------|----------------|------|
+| onboarding | 0 | 0 | PASS |
+| mission | 0 | 0 | PASS |
+| chat | 0 | 0 | PASS |
+| settings | 0 | 0 | PASS |
+| sidebar (expanded) | 0 | 0 | PASS |
+| sidebar (collapsed) | 0 | 0 | PASS |
+
+**Deviation**:
+- worktree 격리 원칙으로 Phase A/C 의 변경은 보지 못함 — package.json scripts 영역만 append. CI workflow 는 Phase A 의 wave0 gate 와 별도 file (`a11y.yml`) 로 분리.
+- 색상 토큰 변경은 모든 컴포넌트에 영향 — 기존 dark mode 의 `--ds-muted` (#71717a) 가 alpha background 위에서 4.5:1 미달이었음. 색상 보강은 baseline 의무 (WCAG AA), 시각 회귀는 dark mode 에서 muted text 가 더 잘 보이는 방향이라 user-facing 영향 긍정적.
+- `aria-label` 4곳 추가는 settings 패널 안에서만 — 다른 worktree (Phase A/C/D) 와 충돌 영역 외.
+
+**회귀 영향**:
+- typecheck PASS / lint:arch 0 violations / lint:a11y OK / 5 a11y spec 모두 PASS
+- 기존 contract test, smoke 영향 없음 (해당 영역 미수정)
