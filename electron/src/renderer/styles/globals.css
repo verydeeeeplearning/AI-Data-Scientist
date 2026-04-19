@@ -88,3 +88,27 @@ body {
 .animate-cursor {
   animation: cursor-blink 1s step-end infinite;
 }
+
+/* WCAG 2.4.7 Focus Visible — global default for all interactive elements.
+   See cross_cutting/PLAN_01 Sub-Phase 1.2 + ADR-0008. */
+:focus-visible {
+  outline: 2px solid var(--ds-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* WCAG 2.3.3 Animation from Interactions — respect user preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-cursor {
+    animation: none;
+    opacity: 1;
+  }
+}
