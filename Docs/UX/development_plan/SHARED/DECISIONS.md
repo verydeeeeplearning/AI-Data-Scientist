@@ -363,5 +363,64 @@ ADR-0008 의 placeholder 정책은 본 ADR 로 superseded — `lint:a11y` 가 st
 
 ---
 
+### ADR-0011: i18next runtime + i18nStore shim (backward-compatible API)
+
+**일자**: 2026-04-19
+**상태**: Accepted
+**제안자**: agent-phaseD-w1a-full-i18n-001
+**관련 PLAN**: phase1_quick_wins/PLAN_01_i18n_introduction — Wave 0–1 finalization Phase D
+
+#### 컨텍스트
+W1-A baseline 은 `i18nStore.ts` 안에 ko/en/ja 3 locale 의 store-backed flat 사전을 보유하고 `useI18n().t(key, vars)` 인터페이스를 노출했다. 30+ consumer 가 본 인터페이스를 사용하며, ADR-0003 가 i18next + react-i18next 채택을 결정. 본 ADR 은 그 채택을 실제 구현으로 마감.
+
+핵심 제약:
+- 30+ consumer 의 `useI18n()` / `useI18n((s) => s.t)` 호출을 변경 0 으로 유지 (touch surface 최소화)
+- 12 namespace × 3 locale = 36 JSON 파일을 build 시 inline import (Electron 오프라인 작동 보장)
+- Phase A/B/C 가 추가한 mission/execution/llm/workspace/sidebar 키 보존
+- i18next-parser 가 동적 키 (`t(variable)`) 에서 false positive 발생 → CI gate 는 별도 정책
+
+#### 결정
+1. **runtime**: `electron/src/renderer/i18n.ts` 가 `initReactI18next` 로 i18next 부트. resources 는 `public/locales/{ko,en,ja}/{12 namespaces}.json` 의 inline import. supportedLngs `['ko','en','ja']`, defaultNS `common`, fallbackLng `en`, keySeparator `.`, namespaceSeparator `:`, interpolation `{prefix:'{', suffix:'}'}`. localStorage 키는 i18next 표준 `i18nextLng` 로 통일. legacy `ds-agent-locale` 키는 1회 migration 후 보존.
+2. **shim**: `i18nStore.ts` 가 Zustand store 를 제거하고 `useSyncExternalStore` 로 i18next.languageChanged 이벤트 구독. `useI18n()` 은 기존과 동일한 `{ locale, locales, setLocale, t }` 객체 반환. selector overload (`useI18n((s) => s.t)`) 도 지원하여 zustand 패턴 호출 변경 0.
+3. **namespace 자동 추론**: shim 의 `t('mission.header.title')` 는 첫 dot-segment 가 등록 namespace 면 그것 사용 + segment 를 strip 후 i18next lookup. 예) `t('mission.header.title')` → `i18next.t('header.title', { ns: 'mission' })`. 모르는 prefix 는 common namespace + key 보존. 명시 `ns:key` 문법 지원.
+4. **flat-key JSON 저장**: `header.title` 같은 dotted key 가 nested object 로 변환되면서 `mode.auto` (string) ↔ `mode.auto.desc` (string) 같은 prefix-conflict 가 leaf 손실을 일으킴. → 모든 namespace JSON 을 flat dict 로 저장 (`{"header.title": "..."}`) 하고 `keySeparator: '.'` 는 i18next 가 lookup 시 dotted lookup 을 정상 처리.
+5. **CI gate**: `npm run lint:i18n:ci` (`scripts/lint-i18n.mjs`) 가 (a) ko/en/ja 키 set 동일 (b) renderer/components, renderer/hooks 안에 Hangul 문자열 literal 0 두 가지를 검증 + exit 1. i18next-parser 자체는 미사용 (variable 키 false positive 회피).
+6. **Tailwind/CSS**: `tailwind.config.js` fontFamily.sans 에 Inter / Noto Sans KR / Noto Sans JP 추가. `globals.css` body font chain 에 동일 + system fallback (Apple SD Gothic Neo, Hiragino Sans 등) 추가. 오프라인 환경 (Electron) 이라 Google Fonts 미import — 시스템 fallback 의존. ko/ja 별 line-height + word-break 토큰 추가.
+
+#### 근거
+- Hand-off 호환성 최우선 → shim 패턴 (consumer 코드 0 변경) 가 Big-bang migration 보다 안전. 후속 wave 가 순차적으로 react-i18next 의 `useTranslation('namespace')` 직접 사용으로 전환 가능
+- flat-key JSON: nested 형태는 prefix-conflict 시 데이터 손실. flat 은 항상 안전 + i18next 의 dotted lookup 동작과 호환
+- inline import: Electron renderer 는 file:// scheme 으로 동작 → fetch backend 가 깨질 수 있어 build-time bundling 이 안정적. resources-to-backend 등 lazy 로더는 dev 환경에서만 가치 있어 본 단계에서는 미적용
+- CI gate 가 i18next-parser 대신 custom script: parser 는 dynamic key 를 detect 못해 false positive 가 빈번. 핵심 가치 (locale parity + Hangul literal 0) 는 100 LOC custom 로 충족
+- system font fallback: Noto Sans KR/JP 는 macOS 12+ / Windows 11+ 에 기본 install. self-host 는 ~10 MB 추가 — 본 단계에서는 deferred. Phase 2 PLAN_05 onboarding 재설계 에서 brand font 와 함께 결정
+
+#### 대안 (검토했으나 기각)
+- **Option A (i18next-resources-to-backend lazy load)**: HTTP fetch 기반 로딩 — Electron file:// scheme 에서 fetch fail 위험 + 네트워크 부재 시 first paint 깨짐 → 기각
+- **Option B (Big-bang migration: 모든 consumer 가 useTranslation 직접 사용)**: 30+ 파일 touch + Phase D 단독 worktree 의 충돌 표면 광역 → 기각. 후속 wave 에서 순차 migration
+- **Option C (formatjs/react-intl)**: ICU plural 강력 — Phase 1 scope 에 plural 미포함 + ADR-0003 결정 supersede 비용 큼 → 기각
+- **Option D (i18next-parser CI gate enforce strict)**: dynamic key false positive 다수 — 본 단계의 baseline 50+ key 는 정적, 후속 wave 가 dynamic key 추가 시 parser fail 빈번 → 기각, custom script 가 선언적 검증 표면 더 작음
+- **Option E (Google Fonts CDN import)**: 오프라인 부팅 시 깨짐 + Electron CSP 로 차단 가능 → 기각, system fallback 우선. self-host 는 차후 결정
+
+#### 결과 / 영향
+- `electron/package.json` dependencies: `i18next@^23.16.8`, `react-i18next@^14.1.3`, `i18next-resources-to-backend@^1.2.1` (현재 미사용, 차후 lazy load 옵션 위해 보존). devDependencies: `i18next-parser@^9.4.0` (script 직접 호출용, CI 미사용).
+- `electron/src/renderer/i18n.ts` 신규 (~170 LOC) — bootstrap + locale detection + document.lang sync.
+- `electron/src/renderer/stores/i18nStore.ts` rewrite (~150 LOC, 기존 ~1650 LOC 의 1/10) — i18next shim, useI18n / useI18n(selector) overload 지원.
+- `electron/public/locales/{ko,en,ja}/{12 namespaces}.json` 신규 (총 36 파일, 각 ko/en/ja 동일 key set).
+- `electron/scripts/{split-i18n-namespaces,strip-namespace-prefix,merge-phase-c-mission-keys}.mjs` 신규 (one-shot migration tools, 후속 wave 에서 재사용 가능).
+- `electron/scripts/lint-i18n.mjs` 신규 — namespace parity + Hangul literal CI gate.
+- `electron/i18next-parser.config.cjs` 신규 — i18next-parser 설정 (수동 실행 시 사용).
+- `electron/tailwind.config.js` — fontFamily.sans extend.
+- `electron/src/renderer/styles/globals.css` — body font chain 갱신 + ko/ja line-height tokens.
+- `electron/tests/contract/{i18nNamespaces,i18nStoreShim}.spec.ts` 신규 (10 + 13 = 23 cases).
+- `electron/main.tsx` — `import './i18n'` 1줄 append.
+- `.github/workflows/i18n.yml` 신규 — Windows runner, npm ci → lint:i18n:ci → 2 contract specs.
+- `electron/src/renderer/components/semantic/MetricSourcePanel.tsx` — Hangul literal 2 건 i18n key 로 치환 (cards.metricSource.*).
+- `cards` namespace 가 placeholder → 4 keys (metricSource.*) 채워짐. approval/trust/chat 은 placeholder 유지 (후속 wave 작업 영역).
+
+#### Migration note
+ADR-0003 의 i18next 채택 결정이 본 ADR 로 구체화. 이후 wave 의 신규 컴포넌트는 react-i18next 의 `useTranslation(namespace)` 직접 사용 권장 (shim 은 backward compat 만 제공). 신규 namespace 추가 시 `i18n.ts` 의 `I18N_NAMESPACES` + `I18N_RESOURCES` 양쪽 갱신 + `lint-i18n.mjs` 의 NAMESPACES 배열 갱신 + JSON 36 파일 (ko/en/ja × 12 ns) 모두 추가 필요. 후속 wave 는 본 패턴 답습.
+
+---
+
 > 새 ADR 작성 시 일자/상태/제안자/관련 PLAN을 정확히 기록.
 > 기존 ADR을 supersede할 때는 새 ADR 작성 + 기존 상태를 `Superseded by ADR-NNNN` 으로 변경.

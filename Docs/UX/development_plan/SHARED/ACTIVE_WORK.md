@@ -57,3 +57,5 @@
 > agent-phaseA-wave0-fixes-001 의 Wave 0 finalization 작업 (A1 useWebSocket envelope, A2 CI wave0 gate, A3 lint:arch 강화, A4 envelope ts ms, A5 registry version enforce) 완료 — 2026-04-19. 상세는 `DEVELOPMENT_LOG.md` 17:30 UTC 항목 참조.
 
 > agent-phaseC-w1e-finalize-001 의 PLAN_02 finalize 작업 (Phase C — 6 hand-off 항목 모두 완료) — 2026-04-19. 상세는 `DEVELOPMENT_LOG.md` 21:30 UTC 항목 참조.
+
+> agent-phaseD-w1a-full-i18n-001 의 PLAN_01 finalize 작업 (Phase D — 풀 i18next migration) 완료 — 2026-04-19. Wave 0+1 finalize 완료, leader 머지 가능. 상세는 `DEVELOPMENT_LOG.md` 23:00 UTC 항목 참조.

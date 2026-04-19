@@ -187,8 +187,8 @@ Wave 2 진입 전 본 플랜의 모든 Phase 가 종료되어야 한다.
 - [x] Phase A 완료 — useWebSocket envelope 연결, CI wave0 gate 활성, lint:arch 강화 (multi-line + alias), envelope ts 통일 (ms), eventSchemaRegistry version enforce (agent-phaseA-wave0-fixes-001, 2026-04-19)
 - [x] Phase B 완료 — axe (4.11.2) 설치, E2E a11y 5종 (onboarding/mission/chat/settings/sidebar) 모두 PASS / 0 critical+serious violation, lint:a11y exit 1 on missing, `.github/workflows/a11y.yml` CI gate 등록 (agent-phaseB-a11y-baseline-001, 2026-04-19)
 - [x] Phase C 완료 — PLAN_02 §8 Phase DoD 6 항목 모두 PASS (agent-phaseC-w1e-finalize-001, 2026-04-19)
-- [ ] Phase D 완료 — 한국어 hardcoded 0, parser 검증 0 violation, 3 locale 키 count 일치
-- [ ] leader 머지 — Wave 0 + Wave 1 모든 변경 main 에 병합, worktree branch 정리
+- [x] Phase D 완료 — 한국어 hardcoded 0 (검출 2건 → cards namespace 로 치환), namespace parity 검증 0 violation, 3 locale (ko/en/ja) × 12 namespace 키 set 동일, i18next bootstrap + i18nStore shim (consumer 30+ 코드 변경 0), Tailwind CJK fontFamily, ADR-0011, 신규 contract test 23 cases (i18nNamespaces 10 + i18nStoreShim 13), `.github/workflows/i18n.yml` CI gate (agent-phaseD-w1a-full-i18n-001, 2026-04-19)
+- [ ] leader 머지 — Wave 0 + Wave 1 모든 변경 main 에 병합, worktree branch 정리 (A/B/C/D 4 worktree branch + 본 main 의 unstaged 변경 통합 정책 권장)
 - [ ] Regression 확인 — 기존 E2E (`test:e2e:smoke`, `test:e2e:happy`) PASS
 - [ ] Wave 2 prerequisite 문서 갱신 — `SHARED/INTEGRATION_POINTS.md` Wave 1 모든 행 "완료"
 

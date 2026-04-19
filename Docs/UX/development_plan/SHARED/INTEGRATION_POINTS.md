@@ -64,7 +64,7 @@
 
 | PLAN | 蹂寃??댁슜 | ?곹깭 |
 |------|----------|------|
-| Phase 1 PLAN_01 i18n | 援먯껜 (i18next濡? | ?덉긽 |
+| Phase 1 PLAN_01 i18n (Phase D) | i18next shim 으로 rewrite (~150 LOC). useI18n() + useI18n(selector) overload. namespace 자동 추론 + dotted prefix strip. 30+ consumer 코드 변경 0. ADR-0011. | 완료 (agent-phaseD-w1a-full-i18n-001, 2026-04-19) |
 | Phase 1 PLAN_05 Sidebar collapse | collapse tooltip / aria-live / 異붽? tab ?쇰꺼 踰덉뿭 ??| ?꾨즺 (agent-w1-sidebar-001, 2026-04-19) |
 | Phase 1 PLAN_06 Model labels | capability group / badge / recommendation copy + llm.provider_label_legacy keys (en/ko/ja) | DONE (leader copy 2026-04-19, llm.provider_label_legacy by agent-w1c-models-backend-002 2026-04-19) |
 
@@ -145,7 +145,7 @@
 
 | PLAN | 蹂寃??댁슜 | ?곹깭 |
 |------|----------|------|
-| Phase 1 PLAN_01 i18n | CJK font-family | ?덉긽 |
+| Phase 1 PLAN_01 i18n (Phase D) | fontFamily.sans extend — Inter / Noto Sans KR / Noto Sans JP / system fallback. fontFamily.mono 보존. | 완료 (agent-phaseD-w1a-full-i18n-001, 2026-04-19) |
 | Phase 4 PLAN_01 Design system | ?좏겙 ?쒖뒪???꾩엯 | ?덉긽 |
 | Phase 4 PLAN_02 Density | Density-aware spacing tokens | ?덉긽 |
 
@@ -155,6 +155,7 @@
 |------|----------|------|
 | cross_cutting PLAN_01 (Wave 0 Sub-Phase 1.2) | `:focus-visible` outline + `@media (prefers-reduced-motion: reduce)` | 완료 (agent-w0-foundation-001, 2026-04-19) |
 | cross_cutting PLAN_01 (Phase B finalize) | dark/light `--ds-muted` / `--ds-accent` / `--ds-accent-hover` 토큰 contrast 보강 (WCAG 1.4.3) + `button.bg-ds-accent { color: var(--ds-bg) }` rule (light accent 위 dark text 강제) | 완료 (agent-phaseB-a11y-baseline-001, 2026-04-19) |
+| Phase 1 PLAN_01 i18n (Phase D) | body font-family chain (Inter, Noto Sans KR/JP, system fallback) + ko/ja line-height + word-break tokens. Phase B contrast 토큰 보존. | 완료 (agent-phaseD-w1a-full-i18n-001, 2026-04-19) |
 
 ### `electron/src/renderer/components/settings/PrivacySettings.tsx`
 
@@ -173,6 +174,36 @@
 | PLAN | 변경 내용 | 상태 |
 |------|----------|------|
 | cross_cutting PLAN_01 (Phase B) | action-matrix select 셀에 `aria-label` (select-name rule fix) | 완료 (agent-phaseB-a11y-baseline-001, 2026-04-19) |
+
+### `electron/src/renderer/i18n.ts` (신규)
+
+| PLAN | 변경 내용 | 상태 |
+|------|----------|------|
+| Phase 1 PLAN_01 i18n (Phase D) | i18next bootstrap — initReactI18next, 36 inline JSON imports, lng detection (i18nextLng → ds-agent-locale legacy migration → navigator.language → en), document.documentElement.lang sync. ADR-0011. | 완료 (agent-phaseD-w1a-full-i18n-001, 2026-04-19) |
+
+### `electron/public/locales/{ko,en,ja}/{12 namespaces}.json` (신규 디렉토리)
+
+| PLAN | 변경 내용 | 상태 |
+|------|----------|------|
+| Phase 1 PLAN_01 i18n (Phase D) | 12 namespace × 3 locale = 36 JSON 파일. flat-key form (e.g. `"header.title"`). ko/en/ja 키 set 동일 (511 키 / namespace 합계). approval/trust/chat namespace 는 placeholder 빈 객체 (Phase 2 PLAN_05/06 에서 확장). | 완료 (agent-phaseD-w1a-full-i18n-001, 2026-04-19) |
+
+### `electron/scripts/lint-i18n.mjs` (신규)
+
+| PLAN | 변경 내용 | 상태 |
+|------|----------|------|
+| Phase 1 PLAN_01 i18n (Phase D) | namespace parity (ko/en/ja key set 동일) + Hangul literal CI gate (renderer/components, hooks 안에 한국어 string literal 0). exit 1 on violation. | 완료 (agent-phaseD-w1a-full-i18n-001, 2026-04-19) |
+
+### `.github/workflows/i18n.yml` (신규)
+
+| PLAN | 변경 내용 | 상태 |
+|------|----------|------|
+| Phase 1 PLAN_01 i18n (Phase D) | Windows runner, npm ci → lint:i18n:ci → test:contract:i18n-namespaces (10 cases) → test:contract:i18n-store-shim (13 cases). Phase A wave0 / Phase B a11y workflow 와 별도 job, 충돌 0. | 완료 (agent-phaseD-w1a-full-i18n-001, 2026-04-19) |
+
+### `electron/src/renderer/components/semantic/MetricSourcePanel.tsx`
+
+| PLAN | 변경 내용 | 상태 |
+|------|----------|------|
+| Phase 1 PLAN_01 i18n (Phase D) | Hangul literal 2 건 (`'이탈률'` SUGGESTED_QUERIES, placeholder 'Hover ... / 이탈률 / LTV') → `useI18n` + `cards.metricSource.*` 키로 치환. | 완료 (agent-phaseD-w1a-full-i18n-001, 2026-04-19) |
 
 ### `electron/scripts/lint-a11y.mjs`
 

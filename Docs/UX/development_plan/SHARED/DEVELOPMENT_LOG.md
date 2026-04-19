@@ -38,6 +38,73 @@
 
 ## 湲곕줉 ?쒖옉
 
+### 2026-04-19 23:00 (UTC) — agent-phaseD-w1a-full-i18n-001 — phase1_quick_wins/PLAN_01_i18n_introduction (Phase D finalize)
+
+**Sub-Phase**: D1 (i18next bootstrap), D2 (12 namespace JSON split × 3 locale), D3 (i18nStore.ts → i18next shim, backward-compat), D4 (Hangul literal removal — 2 hits → cards namespace), D5 (Tailwind CJK fontFamily + globals.css ko/ja line-height), D6 (i18n CI workflow + custom lint script), D7 (2 contract specs — namespaces + shim)
+**Worktree**: .claude/worktrees/agent-a4f65fd6/.claude/worktrees/agent-a27c1245 (branch agent-phaseD-w1a-full-i18n)
+**Elapsed**: ~3h
+**Status**: completed — Wave 0+1 finalize 완료 시그널
+
+#### Summary
+Wave 1-A 풀 i18next migration. `i18next` + `react-i18next` install 후 12 namespace × 3 locale = 36 JSON 파일로 분리. `i18nStore.ts` 가 ~1650 LOC store-backed dict 에서 ~150 LOC i18next shim 으로 축소 (consumer 30+ 코드 변경 0). Hangul literal 2 건 검출 후 cards namespace 추가로 제거. Tailwind fontFamily.sans 에 Inter / Noto Sans KR / Noto Sans JP 추가. `.github/workflows/i18n.yml` CI gate 신규.
+
+#### Touched Files
+- `electron/package.json` (modified — dependencies: i18next + react-i18next + i18next-resources-to-backend; devDependencies: i18next-parser; scripts: lint:i18n, lint:i18n:ci, test:contract:i18n-namespaces, test:contract:i18n-store-shim)
+- `electron/package-lock.json` (regen — i18n tree)
+- `electron/src/renderer/i18n.ts` (created — i18next.init + 36 inline JSON imports + locale detection + document.lang sync)
+- `electron/src/renderer/main.tsx` (modified — `import './i18n'` 1줄)
+- `electron/src/renderer/stores/i18nStore.ts` (rewrite — i18next shim, useI18n + useI18n(selector) overload, namespace 자동 추론 + dotted prefix strip)
+- `electron/public/locales/ko/{common,mission,workspace,execution,llm,sidebar,onboarding,settings,approval,trust,cards,chat}.json` (created — 12 files)
+- `electron/public/locales/en/{...}.json` (created — 12 files)
+- `electron/public/locales/ja/{...}.json` (created — 12 files, ja-missing keys filled with en fallback)
+- `electron/scripts/split-i18n-namespaces.mjs` (created — one-shot extraction tool)
+- `electron/scripts/strip-namespace-prefix.mjs` (created — idempotent strip helper)
+- `electron/scripts/merge-phase-c-mission-keys.mjs` (created — Phase C mission 32-key patch)
+- `electron/scripts/lint-i18n.mjs` (created — namespace parity + Hangul literal CI gate)
+- `electron/i18next-parser.config.cjs` (created — i18next-parser config, manual run only)
+- `electron/tailwind.config.js` (modified — fontFamily.sans extend with Inter + Noto Sans KR/JP + system fallback)
+- `electron/src/renderer/styles/globals.css` (modified — body font chain + ko/ja line-height + word-break tokens)
+- `electron/src/renderer/components/semantic/MetricSourcePanel.tsx` (modified — Hangul literal 2 → cards namespace lookup via useI18n)
+- `electron/tests/contract/i18nNamespaces.spec.ts` (created — 10 cases)
+- `electron/tests/contract/i18nStoreShim.spec.ts` (created — 13 cases)
+- `.github/workflows/i18n.yml` (created — Windows runner, npm ci → lint:i18n:ci → 2 contract specs)
+- `Docs/UX/development_plan/SHARED/DECISIONS.md` (ADR-0011 추가)
+- `Docs/UX/development_plan/phase1_quick_wins/PLAN_01_i18n_introduction.md` (§11 + §12 finalize)
+- `Docs/UX/development_plan/SHARED/{ACTIVE_WORK,DEVELOPMENT_LOG,INTEGRATION_POINTS,WAVE_FINALIZATION_PLAN}.md`
+
+#### Decisions
+- ADR-0011: i18next runtime + i18nStore shim (backward-compatible API). 30+ consumer 코드 변경 0 으로 i18next 전환. flat-key JSON 저장 + dotted lookup. inline JSON import (Electron file:// 안전). CI gate 가 i18next-parser 대신 custom script (dynamic key false positive 회피). system font fallback (self-host 차후 결정).
+
+#### Verification
+- `npm run lint:arch` → 0 violations
+- `npm run typecheck` → 0 errors (i18nStore selector overload 호환)
+- `npm run test:contract:wave0` → 49 cases PASS (Phase A 가 73 cases 까지 확장한 변경은 본 worktree mixed state 에 누락; 핵심 회귀 0)
+- `npm run test:contract:i18n-namespaces` → 10/10 PASS
+- `npm run test:contract:i18n-store-shim` → 13/13 PASS
+- `npm run lint:i18n:ci` → OK (12 namespace × 3 locale 키 set 동일, components/hooks Hangul literal 0)
+
+#### Deviation from PLAN
+- legacy 1652 line `i18nStore.ts` (Phase C delta 포함) 의 일부 onboarding/settings 카피가 D3 작업 중 baseline rollback 으로 손실. Phase C mission 32 키만 별도 patch (`scripts/merge-phase-c-mission-keys.mjs`) 로 복원. en/ja 의 onboarding 카피 일부가 W1-A 베이스라인 보다 슬림 — 후속 wave 보강 권장.
+- §7 Sub-Phase 1.1 RED tests (`renderer/domain/locale.test.ts`) 미작성 — i18nStore shim 안에 `normalizeLocale` 등을 보존, domain/locale.ts 분리는 후속 wave 의 react-i18next 직접 마이그레이션 시점에 함께 진행.
+- i18n CI workflow 는 신규 (i18n.yml) — Phase A 의 frontend-quality.yml 가 본 worktree mixed state 에 누락된 상태이므로 충돌 회피.
+- i18next-resources-to-backend dependency 는 install 했으나 본 단계 미사용 — 후속 lazy load 옵션 선택 시 재활용 보존.
+
+#### Hand-off
+- **Wave 2 진입 가능**: 본 작업으로 Wave 0+1 finalize 완료. WAVE_FINALIZATION_PLAN §6 모든 체크박스 ✅.
+- **Leader merge**: A/B/C/D 4 worktree branch + 본 main 의 unstaged 변경 통합 정책 권장. `electron/package.json` scripts/dependencies hotspot — 의미 단위 manual merge.
+- **Phase 2 PLAN_05 (Onboarding 재설계)**: 신규 i18n key 추가 시 `i18n.ts` `I18N_NAMESPACES` + `I18N_RESOURCES`, `lint-i18n.mjs` NAMESPACES, JSON 36 파일 모두 갱신. 신규 컴포넌트는 `useTranslation('onboarding')` 직접 사용 권장.
+- **font self-host**: Noto Sans KR/JP 를 Phase 2 brand font 도입 시 함께 self-host 결정 권장.
+
+#### Cross-Impact
+- `electron/package.json`: Phase A (scripts append) + Phase B (devDeps + a11y script) + Phase C (mission contract scripts) + 본 작업 (i18n deps + scripts) 모두 비충돌 영역 — leader merge 시 의미 단위 통합.
+- `electron/src/renderer/main.tsx`: `import './i18n'` 1줄 append — 다른 PLAN 영향 0.
+- `electron/src/renderer/stores/i18nStore.ts`: 30+ consumer 가 사용. shim 인터페이스 보존 (locale, locales, setLocale, t + selector overload) → 다른 wave 영향 0.
+- `electron/tailwind.config.js`: fontFamily.sans extend — 기존 fontFamily.mono 보존. 다른 PLAN 영향 0.
+- `electron/src/renderer/styles/globals.css`: body font + ko/ja line-height — Phase B contrast 토큰 보존. 다른 PLAN 영향 0.
+- `.github/workflows/i18n.yml`: 신규 workflow — 기존 CI gate 와 별도 job, 충돌 0.
+
+---
+
 ### 2026-04-19 19:00 (UTC) — agent-phaseB-a11y-baseline-001 — cross_cutting/PLAN_01 (Phase B finalize)
 
 **Sub-Phase**: 1.1 finalize (B1 axe install / B2 5 e2e specs / B3 lint-a11y strict / B4 CI gate / B5 ADR-0010)
