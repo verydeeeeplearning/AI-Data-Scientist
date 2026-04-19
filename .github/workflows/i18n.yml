@@ -1,0 +1,41 @@
+name: i18n Quality Gate
+
+# Phase D (W1-A) — verifies the renderer i18n surface stays consistent:
+#  - 12 namespaces × 3 locales JSON files share identical key sets
+#  - No Korean (Hangul) string literals leak into renderer components/hooks
+#  - i18nStore shim contract still passes (namespace inference + interpolation)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  i18n-baseline:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: electron
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install renderer deps
+        run: npm ci
+
+      - name: Lint i18n key sets + Hangul literal detection
+        run: npm run lint:i18n:ci
+
+      - name: Contract — i18nNamespaces (key sets, interpolation, Phase A-F coverage)
+        run: npm run test:contract:i18n-namespaces
+
+      - name: Contract — i18nStoreShim (namespace inference, locale switch)
+        run: npm run test:contract:i18n-store-shim
