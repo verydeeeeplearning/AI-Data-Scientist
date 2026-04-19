@@ -1,0 +1,6 @@
+{
+  "metricSource.suggested.churnRate": "이탈률",
+  "metricSource.suggested.mau": "MAU",
+  "metricSource.suggested.ltv": "LTV",
+  "metricSource.placeholder": "지표 헤더에 마우스를 올리거나 MAU / 이탈률 / LTV 를 입력하세요"
+}

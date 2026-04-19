@@ -1,0 +1,6 @@
+{
+  "metricSource.suggested.churnRate": "解約率",
+  "metricSource.suggested.mau": "MAU",
+  "metricSource.suggested.ltv": "LTV",
+  "metricSource.placeholder": "メトリックヘッダーにマウスを乗せるか、MAU / 解約率 / LTV を入力してください"
+}

@@ -1,0 +1,6 @@
+{
+  "metricSource.suggested.churnRate": "Churn rate",
+  "metricSource.suggested.mau": "MAU",
+  "metricSource.suggested.ltv": "LTV",
+  "metricSource.placeholder": "Hover a metric header or type MAU / Churn rate / LTV"
+}

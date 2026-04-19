@@ -1,0 +1,9 @@
+{
+  "empty.title": "DS Agent",
+  "empty.desc": "AI 데이터 사이언티스트가 준비되었습니다.",
+  "empty.hint": "메시지를 보내 데이터 사이언스 세션을 시작하세요.",
+  "input.placeholder": "메시지를 입력하세요... (Enter 전송, Shift+Enter 줄바꿈)",
+  "you": "사용자",
+  "agent": "DS Agent",
+  "toolActivity": "도구 활동"
+}
