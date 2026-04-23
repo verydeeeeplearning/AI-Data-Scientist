@@ -11,15 +11,76 @@ import { app } from 'electron';
 import { initAutoUpdater, shutdownAutoUpdater } from './auto-updater';
 import { recordDiagnosticLog } from './diagnostics-collector';
 import { registerMainIpcHandlers } from './ipc';
+import { emitDeepLinkToRenderer } from './ipc/deepLink';
 import {
   captureMainException,
   initializeMainObservability,
   shutdownMainObservability,
 } from './observability';
 import { startPythonBackend, stopPythonBackend } from './python-backend';
-import { createDiagnosticWindow, createMainWindow } from './window';
+import { createDiagnosticWindow, createMainWindow, getMainWindow } from './window';
 
 initializeMainObservability();
+
+const e2eUserDataDir = process.env.DS_AGENT_E2E_USER_DATA_DIR;
+if (e2eUserDataDir && e2eUserDataDir.trim().length > 0) {
+  app.setPath('userData', e2eUserDataDir);
+}
+
+const DEEP_LINK_SCHEME = 'ds-agent';
+const DEEP_LINK_PROTOCOL_PREFIX = `${DEEP_LINK_SCHEME}://`;
+
+function extractDeepLinkFromArgv(argv: readonly string[]): string | null {
+  for (let index = argv.length - 1; index >= 0; index -= 1) {
+    const arg = argv[index];
+    if (typeof arg === 'string' && arg.startsWith(DEEP_LINK_PROTOCOL_PREFIX)) {
+      return arg;
+    }
+  }
+  return null;
+}
+
+let pendingDeepLinkUri: string | null = extractDeepLinkFromArgv(process.argv.slice(1));
+
+function deliverDeepLink(rawUri: string): void {
+  const win = getMainWindow();
+  if (!win) {
+    pendingDeepLinkUri = rawUri;
+    return;
+  }
+  if (win.isMinimized()) {
+    win.restore();
+  }
+  win.focus();
+  emitDeepLinkToRenderer(rawUri);
+}
+
+const singleInstanceLockAcquired = app.requestSingleInstanceLock();
+if (!singleInstanceLockAcquired) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    const uri = extractDeepLinkFromArgv(argv);
+    if (uri) {
+      deliverDeepLink(uri);
+    } else {
+      const win = getMainWindow();
+      if (win) {
+        if (win.isMinimized()) {
+          win.restore();
+        }
+        win.focus();
+      }
+    }
+  });
+}
+
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  if (typeof url === 'string' && url.startsWith(DEEP_LINK_PROTOCOL_PREFIX)) {
+    deliverDeepLink(url);
+  }
+});
 
 app.whenReady().then(async () => {
   registerMainIpcHandlers();
@@ -48,6 +109,17 @@ app.whenReady().then(async () => {
     diagnostics: result.diagnostics,
   });
   createMainWindow(result.port, result.token);
+  if (
+    process.env.DS_AGENT_E2E_DISABLE_PROTOCOL_REGISTRATION !== '1' &&
+    !app.isDefaultProtocolClient(DEEP_LINK_SCHEME)
+  ) {
+    app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME);
+  }
+  if (pendingDeepLinkUri) {
+    const queued = pendingDeepLinkUri;
+    pendingDeepLinkUri = null;
+    deliverDeepLink(queued);
+  }
   initAutoUpdater();
 });
 

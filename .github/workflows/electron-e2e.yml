@@ -1,0 +1,57 @@
+name: Electron E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  electron-e2e-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[providers,gateway,dev]"
+          python -m pip install pyinstaller
+
+      - name: Build backend binary
+        run: python scripts/build_backend.py --clean
+
+      - name: Install Electron deps
+        working-directory: electron
+        run: npm ci
+
+      - name: Run boot lane
+        working-directory: electron
+        env:
+          DS_AGENT_SENTRY_DSN: ""
+          DS_AGENT_ERROR_REPORTING_ENABLED: "0"
+          DS_AGENT_TELEMETRY_ENABLED: "0"
+        run: npm run test:e2e:ci
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-e2e-artifacts-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ds-agent-e2e-*/**
+          if-no-files-found: ignore
+          retention-days: 7

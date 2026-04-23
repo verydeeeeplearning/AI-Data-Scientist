@@ -10,46 +10,34 @@
  * failure for CI usability.
  */
 
-import { _electron as electron } from 'playwright';
 import path from 'node:path';
-
-// Paths are resolved relative to the npm script CWD (electron/) so the test
-// works whether run from the source tree or after compilation to tests/.compiled.
-const ELECTRON_DIR = process.cwd();
-const REPO_ROOT = path.resolve(ELECTRON_DIR, '..');
-const ELECTRON_MAIN = path.resolve(ELECTRON_DIR, 'dist', 'main', 'index.js');
+import { captureFailureArtifacts } from '../e2e/_shared/artifacts';
+import { launchApp } from '../e2e/_shared/launcher';
+import { REPO_ROOT } from '../e2e/_shared/paths';
 
 const BAD_BINARY = path.join(REPO_ROOT, 'this-binary-does-not-exist');
 
 async function run(): Promise<void> {
-  const app = await electron.launch({
-    args: [ELECTRON_MAIN],
-    cwd: REPO_ROOT,
-    env: {
-      ...process.env,
-      DS_AGENT_BACKEND_COMMAND: BAD_BINARY,
-      DS_AGENT_SENTRY_DSN: '',
-      DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
-    },
+  const { app, page, isolated } = await launchApp('diagnostic-window', {
+    skipBinaryCheck: true,
+    extraEnv: { DS_AGENT_BACKEND_COMMAND: BAD_BINARY },
   });
 
   try {
-    const window = await app.firstWindow({ timeout: 30_000 });
-    await window.waitForLoadState('domcontentloaded');
-
-    // DiagnosticPanel renders the classified failure title as <h1>.
-    // For a missing backend binary the copy is "Backend binary was not found".
-    const titleText = await window.locator('h1').first().textContent({ timeout: 30_000 });
+    const titleText = await page.locator('h1').first().textContent({ timeout: 30_000 });
     const ok = !!titleText && /Backend binary was not found/i.test(titleText);
 
     if (!ok) {
-      const html = await window.content();
+      const html = await page.content();
       throw new Error(
         `Diagnostic title not rendered as expected. Got: ${JSON.stringify(titleText)}\n` +
           `--- HTML (first 2 KB) ---\n${html.slice(0, 2048)}`
       );
     }
     console.log(`[smoke] PASS — diagnostic title: ${titleText}`);
+  } catch (err) {
+    await captureFailureArtifacts(page, isolated.artifacts, 'diagnostic-window').catch(() => {});
+    throw err;
   } finally {
     await app.close();
   }

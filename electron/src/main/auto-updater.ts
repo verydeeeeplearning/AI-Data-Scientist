@@ -76,6 +76,11 @@ export function initAutoUpdater(): void {
   if (initialised) return;
   initialised = true;
 
+  if (process.env.DS_AGENT_E2E_DISABLE_AUTO_UPDATER === '1') {
+    log.info('[updater] E2E mode — auto-update disabled.');
+    return;
+  }
+
   if (!app.isPackaged) {
     log.info('[updater] dev build detected — auto-update disabled.');
     return;
