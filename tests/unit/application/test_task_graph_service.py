@@ -1,6 +1,5 @@
 """TaskGraphService tests."""
 
-import pytest
 
 from ds_agent.application.services.task_graph_service import TaskGraphService
 from ds_agent.domain.entities.task_graph import TaskStatus

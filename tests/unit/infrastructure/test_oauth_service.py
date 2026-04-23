@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -142,9 +141,8 @@ class TestGeminiAuth:
         with patch.object(service, "_http_post", return_value={
             "error": "invalid_grant",
             "error_description": "Code has expired",
-        }):
-            with pytest.raises(RuntimeError, match="Code has expired"):
-                await service._exchange_google_code("bad-code", "v", "http://x")
+        }), pytest.raises(RuntimeError, match="Code has expired"):
+            await service._exchange_google_code("bad-code", "v", "http://x")
 
     async def test_refresh_gemini_token(self, service, store):
         # Pre-populate store with existing tokens

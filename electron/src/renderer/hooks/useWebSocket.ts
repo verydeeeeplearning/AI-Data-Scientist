@@ -6,6 +6,11 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { parseEnvelope, WsEnvelopeError } from '../infrastructure/ws/eventEnvelope';
+import {
+  getEventSchema,
+  validateEventPayload,
+} from '../infrastructure/ws/eventSchemaRegistry';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 export type DisconnectReason =
@@ -50,6 +55,28 @@ let idCounter = 0;
 
 function nextId(): string {
   return `r${++idCounter}-${Date.now().toString(36)}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function normalizeEventEnvelope(msg: WsEvent) {
+  const envelopeCandidate: Record<string, unknown> = {
+    type: msg.event,
+    version: msg.version,
+    ts: msg.ts,
+  };
+  if ('payload' in msg) {
+    envelopeCandidate.payload = msg.payload;
+  }
+  if (msg.source !== undefined) {
+    envelopeCandidate.source = msg.source;
+  }
+  if (msg.correlationId !== undefined) {
+    envelopeCandidate.correlationId = msg.correlationId;
+  }
+  return parseEnvelope(envelopeCandidate);
 }
 
 async function classifyDisconnectReason(port: number): Promise<DisconnectReason> {
@@ -161,11 +188,47 @@ export function useWebSocket(port: number, token?: string) {
             }
           }
         } else if (msg.type === 'event') {
-          const handlers = listenersRef.current.get(msg.event);
-          if (handlers) {
-            for (const handler of handlers) {
-              handler(msg.payload ?? {});
+          try {
+            const envelope = normalizeEventEnvelope(msg);
+            let payload: Record<string, unknown>;
+
+            if (getEventSchema(envelope.type)) {
+              const validation = validateEventPayload<Record<string, unknown>>(
+                envelope.type,
+                envelope.payload,
+              );
+              if (!validation.ok) {
+                console.warn('[ws] dropped invalid event payload:', {
+                  event: envelope.type,
+                  reason: validation.reason,
+                  payload: envelope.payload,
+                });
+                return;
+              }
+              payload = validation.payload;
+            } else {
+              if (!isRecord(envelope.payload)) {
+                console.warn('[ws] dropped non-object event payload:', {
+                  event: envelope.type,
+                  payload: envelope.payload,
+                });
+                return;
+              }
+              payload = envelope.payload;
             }
+
+            const handlers = listenersRef.current.get(envelope.type);
+            if (handlers) {
+              for (const handler of handlers) {
+                handler(payload);
+              }
+            }
+          } catch (error) {
+            if (error instanceof WsEnvelopeError) {
+              console.warn('[ws] dropped malformed event envelope:', error.code, error.message);
+              return;
+            }
+            console.warn('[ws] event dispatch failed:', error);
           }
         }
       } catch (error) {

@@ -2,31 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---- Theme CSS Variables ---- */
-:root.dark, :root {
-  --ds-bg: #0f1117;
-  --ds-surface: #1a1d27;
-  --ds-border: #2a2d3a;
-  --ds-text: #e4e4e7;
-  --ds-muted: #a1a1aa;
-  --ds-accent: #818cf8;
-  --ds-accent-hover: #a5b4fc;
-  --ds-success: #22c55e;
-  --ds-warning: #f59e0b;
-  --ds-error: #ef4444;
+/* ---- Design system aliases ---- */
+:root,
+:root.dark,
+:root.light,
+:root.hc {
+  --ds-bg: var(--ds-color-bg);
+  --ds-surface: var(--ds-color-surface);
+  --ds-surface-elevated: var(--ds-color-surface-elevated);
+  --ds-border: var(--ds-color-border);
+  --ds-border-strong: var(--ds-color-border-strong);
+  --ds-text: var(--ds-color-text);
+  --ds-muted: var(--ds-color-muted);
+  --ds-accent: var(--ds-color-accent);
+  --ds-accent-hover: var(--ds-color-accent-hover);
+  --ds-accent-contrast: var(--ds-color-accent-contrast);
+  --ds-success: var(--ds-color-success);
+  --ds-warning: var(--ds-color-warning);
+  --ds-error: var(--ds-color-error);
+  --ds-info: var(--ds-color-info);
+  --ds-ring: var(--ds-color-ring);
 }
 
-:root.light {
-  --ds-bg: #f8f9fa;
-  --ds-surface: #ffffff;
-  --ds-border: #e2e4e9;
-  --ds-text: #1a1d27;
-  --ds-muted: #4b5563;
-  --ds-accent: #4338ca;
-  --ds-accent-hover: #4f46e5;
-  --ds-success: #15803d;
-  --ds-warning: #b45309;
-  --ds-error: #b91c1c;
+:root.hc {
+  --ds-shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.3);
+  --ds-shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.5);
+  --ds-shadow-lg: 0 0 0 2px rgba(255, 255, 255, 0.65);
 }
 
 /* Global resets */
@@ -42,25 +43,23 @@ html, body, #root {
 }
 
 body {
-  font-family:
-    'Inter',
-    'Noto Sans KR',
-    'Noto Sans JP',
-    'Apple SD Gothic Neo',
-    'Hiragino Sans',
-    'Yu Gothic',
-    'Malgun Gothic',
-    'Meiryo',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: var(--ds-font-family-sans);
   font-feature-settings: 'kern' 1, 'liga' 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--ds-bg);
   color: var(--ds-text);
+}
+
+:root.hc body {
+  letter-spacing: 0.01em;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 :root[data-locale='ko'] body {
@@ -112,26 +111,25 @@ body {
   animation: cursor-blink 1s step-end infinite;
 }
 
-/* WCAG 2.4.7 Focus Visible — global default for all interactive elements.
-   See cross_cutting/PLAN_01 Sub-Phase 1.2 + ADR-0008. */
+/* WCAG 2.4.7 Focus Visible global default for all interactive elements. */
 :focus-visible {
-  outline: 2px solid var(--ds-accent);
+  outline: 2px solid var(--ds-ring);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
-/* WCAG 1.4.3 Contrast (Minimum) — primary buttons use dark text on the light
-   indigo accent so the small-text 4.5:1 ratio holds. ADR-0010. */
+/* WCAG 1.4.3 Contrast (Minimum) */
 button.bg-ds-accent,
 .bg-ds-accent button {
-  color: var(--ds-bg);
-}
-button.bg-ds-accent:disabled,
-.bg-ds-accent button:disabled {
-  color: var(--ds-bg);
+  color: var(--ds-accent-contrast);
 }
 
-/* WCAG 2.3.3 Animation from Interactions — respect user preference. */
+button.bg-ds-accent:disabled,
+.bg-ds-accent button:disabled {
+  color: var(--ds-accent-contrast);
+}
+
+/* WCAG 2.3.3 Animation from Interactions */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -141,6 +139,7 @@ button.bg-ds-accent:disabled,
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
   .animate-cursor {
     animation: none;
     opacity: 1;

@@ -8,6 +8,8 @@
  * Keep both files in sync when adding or changing events.
  */
 
+import type { MissionContextPatch } from '../domain/mission';
+
 // ---------------------------------------------------------------------------
 // DS Workflow events
 // ---------------------------------------------------------------------------
@@ -51,6 +53,21 @@ export interface HarnessWarningEvent {
   suggestion?: string;
 }
 
+export interface VerifierAutoRunEvent {
+  sessionId: string | null;
+  runId: string | null;
+  taskId: string;
+  mode: string;
+  status: 'success' | 'timeout' | 'error';
+  durationMs: number;
+  verdictId?: string;
+  result?: string;
+  blockingIssueCount?: number;
+  confidenceScore?: number;
+  confidenceGrade?: 'high' | 'medium' | 'low' | 'insufficient';
+  errorType?: string;
+}
+
 /**
  * ``profile.results`` — structured data profiling results.
  *
@@ -90,6 +107,114 @@ export interface BudgetWarningEvent {
 export interface ContextStatusEvent {
   usedPct: number;    // 0-100
   compressed: boolean;
+}
+
+export interface MissionContextDeltaPayload {
+  dataSources?: MissionContextPatch['dataSources'];
+  deliverables?: MissionContextPatch['deliverables'];
+  constraints?: MissionContextPatch['constraints'];
+}
+
+export interface MissionContextUpdatedEvent extends MissionContextPatch {
+  sessionId?: string | null;
+  delta?: MissionContextDeltaPayload;
+}
+
+// ---------------------------------------------------------------------------
+// Plan / reasoning events
+// ---------------------------------------------------------------------------
+
+export type PlanNodeStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+
+export interface PlanNode {
+  id: string;
+  parentId?: string | null;
+  label: string;
+  description?: string;
+  status: PlanNodeStatus;
+  estimatedDurationSec?: number;
+  startedAt?: number;
+  completedAt?: number;
+  reasoningRefs: string[];
+  toolEventRefs: string[];
+  children: PlanNode[];
+}
+
+export type PlanNodePatch = Partial<Omit<PlanNode, 'id'>>;
+
+export interface ReplanDiff {
+  oldNodes: PlanNode[];
+  newNodes: PlanNode[];
+  added: string[];
+  removed: string[];
+  modified: string[];
+  reason: string;
+}
+
+export interface PlanCreatedEvent {
+  planTree: PlanNode;
+}
+
+export interface PlanUpdatedEvent {
+  nodeId: string;
+  updates: PlanNodePatch;
+}
+
+export interface PlanReplannedEvent {
+  diff: ReplanDiff;
+}
+
+export interface ReasoningEmittedEvent {
+  emittedAt: number;
+  id?: string;
+  planNodeId?: string;
+  thinking?: string;
+  hypothesis?: string;
+  action?: string;
+  observation?: string;
+  decision?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Result-card transport
+// ---------------------------------------------------------------------------
+
+/**
+ * Shared result-card payload shape used by ``stream.done`` and persisted chat
+ * history hydration. Legacy ``id`` fallback is handled only at normalization
+ * boundaries in the renderer; canonical wire payloads use ``cardId``.
+ */
+export type ResultCardType = 'insight' | 'experiment' | 'risk' | 'artifact' | 'other';
+
+export interface ResultCardSourcePayload {
+  messageId: string;
+  runId: string;
+  toolCallId?: string | null;
+}
+
+export interface ResultCardPayload {
+  cardId: string;
+  resultId: string;
+  type: ResultCardType;
+  createdAt: number;
+  source: ResultCardSourcePayload;
+  trustStrip?: Record<string, unknown> | null;
+  pinned: boolean;
+  archived: boolean;
+  [key: string]: unknown;
+}
+
+export interface CardLifecycleEvent {
+  cardId: string;
+  resultId: string;
+  messageId?: string | null;
+}
+
+export interface StreamDoneEvent {
+  content: string;
+  cost?: number;
+  messageId?: string | null;
+  cards?: ResultCardPayload[];
 }
 
 // ---------------------------------------------------------------------------
@@ -177,10 +302,20 @@ export interface EventPayloadMap {
   'quality.update': QualityUpdateEvent;
   'experiment.log': ExperimentLogEvent;
   'harness.warning': HarnessWarningEvent;
+  'verifier.auto_run': VerifierAutoRunEvent;
   'profile.results': ProfileResultsEvent;
   'budget.detail': BudgetDetailEvent;
   'budget.warning': BudgetWarningEvent;
   'context.status': ContextStatusEvent;
+  'mission.context.updated': MissionContextUpdatedEvent;
+  'plan.created': PlanCreatedEvent;
+  'plan.updated': PlanUpdatedEvent;
+  'plan.replanned': PlanReplannedEvent;
+  'reasoning.emitted': ReasoningEmittedEvent;
+  'stream.done': StreamDoneEvent;
+  'card.created': CardLifecycleEvent;
+  'card.updated': CardLifecycleEvent;
+  'card.pinned': CardLifecycleEvent;
   'approval.requested': ApprovalEvent;
   'approval.resolved': ApprovalEvent;
   'sandbox.violation': SandboxViolationEvent;

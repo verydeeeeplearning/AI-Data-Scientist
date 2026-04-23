@@ -38,6 +38,7 @@ _AUDIENCE_ALLOWED_CHANNELS: dict[AudienceKind, set[DeliveryChannel]] = {
     AudienceKind.OPS: {DeliveryChannel.SLACK_CHANNEL},
     AudienceKind.CUSTOMER: {DeliveryChannel.EMAIL},
 }
+_MISSION_REQUIRED_DELIVERY_CHANNELS_CONTEXT_KEY = "mission_required_delivery_channels"
 
 
 class ChannelAdapter(Protocol):
@@ -476,7 +477,9 @@ class DeliveryPolicyEngine:
             return False, "artifact_not_rendered"
         if channel not in artifact.delivery_channel:
             return False, "channel_not_configured"
-        if channel not in _AUDIENCE_ALLOWED_CHANNELS.get(artifact.audience, set()):
+        allowed_channels = set(_AUDIENCE_ALLOWED_CHANNELS.get(artifact.audience, set()))
+        allowed_channels.update(_mission_allowed_delivery_channels(pack))
+        if channel not in allowed_channels:
             return False, "channel_not_allowed_for_audience"
         if (
             artifact.dispatch_mode == DeliveryDispatchMode.MANUAL_REVIEW
@@ -494,6 +497,22 @@ class DeliveryPolicyEngine:
         ):
             return False, "auditor_channel_restricted"
         return True, None
+
+
+def _mission_allowed_delivery_channels(pack: DeliveryPack) -> set[DeliveryChannel]:
+    raw_value = pack.global_context.get(_MISSION_REQUIRED_DELIVERY_CHANNELS_CONTEXT_KEY)
+    if not raw_value:
+        return set()
+    allowed: set[DeliveryChannel] = set()
+    for item in raw_value.split(","):
+        normalized = item.strip()
+        if not normalized:
+            continue
+        try:
+            allowed.add(DeliveryChannel(normalized))
+        except ValueError:
+            continue
+    return allowed
 
 
 class DeliveryRouter:
@@ -523,9 +542,7 @@ class DeliveryRouter:
         if artifact_ids is not None:
             missing_artifacts = sorted(artifact_ids - available_artifact_ids)
             if missing_artifacts:
-                raise ValueError(
-                    "Unknown delivery artifacts: " + ", ".join(missing_artifacts)
-                )
+                raise ValueError("Unknown delivery artifacts: " + ", ".join(missing_artifacts))
 
         selected_artifacts = [
             artifact

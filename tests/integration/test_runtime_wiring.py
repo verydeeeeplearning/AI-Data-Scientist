@@ -26,6 +26,48 @@ from ds_agent.domain.entities.provider_models import ModelInfo
 from ds_agent.domain.value_objects.connector import ConnectorConfig, ConnectorType
 from ds_agent.infrastructure.persistence.postgres_adapter import PostgresAdapter
 
+EXPECTED_CORE_HOOKS = {
+    "audit_log",
+    "session_init",
+    "problem_type_router",
+    "permission",
+    "org_policy",
+    "query_cost_guard",
+    "budget_guard",
+    "workflow_tracker",
+    "leakage_detection",
+    "baseline_guard",
+    "temporal_join_guard",
+    "self_debug",
+    "overfitting_detector",
+    "backtrack_trigger",
+    "model_sanity_check",
+    "stage_quality",
+    "profile_results",
+    "experiment_design",
+    "process_metrics",
+    "experiment_tracker",
+    "review_artifact_capture",
+    "policy_approval",
+    "pii_redaction",
+    "semantic_read_guard",
+    "semantic_trust",
+    "semantic_writeback",
+    "lineage_capture",
+    "claim_traceability",
+    "drift_detection",
+    "exec_plan_save",
+}
+
+
+def _hook_names(hooks: list[object]) -> list[str]:
+    return [hook.name for hook in hooks]
+
+
+def _assert_core_hooks_present(names: list[str]) -> None:
+    assert len(names) == len(set(names))
+    assert EXPECTED_CORE_HOOKS.issubset(set(names))
+
 
 def _mock_provider() -> MagicMock:
     provider = MagicMock()
@@ -46,9 +88,11 @@ def _mock_provider() -> MagicMock:
 class TestHookRegistryWiring:
     """WIRE-01: Verify all hooks are registered."""
 
-    def test_all_30_hooks_registered(self):
+    def test_hook_registry_has_unique_expected_hooks(self):
         registry = build_hook_registry()
-        assert len(registry.hooks) == 30
+        names = _hook_names(registry.hooks)
+        _assert_core_hooks_present(names)
+        assert "auto_verifier" not in names
 
     def test_hooks_sorted_by_priority(self):
         registry = build_hook_registry()
@@ -57,40 +101,8 @@ class TestHookRegistryWiring:
 
     def test_critical_hooks_present(self):
         registry = build_hook_registry()
-        names = {h.name for h in registry.hooks}
-        critical = {
-            "audit_log",
-            "session_init",
-            "problem_type_router",
-            "permission",
-            "org_policy",
-            "query_cost_guard",
-            "budget_guard",
-            "workflow_tracker",
-            "leakage_detection",
-            "baseline_guard",
-            "temporal_join_guard",
-            "self_debug",
-            "overfitting_detector",
-            "backtrack_trigger",
-            "model_sanity_check",
-            "stage_quality",
-            "profile_results",
-            "experiment_design",
-            "process_metrics",
-            "experiment_tracker",
-            "review_artifact_capture",
-            "policy_approval",
-            "pii_redaction",
-            "semantic_read_guard",
-            "semantic_trust",
-            "semantic_writeback",
-            "lineage_capture",
-            "claim_traceability",
-            "drift_detection",
-            "exec_plan_save",
-        }
-        assert critical == names
+        names = _hook_names(registry.hooks)
+        _assert_core_hooks_present(names)
 
 
 class TestPromptBuilderWiring:
@@ -118,12 +130,26 @@ class TestPromptBuilderWiring:
 class TestCreateAgent:
     """Full factory integration — GAP-05: same wiring for all entrypoints."""
 
-    def test_agent_has_hook_registry(self):
+    def test_agent_has_hook_registry(self, monkeypatch):
+        monkeypatch.delenv("DS_AGENT_VERIFIER_AUTO_RUN_V1", raising=False)
         agent = create_agent(
             provider=_mock_provider(),
             callbacks=MagicMock(),
         )
-        assert len(agent._hooks.hooks) == 30
+        names = _hook_names(agent._hooks.hooks)
+        _assert_core_hooks_present(names)
+        auto_verifier = next(hook for hook in agent._hooks.hooks if hook.name == "auto_verifier")
+        assert auto_verifier.mode == "shadow"
+
+    def test_agent_omits_auto_verifier_when_disabled(self, monkeypatch):
+        monkeypatch.setenv("DS_AGENT_VERIFIER_AUTO_RUN_V1", "off")
+        agent = create_agent(
+            provider=_mock_provider(),
+            callbacks=MagicMock(),
+        )
+        names = _hook_names(agent._hooks.hooks)
+        _assert_core_hooks_present(names)
+        assert "auto_verifier" not in names
 
     def test_agent_has_prompt_builder_with_skills(self):
         agent = create_agent(

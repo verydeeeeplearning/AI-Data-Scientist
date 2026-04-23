@@ -1,26 +1,33 @@
 /**
- * File explorer — files grouped by top-level folder with preview + delete.
+ * File explorer files grouped by top-level folder with preview + delete.
  *
  * Layout:
  *   Files header (icon, count, refresh button)
- *   ├─ (workspace root)
- *   │   • titanic.csv       (preview / delete on hover)
- *   │   • report.md         (preview / delete on hover)
- *   └─ projects/
- *       • meta.json
- *       ...
+ *   workspace root
+ *     titanic.csv       (preview / delete on hover or focus)
+ *     report.md         (preview / delete on hover or focus)
+ *   projects/
+ *     meta.json
+ *     ...
  *
  * Plot files are hidden here (they live in PlotGallery instead).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ElementType,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import {
   Files,
   FileText,
   FileSpreadsheet,
   FileCode,
   RefreshCw,
-  Loader2,
   ChevronRight,
   ChevronDown,
   Folder,
@@ -28,6 +35,7 @@ import {
   Eye,
   Trash2,
 } from 'lucide-react';
+import { Badge, Button, Card } from '../../design-system/primitives';
 import { useFilesStore, type FileEntry, type FileGroup } from '../../stores/filesStore';
 import { useI18n } from '../../stores/i18nStore';
 import { useWs } from '../../hooks/WsProvider';
@@ -37,7 +45,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-const TYPE_ICONS: Record<string, React.ElementType> = {
+const TYPE_ICONS: Record<string, ElementType> = {
   csv: FileSpreadsheet,
   tsv: FileSpreadsheet,
   xlsx: FileSpreadsheet,
@@ -53,7 +61,6 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
   log: FileText,
 };
 
-// File types where an inline preview makes sense.
 const PREVIEWABLE = new Set([
   'csv',
   'tsv',
@@ -72,7 +79,6 @@ const PREVIEWABLE = new Set([
   'ini',
 ]);
 
-// P1-12: Map source file type → available export targets.
 const EXPORT_TARGETS: Record<string, { format: string; label: string }[]> = {
   md: [
     { format: 'pdf', label: 'PDF' },
@@ -118,51 +124,58 @@ function formatRelative(ms: number | undefined): string {
 
 function FileIcon({ type }: { type: string }) {
   const Icon = TYPE_ICONS[type] ?? FileText;
-  return <Icon size={13} className="text-ds-muted flex-shrink-0" />;
+  return <Icon size={13} className="shrink-0 text-ds-muted" aria-hidden="true" />;
 }
 
 export function FileExplorer({ onRefresh }: Props) {
   const { fileGroups, files, loading } = useFilesStore();
   const { t } = useI18n();
   const totalNonPlot = fileGroups.reduce((n, g) => n + g.entries.length, 0);
-
   const [previewPath, setPreviewPath] = useState<string | null>(null);
 
   return (
     <>
-      <div>
-        {/* Header */}
+      <section aria-labelledby="file-explorer-title" aria-busy={loading}>
         <div className="flex items-center justify-between px-3 py-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-ds-muted uppercase tracking-wider">
-            <Files size={12} />
-            {t('sidebar.files')}
+          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-ds-muted">
+            <Files size={12} aria-hidden="true" />
+            <h2 id="file-explorer-title" className="text-inherit">
+              {t('sidebar.files')}
+            </h2>
             {totalNonPlot > 0 && (
-              <span className="ml-1 bg-ds-accent/20 text-ds-accent text-[10px] px-1.5 rounded-full">
+              <Badge
+                compact
+                tone="accent"
+                className="ml-1 min-w-[1.25rem] justify-center px-ds-2 py-0.5 normal-case shadow-none"
+              >
                 {totalNonPlot}
-              </span>
+              </Badge>
             )}
           </div>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={onRefresh}
-            disabled={loading}
-            className="p-0.5 rounded hover:bg-ds-bg text-ds-muted hover:text-ds-text transition-colors"
+            loading={loading}
+            leadingIcon={<RefreshCw size={12} aria-hidden="true" />}
             title={t('sidebar.refreshFiles')}
             aria-label={t('sidebar.refreshFiles')}
+            className="h-7 min-h-7 w-7 rounded-ds-md px-0 shadow-none"
           >
-            {loading ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <RefreshCw size={12} />
-            )}
-          </button>
+            <span className="sr-only">{t('sidebar.refreshFiles')}</span>
+          </Button>
         </div>
 
-        {/* Groups */}
         <div className="px-1">
           {totalNonPlot === 0 ? (
-            <div className="px-3 py-2 text-[11px] text-ds-muted/60">
+            <Card
+              role="status"
+              aria-live="polite"
+              className="mx-2 bg-ds-bg/40 px-ds-3 py-ds-3 text-[11px] text-ds-muted shadow-none"
+            >
               {files.length === 0 ? t('sidebar.noFiles') : t('sidebar.onlyPlots')}
-            </div>
+            </Card>
           ) : (
             fileGroups.map((group) => (
               <FolderGroup
@@ -173,7 +186,7 @@ export function FileExplorer({ onRefresh }: Props) {
             ))
           )}
         </div>
-      </div>
+      </section>
 
       {previewPath && (
         <FilePreviewModal path={previewPath} onClose={() => setPreviewPath(null)} />
@@ -189,28 +202,37 @@ function FolderGroup({
   group: FileGroup;
   onPreview: (path: string) => void;
 }) {
-  // Root files always visible; named folders collapsible (expanded by default).
   const [expanded, setExpanded] = useState(true);
+  const groupId = useId().replace(/:/g, '');
   const isRoot = group.folder === '';
+  const panelId = `file-group-panel-${groupId}`;
 
   return (
-    <div className="mb-0.5">
+    <div className="mb-1">
       {!isRoot && (
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => setExpanded((e) => !e)}
-          className="w-full flex items-center gap-1 px-2 py-0.5 rounded hover:bg-ds-bg text-[11px] text-ds-muted hover:text-ds-text transition-colors"
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          className="w-full min-h-8 justify-start gap-ds-1 rounded-ds-lg px-ds-2 text-[11px] text-ds-muted shadow-none"
         >
-          {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-          <Folder size={11} />
-          <span className="truncate">{group.folder}</span>
-          <span className="ml-auto text-[10px] text-ds-muted/50">
+          {expanded ? <ChevronDown size={11} aria-hidden="true" /> : <ChevronRight size={11} aria-hidden="true" />}
+          <Folder size={11} aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate text-left">{group.folder}</span>
+          <Badge compact tone="neutral" className="ml-auto px-ds-2 py-0.5 normal-case shadow-none">
             {group.entries.length}
-          </span>
-        </button>
+          </Badge>
+        </Button>
       )}
 
       {expanded && (
-        <div className={isRoot ? '' : 'pl-3 border-l border-ds-border/40 ml-2'}>
+        <div
+          id={isRoot ? undefined : panelId}
+          className={isRoot ? '' : 'ml-2 border-l border-ds-border/40 pl-3'}
+        >
           {group.entries.map((file) => (
             <FileRow key={file.path} file={file} onPreview={onPreview} />
           ))}
@@ -233,23 +255,38 @@ function FileRow({
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  const exportMenuId = `file-export-menu-${useId().replace(/:/g, '')}`;
 
   useEffect(() => {
     if (!exportOpen) return;
-    const handler = (event: MouseEvent) => {
+
+    const handlePointerDown = (event: MouseEvent) => {
       if (!exportMenuRef.current) return;
       if (exportMenuRef.current.contains(event.target as Node)) return;
       setExportOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setExportOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [exportOpen]);
 
   const handleDelete = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
+    async (event: ReactMouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
       const ok = window.confirm(t('sidebar.deleteConfirm', { name: file.name }));
       if (!ok) return;
+
       setBusy(true);
       try {
         await rpc('files.delete', { path: file.path });
@@ -262,12 +299,12 @@ function FileRow({
         setBusy(false);
       }
     },
-    [rpc, file, t],
+    [file.name, file.path, rpc, t],
   );
 
   const handlePreview = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
+    (event: ReactMouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
       onPreview(file.path);
     },
     [file.path, onPreview],
@@ -279,6 +316,7 @@ function FileRow({
         window.alert(t('sidebar.exportDesktopOnly'));
         return;
       }
+
       setExportOpen(false);
       setExporting(format);
       try {
@@ -306,7 +344,7 @@ function FileRow({
         setExporting(null);
       }
     },
-    [rpc, file.path, t],
+    [file.path, rpc, t],
   );
 
   const previewable = PREVIEWABLE.has(file.type.toLowerCase());
@@ -314,86 +352,116 @@ function FileRow({
   const exportable = exportTargets.length > 0;
 
   return (
-    <div
+    <Card
       className="
-        flex items-center gap-2 px-2 py-1 rounded
-        hover:bg-ds-bg group text-xs
+        group flex items-center gap-ds-2 border-ds-border/40 bg-transparent px-ds-2 py-ds-2 text-xs
+        shadow-none transition-colors hover:border-ds-accent/20 hover:bg-ds-bg/60
+        focus-within:border-ds-accent/30 focus-within:bg-ds-bg/60
       "
       title={`${file.path} (${formatSize(file.size)})`}
     >
       <FileIcon type={file.type} />
-      <button
-        onClick={previewable ? handlePreview : undefined}
-        disabled={!previewable}
-        className="truncate text-left text-ds-text/80 group-hover:text-ds-text flex-1 min-w-0 disabled:cursor-default"
-      >
-        {file.name}
-      </button>
-      <span className="text-[10px] text-ds-muted/50 flex-shrink-0 hidden group-hover:inline">
+      {previewable ? (
+        <button
+          type="button"
+          onClick={handlePreview}
+          className="
+            min-w-0 flex-1 truncate text-left text-ds-text/80 transition-colors hover:text-ds-text
+            focus-visible:rounded-ds-sm focus-visible:outline-none focus-visible:ring-2
+            focus-visible:ring-ds-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ds-bg
+            focus-visible:text-ds-text
+          "
+          aria-label={`${t('sidebar.preview')}: ${file.name}`}
+        >
+          {file.name}
+        </button>
+      ) : (
+        <span className="min-w-0 flex-1 truncate text-ds-text/80">{file.name}</span>
+      )}
+      <span className="hidden shrink-0 text-[10px] text-ds-muted/60 group-hover:inline group-focus-within:inline">
         {formatRelative(file.modifiedAt)}
       </span>
-      <span className="text-[10px] text-ds-muted/50 flex-shrink-0">
+      <Badge compact tone="neutral" className="shrink-0 px-ds-2 py-0.5 text-[10px] shadow-none">
         {formatSize(file.size)}
-      </span>
+      </Badge>
 
-      {/* Action buttons — visible on hover */}
-      <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+      <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex group-focus-within:flex">
         {previewable && (
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={handlePreview}
-            className="p-0.5 rounded hover:bg-ds-surface text-ds-muted hover:text-ds-accent transition-colors"
+            leadingIcon={<Eye size={12} aria-hidden="true" />}
+            className="h-7 min-h-7 w-7 rounded-ds-md px-0 shadow-none"
             title={t('sidebar.preview')}
             aria-label={t('sidebar.preview')}
           >
-            <Eye size={12} />
-          </button>
+            <span className="sr-only">{t('sidebar.preview')}</span>
+          </Button>
         )}
         {exportable && (
           <div className="relative" ref={exportMenuRef}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={(event) => {
+                event.stopPropagation();
                 setExportOpen((open) => !open);
               }}
-              disabled={exporting !== null}
-              className="p-0.5 rounded hover:bg-ds-surface text-ds-muted hover:text-ds-accent transition-colors disabled:opacity-50"
+              loading={exporting !== null}
+              leadingIcon={<Download size={12} aria-hidden="true" />}
+              aria-expanded={exportOpen}
+              aria-controls={exportMenuId}
+              aria-haspopup="menu"
+              className="h-7 min-h-7 w-7 rounded-ds-md px-0 shadow-none"
               title={t('sidebar.exportAs')}
               aria-label={t('sidebar.exportAs')}
             >
-              {exporting ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Download size={12} />
-              )}
-            </button>
+              <span className="sr-only">{t('sidebar.exportAs')}</span>
+            </Button>
             {exportOpen && (
-              <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-md border border-ds-border bg-ds-surface shadow-lg">
-                <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-ds-muted">
+              <Card
+                id={exportMenuId}
+                role="menu"
+                aria-label={t('sidebar.exportAs')}
+                className="absolute right-0 top-full z-10 mt-1 w-40 border-ds-border bg-ds-surface/95 p-ds-1 shadow-ds-md"
+              >
+                <div className="px-ds-2 py-ds-1 text-[10px] uppercase tracking-wider text-ds-muted">
                   {t('sidebar.exportAs')}
                 </div>
                 {exportTargets.map((target) => (
-                  <button
+                  <Button
                     key={target.format}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    role="menuitem"
                     onClick={() => void handleExport(target.format)}
-                    className="flex w-full items-center px-2 py-1 text-left text-[11px] text-ds-text hover:bg-ds-bg"
+                    className="w-full min-h-8 justify-start rounded-ds-lg px-ds-2 text-[11px] text-ds-text shadow-none"
                   >
                     {target.label}
-                  </button>
+                  </Button>
                 ))}
-              </div>
+              </Card>
             )}
           </div>
         )}
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
           onClick={handleDelete}
-          disabled={busy}
-          className="p-0.5 rounded hover:bg-ds-surface text-ds-muted hover:text-red-400 transition-colors disabled:opacity-50"
+          loading={busy}
+          leadingIcon={<Trash2 size={12} aria-hidden="true" />}
+          className="h-7 min-h-7 w-7 rounded-ds-md px-0 text-ds-muted shadow-none hover:text-red-400"
           title={t('sidebar.delete')}
           aria-label={t('sidebar.delete')}
         >
-          {busy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-        </button>
+          <span className="sr-only">{t('sidebar.delete')}</span>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }

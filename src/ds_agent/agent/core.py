@@ -6,19 +6,21 @@ import asyncio
 import json
 import re
 import time
+import uuid
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import structlog
 
 from ds_agent.agent.budget_tracker import IterationBudget
 from ds_agent.agent.callbacks import NullCallbacks
 from ds_agent.agent.context_manager import ContextManager
+from ds_agent.agent.ds_workflow_hooks import WorkflowTrackerHook
 from ds_agent.agent.hooks import EmitFn, HookAction, HookContext, HookRegistry
 from ds_agent.agent.prompt_builder import PromptBuilder
 from ds_agent.domain.entities.goal import GoalStatus
-from ds_agent.domain.entities.messages import ChatMessage, Role, ToolCall
+from ds_agent.domain.entities.messages import ChatMessage, Role, ToolCall, ensure_message_ids
 from ds_agent.domain.entities.session_checkpoint import SessionCheckpoint
 from ds_agent.domain.entities.working_memory import SessionWorkingMemory
 from ds_agent.domain.interfaces.learning import PostLearningPort
@@ -30,6 +32,8 @@ from ds_agent.domain.interfaces.session_state import (
     WorkingMemoryStore,
 )
 from ds_agent.domain.interfaces.tool_registry import ToolRegistry
+from ds_agent.domain.result_card import ResultCard
+from ds_agent.domain.value_objects.analysis_stage import AnalysisStage
 from ds_agent.domain.value_objects.budget import BudgetPolicy
 from ds_agent.runtime.tool_runtime_context import (
     ToolRuntimeContext,
@@ -45,8 +49,30 @@ from ds_agent.runtime.verifier_shadow_runtime import (
 # REL-04: Default timeout for LLM calls
 _LLM_TIMEOUT_SECONDS = 120
 _MAX_MEMORY_SUMMARY_CHARS = 240
+_MISSION_STAGE_TOTAL = 4
 
 logger = structlog.get_logger()
+
+
+class ResultCardEmissionResult(Protocol):
+    """Minimal result-card emission response consumed by the agent."""
+
+    stripped_message: str
+    cards: list[ResultCard]
+
+
+class ResultCardEmitter(Protocol):
+    """Application-side service that extracts and persists result cards."""
+
+    def execute(
+        self,
+        *,
+        session_id: str,
+        run_id: str,
+        message_id: str,
+        content: str,
+        tool_call_id: str | None = None,
+    ) -> ResultCardEmissionResult: ...
 
 
 class DSAgent:
@@ -68,6 +94,7 @@ class DSAgent:
         checkpoint_store: CheckpointStore | None = None,
         goal_store: GoalStore | None = None,
         working_memory_store: WorkingMemoryStore | None = None,
+        result_card_emitter: ResultCardEmitter | None = None,
         approval_store: object | None = None,
         skill_hub: object | None = None,
     ) -> None:
@@ -85,6 +112,7 @@ class DSAgent:
         self._checkpoint_store = checkpoint_store
         self._goal_store = goal_store
         self._working_memory_store = working_memory_store
+        self._result_card_emitter = result_card_emitter
         self._approval_store = approval_store
         self._skill_hub = skill_hub
         self._step = 0
@@ -99,10 +127,14 @@ class DSAgent:
         self._active_goal_id = None if active_goal is None else active_goal.goal_id
         self._active_goal_summary = None if active_goal is None else active_goal.summary
         self._current_run_id: str | None = None
+        self._last_assistant_message_id: str | None = None
+        self._last_result_cards: list[ResultCard] = []
         self._surface = "unknown"
         self._execution_mode = "interactive"
         self._turn_started_at: float | None = None
         self._history: list[ChatMessage] = self._load_initial_history()
+        self._current_turn_messages: list[ChatMessage] = list(self._history)
+        self._session_init_injection_text: str = ""
         # Bridge sync emit for hooks → async WebSocket send
         self._emit: EmitFn = self._emit_via_callbacks
 
@@ -116,10 +148,37 @@ class DSAgent:
         if surface is not None:
             self._surface = surface
 
+    @property
+    def last_assistant_message_id(self) -> str | None:
+        """Expose the final assistant message id for WS/event consumers."""
+
+        return self._last_assistant_message_id
+
+    @property
+    def last_result_cards(self) -> list[ResultCard]:
+        """Expose the latest emitted cards for WS/history hydration."""
+
+        return list(self._last_result_cards)
+
     def _emit_via_callbacks(self, event: str, payload: dict) -> None:
         emit_fn = getattr(self._callbacks, "emit_event", None)
         if callable(emit_fn):
             emit_fn(event, payload)
+
+    def _build_system_message(self) -> ChatMessage:
+        system_message = self._prompt_builder.build_system_message()
+        if not self._session_init_injection_text:
+            return system_message
+        base_content = system_message.content or ""
+        if base_content:
+            base_content = f"{base_content}\n\n{self._session_init_injection_text}"
+        else:
+            base_content = self._session_init_injection_text
+        return ChatMessage(role=Role.SYSTEM, content=base_content)
+
+    def _refresh_system_prompt(self, messages: list[ChatMessage]) -> list[ChatMessage]:
+        non_system_messages = [message for message in messages if message.role != Role.SYSTEM]
+        return [self._build_system_message(), *non_system_messages]
 
     async def run(
         self,
@@ -148,6 +207,9 @@ class DSAgent:
         )
         self._prepare_session_state(user_message)
         messages = self._prompt_builder.build(user_message, history=self._history)
+        self._current_turn_messages = list(messages[1:])
+        ensure_message_ids(messages[1:])
+        self._last_assistant_message_id = None
         tool_defs = self._tools.get_definitions()
         self._save_checkpoint(messages[1:])
 
@@ -155,12 +217,11 @@ class DSAgent:
         hook_ctx = self._build_hook_context()
         hook_ctx.user_message = user_message
         injections = await self._hooks.run_session_init(hook_ctx)
-        if injections and messages:
-            injection_text = "\n\n".join(injections)
-            messages[0] = ChatMessage(
-                role=Role.SYSTEM,
-                content=(messages[0].content or "") + "\n\n" + injection_text,
-            )
+        self._session_init_injection_text = "\n\n".join(injections).strip()
+        # GAP-3-1: restore WorkflowTrackerHook from working memory after reset()
+        self._restore_workflow_tracker_from_memory()
+        self._persist_workflow_stage()
+        messages = self._refresh_system_prompt(messages)
 
         while not self._budget.is_exhausted:
             self._step += 1
@@ -220,10 +281,14 @@ class DSAgent:
                     "iterationsMax": budget_summary.get("max_iterations", 0),
                 },
             )
+            self._emit_mission_patch({"budget": self._mission_budget_patch()})
 
             # 3. Handle thinking
             if response.thinking:
                 await self._callbacks.on_thinking(response.thinking)
+                reasoning_payload = self._build_reasoning_event_payload(response.thinking)
+                self._emit("reasoning.emitted", reasoning_payload)
+                self._link_reasoning_to_active_plan_node(reasoning_payload)
 
             # 4. If tool calls → execute and loop
             if response.tool_calls:
@@ -235,6 +300,7 @@ class DSAgent:
                         tool_calls=response.tool_calls,
                     )
                 )
+                self._current_turn_messages = list(messages[1:])
 
                 tool_names = ", ".join(tc.name for tc in response.tool_calls)
                 await self._callbacks.on_status("tool_executing", f"도구 실행: {tool_names}")
@@ -257,8 +323,10 @@ class DSAgent:
                             name=tc.name,
                         )
                     )
+                    self._current_turn_messages = list(messages[1:])
 
                 # Check context compression
+                messages = self._refresh_system_prompt(messages)
                 token_count = await self._provider.count_tokens(messages)
                 compressed = False
                 if self._context_manager.should_compress(messages, current_tokens=token_count):
@@ -337,6 +405,7 @@ class DSAgent:
         )
         if post_result.modified_result is not None:
             result = post_result.modified_result
+        self._persist_workflow_stage()
 
         # --- WIRE-03: Trigger learning on successful model training ---
         if post_result.trigger_learning:
@@ -469,9 +538,12 @@ class DSAgent:
 
     def _build_hook_context(self) -> HookContext:
         summary = self._budget.get_summary()
+        recent_messages = self._current_turn_messages or self._history
         last_user_message = None
-        if self._history and self._history[-1].role == Role.USER:
-            last_user_message = self._history[-1].content
+        for message in reversed(recent_messages):
+            if message.role == Role.USER:
+                last_user_message = message.content
+                break
 
         def _emit_hook_event(event: str, payload: dict[str, Any]) -> None:
             self._emit(event, payload)
@@ -492,8 +564,33 @@ class DSAgent:
             total_cost_usd=summary["total_cost_usd"],
             environment="dev",
             approval_store=self._approval_store,
+            workspace_path=getattr(self._prompt_builder, "_workspace_dir", None),
+            active_task_contract=self._active_task_contract(),
+            verifier_orchestrator=self._active_verifier_orchestrator(),
+            recent_messages=tuple(recent_messages[-12:]),
             emit=_emit_hook_event,
         )
+
+    def _active_task_contract(self) -> Any | None:
+        task_contract_store = getattr(self._prompt_builder, "_task_contract_store", None)
+        if not self._session_id or task_contract_store is None:
+            return None
+        try:
+            bundle = task_contract_store.get_active_bundle(self._session_id)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug("active_task_contract_lookup_failed", error=str(exc))
+            return None
+        if bundle is None:
+            return None
+        return bundle.contract
+
+    def _active_verifier_orchestrator(self) -> Any | None:
+        from ds_agent.agent.auto_verifier_hook import AutoVerifierHook
+
+        for hook in self._hooks.hooks:
+            if isinstance(hook, AutoVerifierHook):
+                return hook.verifier_orchestrator
+        return None
 
     async def _trigger_post_learning(self, tool_name: str, arguments: dict, result: str) -> None:
         """WIRE-03 + GAP-03: Trigger post-project learning via injected PostLearningPort.
@@ -569,6 +666,51 @@ class DSAgent:
             "executionMode": self._execution_mode,
         }
 
+    def _emit_mission_patch(self, patch: dict[str, object]) -> None:
+        if not self._session_id:
+            return
+        self._emit(
+            "mission.context.updated",
+            {
+                "sessionId": self._session_id,
+                **patch,
+            },
+        )
+
+    def _current_model_name(self) -> str:
+        get_model_info = getattr(self._provider, "get_model_info", None)
+        if callable(get_model_info):
+            try:
+                model_info = get_model_info()
+            except Exception:
+                model_info = None
+            model_id = getattr(model_info, "model_id", None)
+            if isinstance(model_id, str) and model_id.strip():
+                return model_id
+        return "unknown"
+
+    def _mission_budget_patch(self) -> dict[str, object]:
+        summary = self._budget.get_summary()
+        spent_usd = float(summary.get("total_cost_usd", 0.0) or 0.0)
+        limit_usd = float(summary.get("max_cost_usd", 0.0) or 0.0)
+        threshold_ratio = 0.8
+        near_limit = limit_usd > 0 and (spent_usd / limit_usd) >= threshold_ratio
+        return {
+            "spentUsd": round(spent_usd, 4),
+            "limitUsd": round(limit_usd, 4),
+            "elapsedSec": round(float(summary.get("wall_time_seconds", 0.0) or 0.0), 3),
+            "nearLimit": near_limit,
+        }
+
+    def _mission_stage_patch(self, status: GoalStatus) -> dict[str, object]:
+        if status == GoalStatus.COMPLETED:
+            return {"current": 4, "total": _MISSION_STAGE_TOTAL, "label": "Completed"}
+        if status == GoalStatus.BLOCKED:
+            return {"current": 3, "total": _MISSION_STAGE_TOTAL, "label": "Blocked"}
+        if status == GoalStatus.CANCELLED:
+            return {"current": 4, "total": _MISSION_STAGE_TOTAL, "label": "Cancelled"}
+        return {"current": 2, "total": _MISSION_STAGE_TOTAL, "label": "Analysis running"}
+
     def _emit_task_failed(self, *, reason: str, detail: str) -> None:
         self._emit(
             "task.failed",
@@ -582,16 +724,168 @@ class DSAgent:
             },
         )
 
+    def _build_reasoning_event_payload(self, thinking_text: str) -> dict[str, object]:
+        emitted_at = int(time.time() * 1000)
+        trace_id = ".".join(
+            (
+                "reasoning",
+                self._session_id or "sessionless",
+                self._current_run_id or "runless",
+                str(self._step),
+                str(emitted_at),
+                uuid.uuid4().hex[:12],
+            )
+        )
+        payload: dict[str, object] = {
+            "id": trace_id,
+            "thinking": thinking_text,
+            "emittedAt": emitted_at,
+        }
+        plan_node_id = self._current_active_plan_node_id()
+        if plan_node_id is not None:
+            payload["planNodeId"] = plan_node_id
+        return payload
+
+    def _workflow_tracker_hook(self) -> WorkflowTrackerHook | None:
+        for hook in self._hooks.hooks:
+            if isinstance(hook, WorkflowTrackerHook):
+                return hook
+        return None
+
+    def _restore_workflow_tracker_from_memory(self) -> None:
+        """GAP-3-1: Rehydrate WorkflowTrackerHook from persisted working memory.
+
+        ``on_session_init`` calls ``reset()`` which clears plan tree state.
+        This method runs immediately after so that a resumed session's
+        stage truth is propagated back into the tracker before the first
+        LLM call — keeping prompt context and plan tree in sync.
+        """
+        if self._working_memory_store is None or not self._session_id:
+            return
+        memory = self._working_memory_store.load(self._session_id)
+        if memory is None or memory.current_stage is None:
+            return
+        tracker = self._workflow_tracker_hook()
+        if tracker is None:
+            return
+        current_stage_id = memory.current_stage.value
+        tracker.restore(current_stage_id=current_stage_id)
+        logger.debug(
+            "workflow_tracker_restored_from_memory",
+            session_id=self._session_id,
+            current_stage=current_stage_id,
+        )
+
+    def _current_active_plan_node_id(self) -> str | None:
+        tracker = self._workflow_tracker_hook()
+        if tracker is None:
+            return None
+        return tracker.current_active_stage_id()
+
+    def _current_workflow_stage(self) -> tuple[AnalysisStage | None, float | None]:
+        tracker = self._workflow_tracker_hook()
+        if tracker is None:
+            return None, None
+        current_stage = tracker.current_stage_id()
+        if current_stage is None:
+            return None, None
+        try:
+            stage = AnalysisStage(current_stage)
+        except ValueError:
+            return None, None
+        started_at_ms = tracker.current_stage_started_at()
+        stage_entered_at = None if started_at_ms is None else started_at_ms / 1000.0
+        return stage, stage_entered_at
+
+    def _resolve_workflow_stage(
+        self,
+        previous_memory: SessionWorkingMemory | None = None,
+    ) -> tuple[AnalysisStage | None, float | None]:
+        current_stage, stage_entered_at = self._current_workflow_stage()
+        if current_stage is not None:
+            return current_stage, stage_entered_at
+        if previous_memory is not None:
+            return previous_memory.current_stage, previous_memory.stage_entered_at
+        return None, None
+
+    def _persist_workflow_stage(self) -> None:
+        if self._working_memory_store is None or not self._session_id:
+            return
+        memory = self._working_memory_store.load(self._session_id)
+        if memory is None:
+            return
+        current_stage, stage_entered_at = self._resolve_workflow_stage(memory)
+        if memory.current_stage == current_stage and memory.stage_entered_at == stage_entered_at:
+            return
+        self._working_memory_store.save(
+            SessionWorkingMemory(
+                session_id=memory.session_id,
+                active_goal_id=memory.active_goal_id,
+                last_run_id=memory.last_run_id,
+                last_user_message=memory.last_user_message,
+                current_summary=memory.current_summary,
+                next_step=memory.next_step,
+                pending_questions=list(memory.pending_questions),
+                last_reflection=memory.last_reflection,
+                recovery_note=memory.recovery_note,
+                current_stage=current_stage,
+                stage_entered_at=stage_entered_at,
+                updated_at=time.time(),
+            )
+        )
+
+    def _link_reasoning_to_active_plan_node(self, reasoning_payload: dict[str, object]) -> None:
+        tracker = self._workflow_tracker_hook()
+        if tracker is None:
+            return
+        reasoning_id = reasoning_payload.get("id")
+        if not isinstance(reasoning_id, str) or not reasoning_id:
+            return
+        hook_ctx = self._build_hook_context()
+        try:
+            tracker.record_reasoning_ref(hook_ctx, reasoning_id)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug(
+                "record_reasoning_ref_failed",
+                reasoning_id=reasoning_id,
+                error=str(exc),
+            )
+
     async def _finalize_turn(self, messages: list[ChatMessage], final: str) -> str:
         hook_ctx = self._build_hook_context()
         final_result = await self._hooks.run_final_response_hooks(final, hook_ctx)
         if final_result.modified_response is not None:
             final = final_result.modified_response
+        forced_status = GoalStatus.BLOCKED if final_result.requires_followup else None
+        raw_final = final
         self._history = list(messages[1:])  # Keep history minus system prompt
-        self._history.append(ChatMessage(role=Role.ASSISTANT, content=final))
+        self._current_turn_messages = list(self._history)
+        ensure_message_ids(self._history)
+        assistant_message = ChatMessage(role=Role.ASSISTANT, content=final)
+        ensure_message_ids([assistant_message])
+        persisted_final, emitted_cards = self._emit_result_cards(
+            final,
+            assistant_message.message_id,
+        )
+        assistant_message.content = persisted_final
+        self._last_assistant_message_id = assistant_message.message_id
+        self._last_result_cards = emitted_cards
+        self._history.append(assistant_message)
         if self._transcript_store is not None and self._session_id:
             self._transcript_store.replace_messages(self._session_id, self._history)
-        self._record_session_outcome(final)
+        session_outcome = persisted_final if persisted_final.strip() else raw_final
+        outcome_status = self._record_session_outcome(
+            session_outcome,
+            forced_status=forced_status,
+            blocked_reason_override=final_result.followup_reason,
+        )
+        self._emit_mission_patch(
+            {
+                "stage": self._mission_stage_patch(outcome_status),
+                "budget": self._mission_budget_patch(),
+                "connection": {"state": "connected"},
+            }
+        )
         self._emit(
             "task.completed",
             {
@@ -599,7 +893,7 @@ class DSAgent:
                 "runId": self._current_run_id,
                 "surface": self._surface,
                 "executionMode": self._execution_mode,
-                "status": _classify_goal_status(final).value,
+                "status": outcome_status.value,
                 "costUsd": self._budget.state.total_cost_usd,
                 "iterations": self._budget.state.iterations_used,
                 "maxCostUsd": self._budget.policy.max_cost_usd,
@@ -607,7 +901,37 @@ class DSAgent:
         )
         self._clear_checkpoint()
         self._current_run_id = None
-        return final
+        return persisted_final
+
+    def _emit_result_cards(
+        self,
+        final: str,
+        message_id: str | None,
+    ) -> tuple[str, list[ResultCard]]:
+        if (
+            self._result_card_emitter is None
+            or self._session_id is None
+            or self._current_run_id is None
+            or not isinstance(message_id, str)
+            or not message_id
+        ):
+            return final, []
+        try:
+            emitted = self._result_card_emitter.execute(
+                session_id=self._session_id,
+                run_id=self._current_run_id,
+                message_id=message_id,
+                content=final,
+            )
+        except Exception as exc:
+            logger.warning(
+                "result_card_emission_failed",
+                session_id=self._session_id,
+                run_id=self._current_run_id,
+                error=str(exc),
+            )
+            return final, []
+        return emitted.stripped_message, list(emitted.cards)
 
     async def _handle_budget_exhausted(self, messages: list[ChatMessage]) -> str:
         summary = self._budget.get_summary()
@@ -637,10 +961,21 @@ class DSAgent:
             run_id=self._current_run_id,
             note=_summarize_text(user_message),
         )
+        self._emit_mission_patch(
+            {
+                "goal": {"title": goal.summary or _summarize_text(user_message)},
+                "stage": self._mission_stage_patch(GoalStatus.IN_PROGRESS),
+                "mode": self._mode,
+                "model": {"primary": self._current_model_name()},
+                "budget": self._mission_budget_patch(),
+                "connection": {"state": "connected"},
+            }
+        )
 
         if self._working_memory_store is None:
             return
         previous_memory = self._working_memory_store.load(self._session_id)
+        current_stage, stage_entered_at = self._resolve_workflow_stage(previous_memory)
 
         self._working_memory_store.save(
             SessionWorkingMemory(
@@ -655,20 +990,41 @@ class DSAgent:
                     "" if previous_memory is None else previous_memory.last_reflection
                 ),
                 recovery_note=None,
+                current_stage=current_stage,
+                stage_entered_at=stage_entered_at,
                 updated_at=time.time(),
             )
         )
 
-    def _record_session_outcome(self, final: str) -> None:
+    def _record_session_outcome(
+        self,
+        final: str,
+        *,
+        forced_status: GoalStatus | None = None,
+        blocked_reason_override: str | None = None,
+    ) -> GoalStatus:
         if not self._session_id:
-            return
+            return forced_status or _classify_goal_status(final)
 
         summary = _summarize_text(final, limit=_MAX_MEMORY_SUMMARY_CHARS)
-        status = _classify_goal_status(final)
+        status = forced_status or _classify_goal_status(final)
         pending_questions = _extract_pending_questions(final)
-        next_step = _next_step_for_status(status)
-        reflection = _build_reflection(status, summary, pending_questions, next_step)
-        blocked_reason = pending_questions[0] if pending_questions else None
+        blocked_reason = blocked_reason_override or (
+            pending_questions[0] if pending_questions else None
+        )
+        if status == GoalStatus.BLOCKED and blocked_reason and not pending_questions:
+            pending_questions = [blocked_reason]
+        if status == GoalStatus.BLOCKED and blocked_reason_override:
+            next_step = "Address the required follow-up items before moving the task to review."
+        else:
+            next_step = _next_step_for_status(status)
+        reflection = _build_reflection(
+            status,
+            summary,
+            pending_questions,
+            next_step,
+            blocked_reason,
+        )
 
         if self._goal_store is not None and self._active_goal_id is not None:
             self._goal_store.mark_status(
@@ -683,13 +1039,15 @@ class DSAgent:
                 self._active_goal_id = None
 
         if self._working_memory_store is None:
-            return
+            return status
 
+        previous_memory = self._working_memory_store.load(self._session_id)
         last_user_message = None
         for message in reversed(self._history):
             if message.role == Role.USER:
                 last_user_message = message.content
                 break
+        current_stage, stage_entered_at = self._resolve_workflow_stage(previous_memory)
 
         self._working_memory_store.save(
             SessionWorkingMemory(
@@ -702,6 +1060,8 @@ class DSAgent:
                 pending_questions=pending_questions,
                 last_reflection=reflection,
                 recovery_note=None,
+                current_stage=current_stage,
+                stage_entered_at=stage_entered_at,
                 updated_at=time.time(),
             )
         )
@@ -733,6 +1093,7 @@ class DSAgent:
                     "iterations": budget_summary.get("iterations_used", 0),
                 },
             )
+        return status
 
     def _start_turn(
         self,
@@ -741,6 +1102,9 @@ class DSAgent:
         budget_policy: BudgetPolicy | None,
     ) -> None:
         self._execution_mode = execution_mode
+        self._last_result_cards = []
+        self._current_turn_messages = list(self._history)
+        self._session_init_injection_text = ""
         reset_shadow_runtime_log(self._session_id, self._current_run_id)
         effective_policy = (
             replace(budget_policy)
@@ -821,11 +1185,16 @@ def _build_reflection(
     summary: str,
     pending_questions: list[str],
     next_step: str,
+    blocked_reason: str | None = None,
 ) -> str:
     if status == GoalStatus.COMPLETED:
         return f"Completed the current goal. {summary}"
     if status == GoalStatus.BLOCKED:
-        question = pending_questions[0] if pending_questions else "User input is required."
+        question = (
+            pending_questions[0]
+            if pending_questions
+            else (blocked_reason or "User input is required.")
+        )
         return f"Blocked pending clarification. {question}"
     if status == GoalStatus.CANCELLED:
         return "Stopped the current goal and waiting for a replacement objective."

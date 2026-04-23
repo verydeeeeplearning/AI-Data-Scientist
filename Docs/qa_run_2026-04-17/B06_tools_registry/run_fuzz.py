@@ -30,8 +30,9 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from ds_agent.agent.factory import import_all_tools  # noqa: E402
-import importlib  # noqa: E402
+import importlib
+
+from ds_agent.agent.factory import import_all_tools
 
 # Silence structlog on Windows to keep output readable
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -43,8 +44,8 @@ for _m in [
 ]:
     importlib.import_module(_m)
 
-from ds_agent.tools.registry import ToolRegistry  # noqa: E402
 from ds_agent.tools.path_utils import set_active_workspace  # noqa: E402
+from ds_agent.tools.registry import ToolRegistry  # noqa: E402
 
 # Set an active workspace so that *path_bound* tools (file_ops, data_loader
 # family) evaluate Path.is_relative_to() against a known root. Without this,
@@ -354,7 +355,7 @@ async def run_boundary(entry) -> tuple[str, str, str]:
         r = await ToolRegistry.dispatch(name, fx)
         # Accept: returns an error (JSON with "error") and does NOT expose /etc/shadow contents
         low = r.lower()
-        if "outside workspace" in low or "not within" in low or "error" in low or "not allowed" in low or "invalid" in low or "denied" in low or "path" in low and "workspace" in low:
+        if "outside workspace" in low or "not within" in low or "error" in low or "not allowed" in low or "invalid" in low or "denied" in low or ("path" in low and "workspace" in low):
             return ("pass", "PathBoundRejected", r[:300])
         # If tool returned success, we have a boundary bypass.
         # HOWEVER some tools may simply not find the file → "No such file" is still safe.

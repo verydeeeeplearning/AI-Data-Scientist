@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NoReturn
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from ds_agent.api.dependencies import require_resource_access
 from ds_agent.application.services.certification_usecases import (
     GetCertificationStatusUseCase,
     SubmitCertificationInput,
@@ -64,7 +65,18 @@ async def get_certification_status(
     return {"mission": _serialize_status(result)}
 
 
-@router.post("/{mission_name}/submit")
+@router.post(
+    "/{mission_name}/submit",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="certification",
+                action="mutate",
+                resource_id_extractor=lambda req: req.path_params.get("mission_name", ""),
+            )
+        )
+    ],
+)
 async def submit_certification(
     mission_name: str,
     request: Request,

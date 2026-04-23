@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Download, Loader2, Shield, Users, Wallet } from 'lucide-react';
+import { AccessLogPanel } from '../sharing/AccessLogPanel';
 import type {
   OrganizationSnapshot,
   OrganizationSummary,
@@ -569,6 +570,8 @@ export function AdminConsole({ rpc }: { rpc: RpcFn }) {
               </div>
             </div>
           </div>
+
+          <AccessLogPanel />
         </div>
       </div>
     </div>

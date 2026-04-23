@@ -150,8 +150,8 @@ class OAuthCallbackServer:
 
         try:
             await asyncio.wait_for(got_callback.wait(), timeout=self._timeout_s)
-        except TimeoutError:
-            raise TimeoutError(f"OAuth callback timeout ({self._timeout_s}s)")
+        except TimeoutError as exc:
+            raise TimeoutError(f"OAuth callback timeout ({self._timeout_s}s)") from exc
         finally:
             httpd.shutdown()
             self._thread.join(timeout=5)

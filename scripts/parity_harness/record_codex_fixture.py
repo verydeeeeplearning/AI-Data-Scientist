@@ -27,8 +27,8 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "src"))
 
-from ds_agent.domain.entities.messages import ChatMessage, Role  # noqa: E402
-from ds_agent.providers.codex_oauth import (  # noqa: E402
+from ds_agent.domain.entities.messages import ChatMessage, Role
+from ds_agent.providers.codex_oauth import (
     CodexOAuthProvider,
     read_codex_credentials,
 )

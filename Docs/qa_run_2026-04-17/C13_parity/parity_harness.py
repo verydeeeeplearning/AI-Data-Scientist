@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 import tempfile
 import traceback
@@ -40,7 +39,7 @@ class StubProvider:
     def __init__(self, model: str = "stub/claude-sonnet-test") -> None:
         self._model = model
 
-    async def chat(self, messages, tools=None, temperature=0.0, max_tokens=None, on_delta=None, **kw):  # noqa: D401,E501
+    async def chat(self, messages, tools=None, temperature=0.0, max_tokens=None, on_delta=None, **kw):  # noqa: E501
         raise RuntimeError("StubProvider.chat should never be called in parity harness")
 
     async def count_tokens(self, messages):

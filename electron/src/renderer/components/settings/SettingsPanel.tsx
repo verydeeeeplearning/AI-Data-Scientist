@@ -3,11 +3,15 @@
  */
 
 import { useEffect, useState } from 'react';
-import { X, Sun, Moon, Globe, LogIn, LogOut, Loader2 } from 'lucide-react';
+import { X, LogIn, LogOut, Loader2 } from 'lucide-react';
+import { Button, Select } from '../../design-system/primitives';
+import { THEME_OPTIONS } from '../../design-system/themes';
+import { DENSITY_MODES, type DensityMode } from '../../domain/layout/density';
+import { DeepLinkSettings } from './DeepLinkSettings';
 import { useAgentStore } from '../../stores/agentStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useConfigStore } from '../../stores/configStore';
-import { useI18n } from '../../stores/i18nStore';
+import { getLocaleOption, useI18n, type Locale } from '../../stores/i18nStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { fetchAuthSnapshot } from '../../hooks/useProviderAuth';
 import { PROVIDER_LABELS, describeModelAccess } from '../../utils/modelAuth';
@@ -20,10 +24,12 @@ import {
 import { AdminConsole } from './AdminConsole';
 import { ConnectorWizard } from './ConnectorWizard';
 import { CostSettings } from './CostSettings';
+import { LocaleSelector } from './LocaleSelector';
 import { PolicyStudio } from './PolicyStudio';
 import { PrivacySettings } from './PrivacySettings';
 import { SkillManager } from './SkillManager';
 import { SupportPanel } from './SupportPanel';
+import { TelegramNotificationSettings } from './TelegramNotificationSettings';
 import type { RpcFn } from './types';
 
 interface Props {
@@ -35,10 +41,10 @@ interface Props {
   rpc: RpcFn;
 }
 
-const MODE_OPTIONS: { value: 'auto' | 'supervised' | 'step-by-step'; label: string }[] = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'supervised', label: 'Supervised' },
-  { value: 'step-by-step', label: 'Step-by-Step' },
+const MODE_OPTIONS: { value: 'auto' | 'supervised' | 'step-by-step'; labelKey: string }[] = [
+  { value: 'auto', labelKey: 'mode.auto' },
+  { value: 'supervised', labelKey: 'mode.supervised' },
+  { value: 'step-by-step', labelKey: 'mode.step' },
 ];
 
 const API_KEY_PROVIDERS = [
@@ -64,8 +70,8 @@ export function SettingsPanel({
   const model = useAgentStore((s) => s.model);
   const qualityPreset = useAgentStore((s) => s.qualityPreset);
   const mode = useAgentStore((s) => s.mode);
-  const { theme, toggleTheme } = useConfigStore();
-  const { locale, setLocale } = useI18n();
+  const { theme, setTheme, density, setDensity } = useConfigStore();
+  const { locale, setLocale, t } = useI18n();
   const providerStatuses = useAuthStore((s) => s.providerStatuses);
   const providerHealth = useAuthStore((s) => s.providerHealth);
   const maskedKeys = useAuthStore((s) => s.maskedKeys);
@@ -97,6 +103,7 @@ export function SettingsPanel({
     oauthStatuses,
   });
   const currentProviderHealth = providerHealth[modelAccess.provider] ?? null;
+  const localeTag = getLocaleOption(locale).bcp47;
 
   const refreshAuth = async () => {
     setAuthSnapshot(await fetchAuthSnapshot(rpc));
@@ -129,7 +136,7 @@ export function SettingsPanel({
         const config = (result as { config?: Record<string, unknown> }).config ?? {};
         const agentCfg = (config.agent ?? {}) as Record<string, unknown>;
         const value = agentCfg.language;
-        if (value === 'ko' || value === 'en') {
+        if (value === 'ko' || value === 'en' || value === 'ja') {
           if (value !== locale) setLocale(value);
         }
       })
@@ -144,7 +151,7 @@ export function SettingsPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleLanguageChange = async (next: 'ko' | 'en') => {
+  const handleLanguageChange = async (next: Locale) => {
     setLocale(next);
     try {
       await rpc('config.set', { path: 'agent.language', value: next });
@@ -203,7 +210,11 @@ export function SettingsPanel({
       }, 800);
     } catch (error) {
       console.error('Failed to save key:', error);
-      window.alert(`Failed to save key: ${error instanceof Error ? error.message : String(error)}`);
+      window.alert(
+        t('settings.apiKeys.saveFailed', {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      );
     } finally {
       setSaving(false);
     }
@@ -232,10 +243,12 @@ export function SettingsPanel({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-ds-border px-4 py-3">
-          <h2 id="settings-title" className="text-sm font-semibold text-ds-text">Settings</h2>
+          <h2 id="settings-title" className="text-sm font-semibold text-ds-text">
+            {t('settings.title')}
+          </h2>
           <button
             onClick={onClose}
-            aria-label="Close settings"
+            aria-label={t('settings.close')}
             className="rounded p-1 text-ds-muted transition-colors hover:bg-ds-bg hover:text-ds-text"
           >
             <X size={16} />
@@ -243,10 +256,12 @@ export function SettingsPanel({
         </div>
 
         <div className="space-y-6 p-4">
-          <Section title="Operator Context">
+          <Section title={t('settings.section.operatorContext')}>
             <div className="space-y-2 rounded-lg border border-ds-border bg-ds-bg p-3">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-ds-muted">AI Setup</div>
+                <div className="text-[10px] uppercase tracking-wider text-ds-muted">
+                  {t('settings.operatorContext.aiSetup')}
+                </div>
                 <div className="mt-1 text-xs font-medium text-ds-text">
                   {qualityPresetDef.label}
                 </div>
@@ -256,7 +271,7 @@ export function SettingsPanel({
                 <span>{modelAccess.providerLabel}</span>
                 <span>|</span>
                 <span>{modelAccess.authTypeLabel}</span>
-                <span className={modelAccess.ready ? 'text-ds-success' : 'text-amber-400'}>
+                <span className={modelAccess.ready ? 'text-ds-success' : 'text-ds-warning'}>
                   {modelAccess.shortLabel}
                 </span>
                 {currentProviderHealth && <HealthBadge health={currentProviderHealth} />}
@@ -272,7 +287,7 @@ export function SettingsPanel({
               )}
               <details className="rounded border border-ds-border/50 bg-ds-surface px-2 py-1.5">
                 <summary className="cursor-pointer text-[10px] uppercase tracking-wider text-ds-muted">
-                  Advanced model
+                  {t('settings.operatorContext.advancedModel')}
                 </summary>
                 <div className="mt-2 break-all font-mono text-[11px] text-ds-text">{model}</div>
               </details>
@@ -280,57 +295,82 @@ export function SettingsPanel({
               {selectedProject && (
                 <div className="border-t border-ds-border/50 pt-2">
                   <div className="text-[10px] uppercase tracking-wider text-ds-muted">
-                    Selected Project
+                    {t('settings.operatorContext.selectedProject')}
                   </div>
                   <div className="mt-1 text-xs font-medium text-ds-text">
                     {selectedProject.name}
                   </div>
                   <div className="mt-1 text-[10px] text-ds-muted">
-                    {(selectedProject.taskType ?? 'general')} | {selectedProject.artifactCount}{' '}
-                    artifacts
+                    {(selectedProject.taskType ?? 'general')} | {t('settings.operatorContext.artifactCount', {
+                      count: selectedProject.artifactCount,
+                    })}
                   </div>
                 </div>
               )}
             </div>
           </Section>
 
-          <Section title="Appearance">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-ds-text">Theme</span>
-              <button
-                onClick={toggleTheme}
-                className="
-                  flex items-center gap-2 rounded-lg border border-ds-border bg-ds-bg px-3 py-1.5
-                  text-xs text-ds-text transition-colors hover:border-ds-accent/50
-                "
-              >
-                {theme === 'dark' ? <Moon size={12} /> : <Sun size={12} />}
-                {theme === 'dark' ? 'Dark' : 'Light'}
-              </button>
+          <Section title={t('settings.section.appearance')}>
+            <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
+              <Select
+                id="theme-selector"
+                label={t('settings.theme')}
+                description={t('settings.themeDescription')}
+                value={theme}
+                onChange={(event) => setTheme(event.target.value as typeof theme)}
+                options={THEME_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: t(option.labelKey),
+                }))}
+              />
+              <p className="mt-2 text-[11px] text-ds-muted">
+                {t(THEME_OPTIONS.find((option) => option.value === theme)?.descriptionKey ?? 'settings.themeOption.dark')}
+              </p>
+            </div>
+            <div className="mt-3 rounded-lg border border-ds-border bg-ds-bg p-3">
+              <Select
+                id="density-selector"
+                label={t('settings.density')}
+                description={t('settings.densityDescription')}
+                value={density}
+                onChange={(event) => setDensity(event.target.value as DensityMode)}
+                options={DENSITY_MODES.map((mode) => ({
+                  value: mode,
+                  label: t(`settings.densityOption.${mode}`),
+                }))}
+              />
+              <p className="mt-2 text-[11px] text-ds-muted">
+                {t(`settings.densityOption.${density}.description`)}
+              </p>
             </div>
           </Section>
 
-          <Section title="Onboarding">
+          <Section title={t('settings.section.deepLink')}>
+            <DeepLinkSettings />
+          </Section>
+
+          <Section title={t('settings.section.telegramNotifications')}>
+            <TelegramNotificationSettings rpc={rpc} />
+          </Section>
+
+          <Section title={t('settings.section.onboarding')}>
             <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
-              <p className="text-xs text-ds-muted">
-                Re-run the first-run guide to update your default use case and AI setup.
-              </p>
-              <button
+              <p className="text-xs text-ds-muted">{t('settings.onboarding.description')}</p>
+              <Button
                 onClick={() => {
                   onClose();
                   onRestartOnboarding();
                 }}
-                className="
-                  mt-3 rounded-lg border border-ds-border px-3 py-1.5 text-xs font-medium
-                  text-ds-text transition-colors hover:border-ds-accent/50 hover:text-ds-accent
-                "
+                variant="secondary"
+                size="md"
+                className="mt-3"
               >
-                Restart Onboarding
-              </button>
+                {t('settings.onboarding.restart')}
+              </Button>
             </div>
           </Section>
 
-          <Section title="AI Setup">
+          <Section title={t('settings.section.aiSetup')}>
             <div className="grid gap-2 sm:grid-cols-2">
               {SIMPLE_QUALITY_PRESETS.map((preset) => {
                 const definition = getQualityPresetDefinition(preset);
@@ -357,7 +397,7 @@ export function SettingsPanel({
 
             <details className="mt-3 rounded-lg border border-ds-border bg-ds-bg p-3">
               <summary className="cursor-pointer text-xs font-medium text-ds-text">
-                Advanced model settings
+                {t('settings.aiSetup.advancedModel')}
               </summary>
               <div className="mt-3">
                 <div className="flex gap-2">
@@ -385,17 +425,17 @@ export function SettingsPanel({
                       disabled:cursor-not-allowed disabled:opacity-40
                     "
                   >
-                    Apply
+                    {t('settings.aiSetup.apply')}
                   </button>
                 </div>
                 <p className="mt-1 text-[10px] text-ds-muted">
-                  e.g. anthropic/claude-sonnet-4-6, codex/gpt-5.4, deepseek/deepseek-chat
+                  {t('settings.aiSetup.examples')}
                 </p>
               </div>
             </details>
           </Section>
 
-          <Section title="Mode">
+          <Section title={t('settings.section.mode')}>
             <div className="flex gap-1">
               {MODE_OPTIONS.map((option) => (
                 <button
@@ -410,24 +450,24 @@ export function SettingsPanel({
                     }
                   `}
                 >
-                  {option.label}
+                  {t(option.labelKey)}
                 </button>
               ))}
             </div>
           </Section>
 
-          <Section title="Policy Studio">
+          <Section title={t('settings.section.policyStudio')}>
             <PolicyStudio />
           </Section>
 
-          <Section title="Provider Status">
+          <Section title={t('settings.section.providerStatus')}>
             <div className="space-y-2">
               {Array.from(new Set([
                 ...Object.keys(providerStatuses),
                 ...Object.keys(providerHealth),
               ]))
                 .sort((left, right) =>
-                  (PROVIDER_LABELS[left] ?? left).localeCompare(PROVIDER_LABELS[right] ?? right)
+                  (PROVIDER_LABELS[left] ?? left).localeCompare(PROVIDER_LABELS[right] ?? right, localeTag)
                 )
                 .map((provider) => {
                   const status = providerStatuses[provider] ?? 'unknown';
@@ -435,8 +475,8 @@ export function SettingsPanel({
                   const maskedKey = maskedKeys[provider];
                   const health = providerHealth[provider];
                   const detail = oauth?.authenticated
-                    ? oauth.email ?? oauth.accountId ?? 'OAuth connected'
-                    : maskedKey ?? statusDetail(status);
+                    ? oauth.email ?? oauth.accountId ?? t('settings.oauth.connected')
+                    : maskedKey ?? statusDetail(status, t);
 
                   return (
                     <div
@@ -466,29 +506,31 @@ export function SettingsPanel({
                 })}
 
               {(authLoading || Object.keys(providerStatuses).length === 0) && (
-                <p className="text-xs text-ds-muted">Loading auth snapshot...</p>
+                <p className="text-xs text-ds-muted">{t('settings.providerStatus.loading')}</p>
               )}
 
               {authLastUpdatedAt && (
                 <p className="text-[10px] text-ds-muted/70">
-                  Last synced {new Date(authLastUpdatedAt).toLocaleTimeString()}
+                  {t('settings.providerStatus.lastSynced', {
+                    time: new Date(authLastUpdatedAt).toLocaleTimeString(localeTag),
+                  })}
                 </p>
               )}
             </div>
           </Section>
 
-          <Section title="OAuth Accounts">
+          <Section title={t('settings.section.oauthAccounts')}>
             <div className="space-y-2">
               {[
                 {
                   id: 'codex',
-                  label: 'ChatGPT (Codex)',
-                  desc: 'OpenAI ChatGPT Plus/Pro account',
+                  label: t('settings.oauth.codex.label'),
+                  desc: t('settings.oauth.codex.description'),
                 },
                 {
                   id: 'gemini',
-                  label: 'Google Gemini',
-                  desc: 'Google account or Gemini-compatible flow',
+                  label: t('settings.oauth.gemini.label'),
+                  desc: t('settings.oauth.gemini.description'),
                 },
               ].map(({ id, label, desc }) => {
                 const oauth = oauthStatuses[id];
@@ -508,12 +550,12 @@ export function SettingsPanel({
                       {isAuth ? (
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-green-400">
-                            {oauth?.email ?? oauth?.accountId ?? 'Connected'}
+                            {oauth?.email ?? oauth?.accountId ?? t('settings.oauth.connected')}
                           </span>
                           <button
                             onClick={() => void handleOAuthDisconnect(id)}
                             className="p-1 text-ds-muted transition-colors hover:text-red-400"
-                            title="Disconnect"
+                            title={t('settings.oauth.disconnect')}
                           >
                             <LogOut size={12} />
                           </button>
@@ -529,7 +571,7 @@ export function SettingsPanel({
                           "
                         >
                           <LogIn size={10} />
-                          Login
+                          {t('settings.oauth.login')}
                         </button>
                       )}
                     </div>
@@ -539,13 +581,13 @@ export function SettingsPanel({
             </div>
           </Section>
 
-          <Section title="API Keys">
+          <Section title={t('settings.section.apiKeys')}>
             <div className="space-y-2">
               {window.electronAPI?.getSecretVaultStatus && (
                 <div className="rounded-lg border border-ds-border/50 bg-ds-bg px-3 py-2 text-[11px] text-ds-muted">
                   {vaultStatus?.available
-                    ? 'Stored securely by the desktop app and applied by restarting the local AI engine.'
-                    : vaultStatus?.error ?? 'Checking desktop secure storage...'}
+                    ? t('settings.apiKeys.vault.ready')
+                    : vaultStatus?.error ?? t('settings.apiKeys.vault.checking')}
                 </div>
               )}
               {API_KEY_PROVIDERS.map((provider) => (
@@ -565,14 +607,14 @@ export function SettingsPanel({
                         }}
                         className="text-[10px] text-ds-accent hover:underline"
                       >
-                        {maskedKeys[provider] ? 'Change' : 'Set Key'}
+                        {maskedKeys[provider] ? t('settings.apiKeys.change') : t('settings.apiKeys.set')}
                       </button>
                     ) : (
                       <button
                         onClick={() => setEditingProvider(null)}
                         className="text-[10px] text-ds-muted hover:text-ds-text"
                       >
-                        Cancel
+                        {t('settings.apiKeys.cancel')}
                       </button>
                     )}
                   </div>
@@ -583,7 +625,7 @@ export function SettingsPanel({
                         type="password"
                         value={newKey}
                         onChange={(e) => setNewKey(e.target.value)}
-                        placeholder="Enter API key..."
+                        placeholder={t('settings.apiKeys.placeholder')}
                         className="
                           flex-1 rounded border border-ds-border bg-ds-surface px-2 py-1
                           text-xs font-mono text-ds-text
@@ -600,12 +642,12 @@ export function SettingsPanel({
                           transition-colors disabled:opacity-30
                         "
                       >
-                        Save
+                        {t('common.save')}
                       </button>
                     </div>
                   ) : (
                     <div className="font-mono text-[10px] text-ds-muted">
-                      {maskedKeys[provider] ?? 'Not set'}
+                      {maskedKeys[provider] ?? t('settings.apiKeys.notSet')}
                     </div>
                   )}
                 </div>
@@ -613,72 +655,47 @@ export function SettingsPanel({
             </div>
           </Section>
 
-          <Section title="Database Connectors">
+          <Section title={t('settings.section.databaseConnectors')}>
             <ConnectorWizard rpc={rpc} />
           </Section>
 
-          <Section title="Cost Governance">
+          <Section title={t('settings.section.costGovernance')}>
             <CostSettings rpc={rpc} />
           </Section>
 
-          <Section title="Team & Enterprise">
+          <Section title={t('settings.section.teamEnterprise')}>
             <AdminConsole rpc={rpc} />
           </Section>
 
-          <Section title="Custom Skills">
+          <Section title={t('settings.section.customSkills')}>
             <SkillManager rpc={rpc} />
           </Section>
 
-          <Section title="Privacy">
+          <Section title={t('settings.section.privacy')}>
             <PrivacySettings rpc={rpc} />
           </Section>
 
-          <Section title="Support">
+          <Section title={t('settings.section.support')}>
             <SupportPanel />
           </Section>
 
-          <Section title="Keyboard Shortcuts">
+          <Section title={t('settings.section.shortcuts')}>
             <div className="space-y-1.5">
-              <ShortcutRow keys="Enter" desc="Send message" />
-              <ShortcutRow keys="Shift+Enter" desc="New line" />
-              <ShortcutRow keys="Ctrl+C" desc="Abort current run" />
-              <ShortcutRow keys="Ctrl+M" desc="Cycle mode" />
-              <ShortcutRow keys="Ctrl+," desc="Open settings" />
+              <ShortcutRow keys="Enter" desc={t('settings.send')} />
+              <ShortcutRow keys="Shift+Enter" desc={t('settings.newline')} />
+              <ShortcutRow keys="Ctrl+C" desc={t('settings.abort')} />
+              <ShortcutRow keys="Ctrl+M" desc={t('settings.cycleMode')} />
+              <ShortcutRow keys="Ctrl+," desc={t('settings.openSettings')} />
             </div>
           </Section>
 
-          <Section title="Language">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-ds-text">
-                <Globe size={12} className="text-ds-muted" />
-                Language
-              </div>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => void handleLanguageChange('en')}
-                  className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                    locale === 'en'
-                      ? 'bg-ds-accent text-white'
-                      : 'border border-ds-border bg-ds-bg text-ds-muted hover:text-ds-text'
-                  }`}
-                >
-                  EN
-                </button>
-                <button
-                  onClick={() => void handleLanguageChange('ko')}
-                  className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                    locale === 'ko'
-                      ? 'bg-ds-accent text-white'
-                      : 'border border-ds-border bg-ds-bg text-ds-muted hover:text-ds-text'
-                  }`}
-                >
-                  KO
-                </button>
-              </div>
-            </div>
+          <Section title={t('settings.section.language')}>
+            <LocaleSelector value={locale} onChange={handleLanguageChange} compact />
           </Section>
 
-          <div className="pt-4 text-center text-[10px] text-ds-muted/40">DS Agent v0.1.0</div>
+          <div className="pt-4 text-center text-[10px] text-ds-muted/40">
+            {t('settings.version')}
+          </div>
         </div>
       </div>
     </div>
@@ -707,46 +724,53 @@ function ShortcutRow({ keys, desc }: { keys: string; desc: string }) {
   );
 }
 
-function statusDetail(status: string): string {
-  if (status === 'active') return 'Credentials available';
-  if (status === 'local') return 'Local runtime';
-  if (status === 'need_key') return 'API key required';
-  if (status === 'not_configured') return 'OAuth login required';
-  return 'Not configured';
+function statusDetail(
+  status: string,
+  t: (key: string, vars?: Record<string, string | number | null | undefined>) => string,
+): string {
+  if (status === 'active') return t('settings.status.credentialsAvailable');
+  if (status === 'local') return t('settings.status.localRuntime');
+  if (status === 'need_key') return t('settings.status.apiKeyRequired');
+  if (status === 'not_configured') return t('settings.status.oauthRequired');
+  return t('settings.status.unknown');
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useI18n();
+
   if (status === 'active' || status === 'local') {
     return (
       <span className="flex items-center gap-1 text-[10px] text-ds-success">
         <span className="h-1.5 w-1.5 rounded-full bg-ds-success" />
-        {status === 'local' ? 'Local' : 'Ready'}
+        {status === 'local' ? t('settings.status.local') : t('settings.status.ready')}
       </span>
     );
   }
   if (status === 'need_key' || status === 'not_configured') {
     return (
-      <span className="flex items-center gap-1 text-[10px] text-amber-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-        {status === 'need_key' ? 'Need Key' : 'Need Login'}
+      <span className="flex items-center gap-1 text-[10px] text-ds-warning">
+        <span className="h-1.5 w-1.5 rounded-full bg-ds-warning" />
+        {status === 'need_key' ? t('settings.status.needKey') : t('settings.status.needLogin')}
       </span>
     );
   }
   return (
     <span className="flex items-center gap-1 text-[10px] text-ds-muted">
       <span className="h-1.5 w-1.5 rounded-full bg-ds-muted/40" />
-      Unknown
+      {t('settings.status.unknown')}
     </span>
   );
 }
 
 function HealthBadge({ health }: { health: ProviderHealthStatus }) {
+  const { t } = useI18n();
+
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${healthBadgeClasses(health.status)}`}
       title={health.message}
     >
-      {healthLabel(health.status)}
+      {healthLabel(health.status, t)}
     </span>
   );
 }
@@ -756,17 +780,20 @@ function healthBadgeClasses(status: ProviderHealthStatus['status']): string {
     return 'bg-ds-success/15 text-ds-success';
   }
   if (status === 'degraded') {
-    return 'bg-amber-400/15 text-amber-300';
+    return 'bg-ds-warning/15 text-ds-warning';
   }
   return 'bg-ds-error/15 text-ds-error';
 }
 
-function healthLabel(status: ProviderHealthStatus['status']): string {
+function healthLabel(
+  status: ProviderHealthStatus['status'],
+  t: (key: string, vars?: Record<string, string | number | null | undefined>) => string,
+): string {
   if (status === 'ok') {
-    return 'Healthy';
+    return t('settings.health.ok');
   }
   if (status === 'degraded') {
-    return 'Degraded';
+    return t('settings.health.degraded');
   }
-  return 'Unavailable';
+  return t('settings.health.error');
 }

@@ -25,6 +25,7 @@ from ds_agent.agent.prompt_sections import (
     task_contract_section,
 )
 from ds_agent.domain.entities.messages import ChatMessage, Role
+from ds_agent.domain.value_objects.analysis_stage import AnalysisStage
 from ds_agent.domain.value_objects.audience_persona import AudiencePersona
 from ds_agent.domain.value_objects.authority_mode import AuthorityMode
 
@@ -55,6 +56,84 @@ class PromptSection:
 # Legacy constant kept for backward-compat in tests that import it directly.
 # ---------------------------------------------------------------------------
 DEFAULT_SYSTEM_PROMPT = CORE_IDENTITY + "\n\n" + QUALITY_PRINCIPLES
+
+_STAGE_RULES: dict[AnalysisStage, tuple[str, ...]] = {
+    AnalysisStage.SCOPING: (
+        (
+            "Clarify the business decision, success metric, and Definition of Done "
+            "before deeper analysis."
+        ),
+        (
+            "Identify the baseline the work must beat instead of assuming modeling "
+            "is already justified."
+        ),
+        "Record key constraints early: data access, privacy, deadline, and delivery format.",
+    ),
+    AnalysisStage.DATA_LOADING: (
+        "Verify data source scope, freshness, and basic lineage before trusting the inputs.",
+        "Surface privacy, access, or schema ambiguity as a blocker instead of guessing through it.",
+        (
+            "Do not proceed as if the dataset is analysis-ready until loading "
+            "assumptions are explicit."
+        ),
+    ),
+    AnalysisStage.PROFILING: (
+        (
+            "Quantify shape, missingness, schema defects, and obvious outliers "
+            "before hypothesis-building."
+        ),
+        "Promote the highest-risk data quality issues into explicit blockers or follow-up checks.",
+        (
+            "Record the strongest candidate explanations worth testing in EDA "
+            "rather than free-form exploration."
+        ),
+    ),
+    AnalysisStage.EDA: (
+        "Prefer hypothesis-driven exploration over broad fishing expeditions.",
+        "Document which relationships, anomalies, or segments changed the working hypothesis.",
+        "Keep leakage risk and business plausibility in view while interpreting patterns.",
+    ),
+    AnalysisStage.FEATURE_ENG: (
+        (
+            "Fit transforms on train-only data and treat target or future "
+            "information as leakage by default."
+        ),
+        "Document why each transformation should improve signal, not just model convenience.",
+        (
+            "Preserve a path back to simple features so feature additions can be "
+            "justified against a baseline."
+        ),
+    ),
+    AnalysisStage.MODELING: (
+        "Establish and record a simple baseline before trusting more complex models.",
+        "Choose a validation strategy that matches the data shape and leakage risks.",
+        "Compare a small set of credible candidates and track both quality and operational cost.",
+    ),
+    AnalysisStage.EVALUATION: (
+        "Use untouched holdout evidence for final claims instead of reusing tuning feedback.",
+        "Translate model metrics into business risk, error modes, and decision readiness.",
+        "Include uncertainty or confidence framing when the evidence is narrow or unstable.",
+    ),
+    AnalysisStage.REPORTING: (
+        (
+            "Lead with the decision, impact, and risk instead of replaying the "
+            "full analysis chronology."
+        ),
+        "Make recommendations actionable by naming the next step, owner, or unresolved blocker.",
+        "State assumptions, limitations, and follow-up questions explicitly.",
+    ),
+}
+
+_STAGE_TO_SKILLS: dict[AnalysisStage, tuple[str, ...]] = {
+    AnalysisStage.SCOPING: ("scoping",),
+    AnalysisStage.DATA_LOADING: (),
+    AnalysisStage.PROFILING: ("data-profiling",),
+    AnalysisStage.EDA: ("eda",),
+    AnalysisStage.FEATURE_ENG: ("feature-engineering",),
+    AnalysisStage.MODELING: ("modeling",),
+    AnalysisStage.EVALUATION: ("evaluation",),
+    AnalysisStage.REPORTING: ("reporting",),
+}
 
 
 class MissionPackLoaderLike(Protocol):
@@ -125,14 +204,19 @@ class PromptBuilder:
         history: list[ChatMessage] | None = None,
     ) -> list[ChatMessage]:
         """Build full message list: system + history + user message."""
-        system_content = self._build_system_content()
-        messages: list[ChatMessage] = [
-            ChatMessage(role=Role.SYSTEM, content=system_content),
-        ]
+        messages: list[ChatMessage] = [self.build_system_message()]
         if history:
             messages.extend(history)
         messages.append(ChatMessage(role=Role.USER, content=user_message))
         return messages
+
+    def build_system_message(self) -> ChatMessage:
+        """Build the current system message only.
+
+        This allows the agent loop to refresh the system prompt when session
+        state changes mid-run without rebuilding the entire conversation list.
+        """
+        return ChatMessage(role=Role.SYSTEM, content=self._build_system_content())
 
     # -- internal assembly ---------------------------------------------------
 
@@ -146,6 +230,8 @@ class PromptBuilder:
     def _collect_sections(self) -> list[PromptSection]:
         active_contract_bundle = self._get_active_task_contract_bundle()
         active_mission_pack = self._get_active_mission_pack(active_contract_bundle)
+        working_memory = self._load_working_memory()
+        current_stage = None if working_memory is None else working_memory.current_stage
 
         # Upfront sections: always present (core context)
         sections: list[PromptSection] = [
@@ -177,9 +263,7 @@ class PromptBuilder:
         # directive survives token trimming.
         language_section = self._build_language_section()
         if language_section:
-            sections.append(
-                PromptSection("language", language_section, priority=3, required=True)
-            )
+            sections.append(PromptSection("language", language_section, priority=3, required=True))
 
         # On-demand sections: loaded only when relevant, higher priority numbers
         # so they are dropped first when token budget is tight.
@@ -189,12 +273,23 @@ class PromptBuilder:
         if mission_context:
             sections.append(PromptSection("mission", mission_context, priority=3, required=True))
 
+        stage_guidance = self._build_stage_guidance(current_stage)
+        if stage_guidance:
+            sections.append(
+                PromptSection(
+                    "stage_guidance",
+                    stage_guidance,
+                    priority=4,
+                    required=True,
+                )
+            )
+
         tool_guides = self._build_tool_guides()
         if tool_guides:
             sections.append(PromptSection("tool_guides", tool_guides, priority=7))
 
-        # Skills: only the current stage's skill is injected, not all 8.
-        skill_content = self._build_skill_content(active_mission_pack)
+        # Skills come from the active session set plus any mission-required additions.
+        skill_content = self._build_skill_content(active_mission_pack, current_stage=current_stage)
         if skill_content:
             sections.append(PromptSection("skills", skill_content, priority=6))
 
@@ -212,6 +307,17 @@ class PromptBuilder:
         if use_case_context:
             sections.append(PromptSection("use_case", use_case_context, priority=5))
 
+        continuity_context = self._build_execution_continuity_context(working_memory)
+        if continuity_context:
+            sections.append(
+                PromptSection(
+                    "execution_continuity",
+                    continuity_context,
+                    priority=4,
+                    required=True,
+                )
+            )
+
         goal_context = self._build_goal_context()
         if goal_context:
             sections.append(PromptSection("goal", goal_context, priority=5))
@@ -220,9 +326,20 @@ class PromptBuilder:
         if task_contract_context:
             sections.append(PromptSection("task_contract", task_contract_context, priority=5))
 
-        working_memory = self._build_working_memory_context()
-        if working_memory:
-            sections.append(PromptSection("working_memory", working_memory, priority=6))
+        working_memory_context = self._build_working_memory_context(working_memory)
+        if working_memory_context:
+            sections.append(PromptSection("working_memory", working_memory_context, priority=6))
+
+        verifier_remediation_context = self._build_verifier_remediation_context(working_memory)
+        if verifier_remediation_context:
+            sections.append(
+                PromptSection(
+                    "verifier_remediation",
+                    verifier_remediation_context,
+                    priority=4,
+                    required=True,
+                )
+            )
 
         # DS_METHODOLOGY removed from system prompt — its content is now
         # covered by SessionInitHook (forced injection) and skill files
@@ -296,7 +413,8 @@ class PromptBuilder:
         import os
 
         if os.environ.get(
-            "DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "",
+            "DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1",
+            "",
         ).lower() not in {"1", "true", "yes"}:
             return None
         try:
@@ -363,10 +481,7 @@ class PromptBuilder:
             "모든 사용자 응답은 한국어로 작성하세요. 변수명과 "
             "코드는 영문을 유지하고, 사용자용 설명·분석·결론·주석은 한국어로."
         ),
-        "en": (
-            "# Response Language\n"
-            "Respond to the user in English."
-        ),
+        "en": ("# Response Language\nRespond to the user in English."),
         "ja": (
             "# Response Language\n"
             "ユーザーへの応答はすべて日本語で書いてください。コード内の識別子は英語で可。"
@@ -451,11 +566,39 @@ class PromptBuilder:
             return ""
         return "# Tool Usage Guides\n\n" + "\n\n".join(guides)
 
-    def _build_skill_content(self, mission_pack: MissionPack | None = None) -> str:
+    def _build_stage_guidance(self, current_stage: AnalysisStage | None) -> str:
+        if current_stage is None:
+            return ""
+
+        rules = _STAGE_RULES.get(current_stage, ())
+        prioritized_skills = _STAGE_TO_SKILLS.get(current_stage, ())
+        if not rules and not prioritized_skills:
+            return ""
+
+        parts = [
+            "# Stage-Aware Guidance",
+            f"- Current stage: {current_stage.value}",
+            "- Apply these guardrails to the next concrete action:",
+        ]
+        for rule in rules:
+            parts.append(f"- {rule}")
+        if prioritized_skills:
+            preferred = ", ".join(f"`{name}`" for name in prioritized_skills)
+            parts.append(f"- Prioritize these skills right now: {preferred}")
+        return "\n".join(parts)
+
+    def _build_skill_content(
+        self,
+        mission_pack: MissionPack | None = None,
+        *,
+        current_stage: AnalysisStage | None = None,
+    ) -> str:
         skill_names = list(self._skill_names)
         if mission_pack is not None:
             skill_names.extend(mission_pack.skills_required)
-            skill_names = list(dict.fromkeys(skill_names))
+        if current_stage is not None:
+            skill_names = [*_STAGE_TO_SKILLS.get(current_stage, ()), *skill_names]
+        skill_names = list(dict.fromkeys(skill_names))
         if self._skill_hub and hasattr(self._skill_hub, "get_enabled_prompt_skill_names"):
             skill_names = self._skill_hub.get_enabled_prompt_skill_names(skill_names)
 
@@ -519,6 +662,53 @@ class PromptBuilder:
             parts.append(f"- Recent note: {goal.notes[-1]}")
         return "\n".join(parts)
 
+    def _load_working_memory(self):
+        if not self._session_id or self._working_memory_store is None:
+            return None
+        return self._working_memory_store.load(self._session_id)
+
+    def _build_execution_continuity_context(self, memory=None) -> str:
+        if not self._session_id:
+            return ""
+
+        goal = None
+        if self._goal_store is not None:
+            goal = self._goal_store.get_active_goal(self._session_id)
+
+        if memory is None:
+            memory = self._load_working_memory()
+
+        current_stage = None if memory is None else memory.current_stage
+        blocker = None
+        if goal is not None and goal.blocked_reason:
+            blocker = goal.blocked_reason
+        elif memory is not None and memory.pending_questions:
+            blocker = memory.pending_questions[0]
+
+        next_step = None if memory is None else memory.next_step
+        recovery_note = None if memory is None else memory.recovery_note
+
+        if not any(
+            [
+                current_stage is not None,
+                blocker,
+                next_step,
+                recovery_note,
+            ]
+        ):
+            return ""
+
+        parts = ["# Execution Continuity"]
+        if current_stage is not None:
+            parts.append(f"- Current stage: {current_stage.value}")
+        if blocker:
+            parts.append(f"- Active blocker: {blocker}")
+        if next_step:
+            parts.append(f"- Next step: {next_step}")
+        if recovery_note:
+            parts.append(f"- Recovery state: {recovery_note}")
+        return "\n".join(parts)
+
     def _get_active_task_contract_bundle(self) -> TaskContractBundle | None:
         if not self._session_id or self._task_contract_store is None:
             return None
@@ -558,17 +748,17 @@ class PromptBuilder:
             return build_missing_mission_section(mission_name)
         return ""
 
-    def _build_working_memory_context(self) -> str:
-        if not self._session_id or self._working_memory_store is None:
-            return ""
-
-        memory = self._working_memory_store.load(self._session_id)
+    def _build_working_memory_context(self, memory=None) -> str:
+        if memory is None:
+            memory = self._load_working_memory()
         if memory is None:
             return ""
 
         parts = ["# Working Memory"]
         if memory.current_summary:
             parts.append(f"- Summary: {memory.current_summary}")
+        if memory.current_stage is not None:
+            parts.append(f"- Current stage: {memory.current_stage.value}")
         if memory.next_step:
             parts.append(f"- Next step: {memory.next_step}")
         if memory.last_reflection:
@@ -581,6 +771,53 @@ class PromptBuilder:
                 parts.append(f"  - {question}")
         if len(parts) == 1:
             return ""
+        return "\n".join(parts)
+
+    def _build_verifier_remediation_context(self, memory=None) -> str:
+        """Inject pending verifier remediation findings into the next-turn prompt.
+
+        If the previous turn's verifier result was fail/warn and the remediation
+        payload was stored in working memory, surface the issues and recommended
+        actions so the agent can address them without the operator needing to
+        re-state the problem.
+        """
+        if memory is None:
+            memory = self._load_working_memory()
+        if memory is None:
+            return ""
+        remediation = getattr(memory, "pending_verifier_remediation", None)
+        if not remediation:
+            return ""
+
+        parts = [
+            "## Pending Verifier Remediation",
+            (
+                "The previous response had verifier findings that need to be addressed "
+                "before this task can progress:"
+            ),
+        ]
+        for item in remediation[:10]:
+            if not isinstance(item, dict):
+                continue
+            severity = item.get("severity", "")
+            message = item.get("message", "")
+            blocking = item.get("blocking", False)
+            flag = " [BLOCKING]" if blocking else ""
+            if message:
+                parts.append(f"- [{severity}]{flag} {message}")
+
+        actions = [
+            a
+            for a in (remediation[0].get("recommendedActions", []) if remediation else [])
+            if isinstance(a, dict)
+        ]
+        if actions:
+            parts.append("Recommended actions:")
+            for action in actions[:5]:
+                title = action.get("title", "")
+                description = action.get("description", "")
+                if title:
+                    parts.append(f"- {title}: {description}" if description else f"- {title}")
         return "\n".join(parts)
 
     def _build_use_case_context(self) -> str:

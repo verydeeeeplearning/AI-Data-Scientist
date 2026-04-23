@@ -1,4 +1,8 @@
-import type { MatrixAuthority, MatrixVerdict } from '../../stores/policyStore';
+import type {
+  ActionMatrixRowEntry,
+  MatrixAuthority,
+  MatrixVerdict,
+} from '../../stores/policyStore';
 
 export type ContractAuthorityDraft =
   | 'inherit'
@@ -57,6 +61,14 @@ export interface PolicyStudioPreset {
   label: string;
   authority: Exclude<ContractAuthorityDraft, 'inherit'>;
   audience: Exclude<AudienceDraft, 'inherit'>;
+  summary: string;
+}
+
+export type PolicyRiskTier = 'routine' | 'guarded' | 'sensitive' | 'critical';
+
+export interface PolicyRiskTierDefinition {
+  value: PolicyRiskTier;
+  label: string;
   summary: string;
 }
 
@@ -224,6 +236,29 @@ export const POLICY_STUDIO_PRESETS: PolicyStudioPreset[] = [
   },
 ];
 
+export const POLICY_RISK_TIER_DEFINITIONS: PolicyRiskTierDefinition[] = [
+  {
+    value: 'routine',
+    label: 'T0 Routine',
+    summary: 'Read-mostly or easily reversible work with low blast radius.',
+  },
+  {
+    value: 'guarded',
+    label: 'T1 Guarded',
+    summary: 'Local writes, medium spend, or other reversible work that still needs care.',
+  },
+  {
+    value: 'sensitive',
+    label: 'T2 Sensitive',
+    summary: 'Restricted data, external side effects, or audit-bound actions.',
+  },
+  {
+    value: 'critical',
+    label: 'T3 Critical',
+    summary: 'Irreversible or high-blast-radius actions that should stay tightly controlled.',
+  },
+];
+
 const AUTHORITY_LABELS: Record<EffectiveAuthorityMode, string> = {
   shadow: 'Shadow',
   supervised: 'Supervised',
@@ -304,6 +339,40 @@ export function formatAudienceLabel(value: string | null | undefined): string {
 
 export function formatMatrixVerdictLabel(value: MatrixVerdict): string {
   return MATRIX_VERDICT_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+
+export function derivePolicyRiskTier(
+  row: Pick<
+    ActionMatrixRowEntry,
+    'dataSensitivity' | 'writeSideEffect' | 'costImpact' | 'reversibility' | 'auditRequired'
+  >,
+): PolicyRiskTier {
+  if (
+    row.writeSideEffect === 'irreversible'
+    || row.reversibility === 'irreversible'
+  ) {
+    return 'critical';
+  }
+
+  if (
+    row.dataSensitivity === 'pii'
+    || row.writeSideEffect === 'external'
+    || row.auditRequired
+    || row.costImpact === 'high'
+  ) {
+    return 'sensitive';
+  }
+
+  if (
+    row.dataSensitivity === 'restricted'
+    || row.writeSideEffect === 'local'
+    || row.costImpact === 'medium'
+    || row.reversibility === 'soft_reversible'
+  ) {
+    return 'guarded';
+  }
+
+  return 'routine';
 }
 
 export function isLegacyMode(value: string | null | undefined): value is LegacyMode {

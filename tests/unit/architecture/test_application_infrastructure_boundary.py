@@ -9,6 +9,11 @@ wired at the composition root.
 Extends A01 scope from ``semantic_application_no_infra`` (which covers
 only ``ds_agent.memory.semantic``) to the entire ``ds_agent.application``
 package.
+
+Carve-out: application → ds_agent.runtime is PERMITTED (not tested here).
+  Reason: RuntimeEventRecord is used in trust-metadata ports and use cases
+          as a bounded, documented exception.  See scripts/check_import_contracts.py
+          for the canonical carve-out declaration.
 """
 
 from __future__ import annotations

@@ -3,6 +3,24 @@
 This is a lightweight repo-local guard for CI and local verification. The same
 domain contract is also expressed in `.importlinter` for teams that want to run
 the external Import Linter tool directly.
+
+Architecture contract scope (pragmatic path)
+--------------------------------------------
+Enforced:  domain      → {application, infrastructure, runtime, ...}  FORBIDDEN
+           (domain_independence contract covers all outer-layer modules)
+Enforced:  application → infrastructure                                 FORBIDDEN
+           (application_no_infrastructure contract)
+
+Carve-out: application → runtime                                        PERMITTED
+  Reason:  Some use cases require runtime event types (e.g. RuntimeEventRecord)
+           for trust-metadata projection and telemetry.  These are bounded,
+           explicitly documented exceptions — not general permission for
+           application code to reach into runtime internals.
+  Files:   src/ds_agent/application/ports/trust_metadata_support.py
+           src/ds_agent/application/use_cases/get_trust_metadata_usecase.py
+
+If additional application→runtime imports are needed in the future, they MUST
+be listed here with a rationale before they are merged.
 """
 
 from __future__ import annotations

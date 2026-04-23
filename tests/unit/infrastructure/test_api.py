@@ -20,6 +20,7 @@ import pytest
 
 from ds_agent.domain.entities.approval import ApprovalStatus
 from ds_agent.domain.entities.auth import AuthProfile, OAuthTokenSet
+from ds_agent.domain.result_card import ResultCardSource, coerce_result_card
 from ds_agent.memory.semantic.domain.glossary import GlossaryTerm
 from ds_agent.memory.semantic.domain.metric import Metric
 from ds_agent.memory.semantic.domain.trust import TableTrust
@@ -312,7 +313,10 @@ def _seed_decision_os_state(app_state) -> dict[str, str]:
                 },
                 "feature_refs": [{"feature_id": "f_user_activity_30d", "version": 1}],
                 "data_snapshot_uri": "snapshot://warehouse/churn/2026-04-07",
-                "result": {"metrics": {"f1_macro": 0.80, "fp_rate": 0.12}},
+                "result": {
+                    "metrics": {"f1_macro": 0.80, "fp_rate": 0.12},
+                    "plots": ["artifacts/champion-roc.png"],
+                },
                 "verifier_summary": {
                     "statistical": "PASS",
                     "data": "PASS",
@@ -345,7 +349,10 @@ def _seed_decision_os_state(app_state) -> dict[str, str]:
                 },
                 "feature_refs": [{"feature_id": "f_user_activity_30d", "version": 2}],
                 "data_snapshot_uri": "snapshot://warehouse/churn/2026-04-14",
-                "result": {"metrics": {"f1_macro": 0.84, "fp_rate": 0.10}},
+                "result": {
+                    "metrics": {"f1_macro": 0.84, "fp_rate": 0.10},
+                    "plots": ["artifacts/candidate-roc.png", "artifacts/candidate-pr.png"],
+                },
                 "verifier_summary": {
                     "statistical": "PASS",
                     "data": "PASS",
@@ -602,12 +609,19 @@ class TestWsAgentCallbacks:
         from ds_agent.api.callbacks import WsAgentCallbacks
 
         cb = WsAgentCallbacks(mock_ws)
-        await cb.emit_stream_done("Analysis complete.", 0.05)
+        await cb.emit_stream_done(
+            "Analysis complete.",
+            0.05,
+            message_id="msg-123",
+            cards=[{"cardId": "RC-1", "resultId": "result-1"}],
+        )
 
         frame = mock_ws.sent[0]
         assert frame["event"] == "stream.done"
         assert frame["payload"]["content"] == "Analysis complete."
         assert frame["payload"]["cost"] == 0.05
+        assert frame["payload"]["messageId"] == "msg-123"
+        assert frame["payload"]["cards"] == [{"cardId": "RC-1", "resultId": "result-1"}]
 
     async def test_skips_when_disconnected(self, mock_ws):
         from ds_agent.api.callbacks import WsAgentCallbacks
@@ -690,6 +704,331 @@ class TestWsRpcHandler:
         config = frame["payload"]["config"]
         assert config["oauth"]["gemini_client_secret"] == "***REDACTED***"
         assert config["channels"]["telegram"]["bot_token"] == "***REDACTED***"
+
+    async def test_config_get_includes_learning_feature_flag(
+        self, rpc_handler, mock_ws, monkeypatch
+    ):
+        monkeypatch.setenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "true")
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "cfg-learning-flag",
+                "method": "config.get",
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        assert frame["payload"]["featureFlags"]["selfImproveGovernanceV1"] is True
+
+    async def test_learning_review_rpc_hidden_when_feature_flag_off(
+        self, rpc_handler, mock_ws, monkeypatch
+    ):
+        monkeypatch.delenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", raising=False)
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "learning-off",
+                "method": "learning.review",
+                "params": {"itemId": "LI-1", "decision": "approve"},
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is False
+        assert frame["error"]["code"] == "UNKNOWN_METHOD"
+        assert frame["error"]["message"] == "Unknown method: learning.review"
+
+    async def test_learning_finalize_promotion_rpc_hidden_when_feature_flag_off(
+        self, rpc_handler, mock_ws, monkeypatch
+    ):
+        monkeypatch.delenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", raising=False)
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "learning-finalize-off",
+                "method": "learning.finalizePromotion",
+                "params": {
+                    "candidateId": "failure-taxonomy-leakage",
+                    "candidateScore": 0.82,
+                    "passedTasks": 1,
+                    "totalTasks": 1,
+                },
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is False
+        assert frame["error"]["code"] == "UNKNOWN_METHOD"
+        assert frame["error"]["message"] == "Unknown method: learning.finalizePromotion"
+
+    async def test_learning_readonly_status_available_when_feature_flag_off(
+        self, rpc_handler, mock_ws, monkeypatch
+    ):
+        monkeypatch.delenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", raising=False)
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "learning-status-off",
+                "method": "learning.status",
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        assert frame["payload"]["reviewEnabled"] is False
+        assert frame["payload"]["backlog"]["activeWarningItems"] == 0
+
+    async def test_learning_readonly_inbox_available_when_feature_flag_off(
+        self, rpc_handler, mock_ws, monkeypatch
+    ):
+        monkeypatch.delenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", raising=False)
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "learning-inbox-off",
+                "method": "learning.inbox",
+                "params": {"status": "all"},
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        assert frame["payload"] == {"items": [], "total": 0}
+
+    async def test_learning_rpc_returns_payload_when_feature_flag_on(
+        self, rpc_handler, mock_ws, monkeypatch
+    ):
+        monkeypatch.setenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "1")
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "learning-on",
+                "method": "learning.inbox",
+                "params": {"status": "all", "limit": 5},
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        assert frame["payload"] == {"items": [], "total": 0}
+
+    async def test_learning_rpc_surfaces_warning_metadata_when_feature_flag_on(
+        self, rpc_handler, mock_ws, monkeypatch
+    ):
+        monkeypatch.setenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "1")
+
+        from ds_agent.domain.learning.learning_item import LearningItem, LearningItemType
+
+        store = rpc_handler._get_learning_store()
+        created_at = datetime(2026, 4, 21, 2, 0, tzinfo=UTC)
+        store.save_item(
+            LearningItem(
+                item_id="LI-WARN-1",
+                item_type=LearningItemType.PATTERN,
+                title="Harness warning: leakage",
+                content="Potential leakage detected in holdout split.\n\nSuggestion: Rebuild the split.",
+                signature="sig-warning-1",
+                tags=["harness.warning", "leakage", "severity:high", "surface:ws"],
+                scope="project",
+                created_at=created_at,
+                updated_at=created_at,
+                metadata={
+                    "warningType": "leakage",
+                    "severity": "high",
+                    "surface": "ws",
+                    "sessionId": "sess-7",
+                    "runId": "run-2",
+                    "recurrenceCount": 3,
+                    "firstSeenAt": "2026-04-21T01:00:00+00:00",
+                    "lastSeenAt": "2026-04-21T02:00:00+00:00",
+                    "sessionIds": ["sess-7", "sess-8"],
+                    "runIds": ["run-2", "run-3"],
+                    "surfaces": ["ws", "daemon"],
+                    "failureSourceKind": "harness.warning",
+                    "failureSignalType": "leakage",
+                    "failureSourceRef": "LI-WARN-1",
+                    "failureTaxonomyClass": "leakage",
+                    "failureTaxonomyRecurrenceCount": 3,
+                    "failureTaxonomyLastGcAt": "2026-04-21T03:00:00+00:00",
+                    "failureTaxonomyPromotionCandidate": True,
+                    "failureTaxonomyCandidateId": "failure-taxonomy-leakage",
+                    "failureTaxonomyCandidateStatus": "pending_promotion",
+                    "failureTaxonomyCandidatePath": "runtime/self_improve/pending_skills/failure-taxonomy-leakage.md",
+                    "rawPayload": {
+                        "type": "leakage",
+                        "severity": "high",
+                        "message": "Potential leakage detected in holdout split.",
+                    },
+                },
+            )
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "learning-warning-inbox",
+                "method": "learning.inbox",
+                "params": {"status": "all", "limit": 5},
+            }
+        )
+
+        inbox_frame = mock_ws.sent[0]
+        assert inbox_frame["ok"] is True
+        assert inbox_frame["payload"]["items"][0]["metadata"] == {
+            "warningType": "leakage",
+            "severity": "high",
+            "surface": "ws",
+            "sessionId": "sess-7",
+            "runId": "run-2",
+            "recurrenceCount": 3,
+            "firstSeenAt": "2026-04-21T01:00:00+00:00",
+            "lastSeenAt": "2026-04-21T02:00:00+00:00",
+            "sessionIds": ["sess-7", "sess-8"],
+            "runIds": ["run-2", "run-3"],
+            "surfaces": ["ws", "daemon"],
+            "failureSourceKind": "harness.warning",
+            "failureSignalType": "leakage",
+            "failureSourceRef": "LI-WARN-1",
+            "failureTaxonomyClass": "leakage",
+            "failureTaxonomyLastGcAt": "2026-04-21T03:00:00+00:00",
+            "failureTaxonomyRecurrenceCount": 3,
+            "failureTaxonomyPromotionCandidate": True,
+            "failureTaxonomyCandidateId": "failure-taxonomy-leakage",
+            "failureTaxonomyCandidateStatus": "pending_promotion",
+            "failureTaxonomyCandidatePath": "runtime/self_improve/pending_skills/failure-taxonomy-leakage.md",
+        }
+
+        mock_ws.sent.clear()
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "learning-warning-detail",
+                "method": "learning.getItem",
+                "params": {"itemId": "LI-WARN-1"},
+            }
+        )
+
+        detail_frame = mock_ws.sent[0]
+        assert detail_frame["ok"] is True
+        assert detail_frame["payload"]["metadata"]["recurrenceCount"] == 3
+        assert detail_frame["payload"]["metadata"]["failureTaxonomyClass"] == "leakage"
+        assert detail_frame["payload"]["metadata"]["rawPayload"] == {
+            "type": "leakage",
+            "severity": "high",
+            "message": "Potential leakage detected in holdout split.",
+        }
+
+    async def test_learning_rpc_filters_unrelated_metadata_from_inbox(
+        self, rpc_handler, mock_ws, monkeypatch
+    ):
+        monkeypatch.setenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "1")
+
+        from ds_agent.domain.learning.learning_item import LearningItem, LearningItemType
+
+        store = rpc_handler._get_learning_store()
+        created_at = datetime(2026, 4, 21, 4, 0, tzinfo=UTC)
+        store.save_item(
+            LearningItem(
+                item_id="LI-KB-1",
+                item_type=LearningItemType.KB_ENTRY,
+                title="Churn definition",
+                content="Churn is a customer cancellation event.",
+                signature="sig-kb-1",
+                tags=["definition"],
+                scope="domain",
+                created_at=created_at,
+                updated_at=created_at,
+                metadata={"owner": "growth-team"},
+            )
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "learning-kb-inbox",
+                "method": "learning.inbox",
+                "params": {"status": "all", "limit": 5},
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        assert frame["payload"]["items"][0]["metadata"] == {}
+
+    async def test_learning_mutation_methods_reject_direct_access_when_feature_flag_off(
+        self, rpc_handler, monkeypatch
+    ):
+        monkeypatch.delenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", raising=False)
+
+        with pytest.raises(ValueError, match=r"Self-improve governance is not enabled\."):
+            await rpc_handler._learning_review({"itemId": "LI-1", "decision": "approve"})
+
+    async def test_learning_finalize_promotion_rpc_promotes_pending_candidate(
+        self, rpc_handler, mock_ws, monkeypatch, app_state
+    ):
+        monkeypatch.setenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "1")
+        custom_dir = Path(app_state.config.agent.workspace_dir) / "active_custom"
+        monkeypatch.setenv("DS_AGENT_ACTIVE_CUSTOM_SKILLS_DIR", str(custom_dir))
+
+        from ds_agent.self_improve.promotion_candidates import JsonPromotionCandidateStore
+
+        candidate_store = JsonPromotionCandidateStore.for_workspace(
+            str(app_state.config.agent.workspace_dir)
+        )
+        pending_dir = candidate_store.path.parent / "pending_skills"
+        pending_dir.mkdir(parents=True, exist_ok=True)
+        pending_path = pending_dir / "failure-taxonomy-leakage.md"
+        pending_path.write_text(
+            "---\n"
+            "name: failure-taxonomy-leakage\n"
+            "description: pending skill\n"
+            "category: extracted\n"
+            'tags: ["extracted"]\n'
+            "---\n\n# Failure Taxonomy Leakage\n",
+            encoding="utf-8",
+        )
+        candidate_store.register_skill_candidate(
+            candidate_id="failure-taxonomy-leakage",
+            name="failure-taxonomy-leakage",
+            description="pending skill",
+            source_project_id="project",
+            pending_path=pending_path,
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "learning-finalize-on",
+                "method": "learning.finalizePromotion",
+                "params": {
+                    "candidateId": "failure-taxonomy-leakage",
+                    "candidateScore": 0.82,
+                    "baselineScore": 0.80,
+                    "passedTasks": 1,
+                    "totalTasks": 1,
+                    "deltaThreshold": 0.03,
+                },
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        assert frame["payload"]["status"] == "promoted"
+        assert frame["payload"]["promoted"] is True
+        assert frame["payload"]["promotedPath"] is not None
+        assert Path(frame["payload"]["promotedPath"]).exists()
+
+        promoted = candidate_store.get("failure-taxonomy-leakage")
+        assert promoted is not None
+        assert promoted.status == "promoted"
+        assert promoted.promoted_path == frame["payload"]["promotedPath"]
 
     async def test_config_set(self, rpc_handler, mock_ws, app_state):
         await rpc_handler.handle_message(
@@ -1403,6 +1742,93 @@ class TestWsRpcHandler:
             app_state.build_action_matrix().lookup("prod_deploy", "supervised").value == "approve"
         )
 
+    async def test_policy_matrix_get(self, rpc_handler, mock_ws, app_state):
+        # Seed one persisted matrix + one history entry through the store.
+        app_state.policy_store.save_risk_tier_matrix(
+            {"data_loader": {"supervised": "T1"}},
+            saved_by="op@example.com",
+            saved_at=42.0,
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "policy-matrix-get",
+                "method": "policy.matrix.get",
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        assert frame["payload"]["matrix"] == {"data_loader": {"supervised": "T1"}}
+        history = frame["payload"]["history"]
+        assert len(history) == 1
+        assert history[0]["savedAt"] == 42.0
+        assert history[0]["savedBy"] == "op@example.com"
+        assert history[0]["matrix"] == {"data_loader": {"supervised": "T1"}}
+
+    async def test_policy_matrix_save_persists_and_appends_history(
+        self, rpc_handler, mock_ws, app_state
+    ):
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "policy-matrix-save",
+                "method": "policy.matrix.save",
+                "params": {
+                    "matrix": {"data_loader": {"supervised": "T1", "delegate": "T0"}},
+                    "savedBy": "op@example.com",
+                },
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        snapshot = frame["payload"]["snapshot"]
+        assert snapshot["matrix"] == {"data_loader": {"supervised": "T1", "delegate": "T0"}}
+        assert snapshot["savedBy"] == "op@example.com"
+        assert snapshot["savedAt"] > 0
+
+        # The save must also have been written through to the store so a
+        # subsequent `policy.matrix.get` reflects it.
+        assert app_state.policy_store.load_risk_tier_matrix() == {
+            "data_loader": {"supervised": "T1", "delegate": "T0"}
+        }
+        history = app_state.policy_store.risk_tier_matrix_history()
+        assert len(history) == 1
+        assert history[0].matrix == {"data_loader": {"supervised": "T1", "delegate": "T0"}}
+
+    async def test_policy_matrix_preview_uses_history(self, rpc_handler, mock_ws, app_state):
+        # Seed two history snapshots so the preview can tally per-cell counts.
+        app_state.policy_store.save_risk_tier_matrix(
+            {"data_loader": {"supervised": "T1"}}, saved_at=1.0
+        )
+        app_state.policy_store.save_risk_tier_matrix(
+            {"data_loader": {"supervised": "T1"}}, saved_at=2.0
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "policy-matrix-preview",
+                "method": "policy.matrix.preview",
+                "params": {
+                    "candidateMatrix": {
+                        "data_loader": {"supervised": "T2"},
+                        "prod_deploy": {"delegate": "T3"},
+                    }
+                },
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        payload = frame["payload"]
+        assert payload["addedRows"] == ["prod_deploy"]
+        assert payload["removedRows"] == []
+        assert payload["modifiedRows"] == ["data_loader"]
+        assert payload["historicalCounts"]["data_loader.supervised=T1"] == 2
+
     async def test_decision_os_overview(self, rpc_handler, mock_ws, app_state):
         _seed_decision_os_state(app_state)
 
@@ -1444,6 +1870,19 @@ class TestWsRpcHandler:
         assert frame["payload"]["run_a_id"] == "run-champion"
         assert frame["payload"]["run_b_id"] == "run-candidate"
         assert frame["payload"]["feature_set"]["version_changed"] == [["f_user_activity_30d", 1, 2]]
+        assert {entry["key"] for entry in frame["payload"]["artifacts"]} == {
+            "plot:artifacts/candidate-pr.png",
+            "plot:artifacts/candidate-roc.png",
+            "plot:artifacts/champion-roc.png",
+            "review:retrain-vs-rollback",
+        }
+        assert [entry["key"] for entry in frame["payload"]["decisions"]] == [
+            "hypothesis",
+            "feature-strategy",
+            "model-strategy",
+            "review-artifact:retrain-vs-rollback",
+        ]
+        assert any(metric["highlighted"] for metric in frame["payload"]["metrics"])
 
     async def test_decision_os_request_promotion(self, rpc_handler, mock_ws, app_state):
         seeded = _seed_decision_os_state(app_state)
@@ -1894,6 +2333,47 @@ class TestWsRpcHandler:
         assert run is not None
         assert run.status.value == "succeeded"
 
+    async def test_chat_send_stream_done_includes_result_cards(
+        self, rpc_handler, mock_ws, app_state
+    ):
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock(return_value="Analysis done.")
+        mock_agent._budget = MagicMock()
+        mock_agent._budget.state = MagicMock()
+        mock_agent._budget.state.total_cost_usd = 0.01
+        mock_agent.last_assistant_message_id = "msg-assistant-live"
+        mock_agent.last_result_cards = [
+            coerce_result_card(
+                "insight",
+                {
+                    "title": "Metric up",
+                    "summary": "Lifted",
+                    "evidence": ["auc +0.03"],
+                },
+                card_id="RC-live",
+                result_id="result-live",
+                created_at=datetime(2026, 4, 20, tzinfo=UTC),
+                source=ResultCardSource(messageId="msg-assistant-live", runId="run-live"),
+            )
+        ]
+
+        with patch.object(app_state._sessions, "_create_agent", return_value=mock_agent):
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "c-cards",
+                    "method": "chat.send",
+                    "params": {"message": "Analyze the data"},
+                }
+            )
+
+        await asyncio.sleep(0.1)
+
+        done_event = next(frame for frame in mock_ws.sent if frame.get("event") == "stream.done")
+        assert done_event["payload"]["messageId"] == "msg-assistant-live"
+        assert done_event["payload"]["cards"][0]["cardId"] == "RC-live"
+        assert done_event["payload"]["cards"][0]["resultId"] == "result-live"
+
     async def test_chat_send_redacts_background_exception(self, rpc_handler, mock_ws, app_state):
         """Background agent failures should not leak raw exception details to clients."""
         mock_agent = MagicMock()
@@ -2163,10 +2643,157 @@ class TestWsRpcHandler:
         )
         await asyncio.sleep(0.05)
 
-        abort_frame = mock_ws.sent[-1]
+        abort_frame = next(
+            frame
+            for frame in reversed(mock_ws.sent)
+            if frame.get("type") == "res" and frame.get("id") == "ra2"
+        )
         assert abort_frame["ok"] is True
         assert abort_frame["payload"]["runId"] == run_id
         assert abort_frame["payload"]["status"] == "cancelled"
+
+    async def test_run_start_resumes_from_persisted_checkpoint(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        from ds_agent.domain.entities.messages import ChatMessage, Role
+        from ds_agent.domain.entities.session_checkpoint import SessionCheckpoint
+
+        session_id = "resume-session"
+        app_state.checkpoint_store.save(
+            SessionCheckpoint(
+                session_id=session_id,
+                step=2,
+                messages=[
+                    ChatMessage(role=Role.USER, content="prior question"),
+                    ChatMessage(role=Role.ASSISTANT, content="prior answer"),
+                ],
+            )
+        )
+
+        captured: dict = {}
+
+        async def _capture_run(message: str, **kwargs):
+            captured["message"] = message
+            captured["kwargs"] = kwargs
+            return "resumed"
+
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock(side_effect=_capture_run)
+        mock_agent._budget = MagicMock()
+        mock_agent._budget.state = MagicMock()
+        mock_agent._budget.state.total_cost_usd = 0.0
+
+        with patch.object(app_state._sessions, "_create_agent", return_value=mock_agent):
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "rr1",
+                    "method": "run.start",
+                    "params": {
+                        "message": "continue from where we left off",
+                        "sessionId": session_id,
+                        "resumeFromCheckpoint": True,
+                    },
+                }
+            )
+            await asyncio.sleep(0.05)
+
+        start_frame = mock_ws.sent[0]
+        assert start_frame["ok"] is True
+        assert start_frame["payload"]["resumedFromCheckpoint"] is True
+
+        assert captured["message"] == "continue from where we left off"
+        assert "resume_from_checkpoint" in captured["kwargs"]
+        checkpoint = captured["kwargs"]["resume_from_checkpoint"]
+        assert checkpoint.session_id == session_id
+        assert checkpoint.step == 2
+        assert [m.content for m in checkpoint.messages] == ["prior question", "prior answer"]
+
+    async def test_run_start_without_checkpoint_flag_does_not_load_history(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        from ds_agent.domain.entities.messages import ChatMessage, Role
+        from ds_agent.domain.entities.session_checkpoint import SessionCheckpoint
+
+        session_id = "no-resume-session"
+        app_state.checkpoint_store.save(
+            SessionCheckpoint(
+                session_id=session_id,
+                step=1,
+                messages=[ChatMessage(role=Role.USER, content="leftover")],
+            )
+        )
+
+        captured: dict = {}
+
+        async def _capture_run(message: str, **kwargs):
+            captured["kwargs"] = kwargs
+            return "fresh"
+
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock(side_effect=_capture_run)
+        mock_agent._budget = MagicMock()
+        mock_agent._budget.state = MagicMock()
+        mock_agent._budget.state.total_cost_usd = 0.0
+
+        with patch.object(app_state._sessions, "_create_agent", return_value=mock_agent):
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "rr2",
+                    "method": "run.start",
+                    "params": {"message": "start fresh", "sessionId": session_id},
+                }
+            )
+            await asyncio.sleep(0.05)
+
+        start_frame = mock_ws.sent[0]
+        assert start_frame["payload"]["resumedFromCheckpoint"] is False
+        assert "resume_from_checkpoint" not in captured["kwargs"]
+
+    async def test_run_start_resume_flag_with_no_checkpoint_falls_back(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        captured: dict = {}
+
+        async def _capture_run(message: str, **kwargs):
+            captured["kwargs"] = kwargs
+            return "fresh"
+
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock(side_effect=_capture_run)
+        mock_agent._budget = MagicMock()
+        mock_agent._budget.state = MagicMock()
+        mock_agent._budget.state.total_cost_usd = 0.0
+
+        with patch.object(app_state._sessions, "_create_agent", return_value=mock_agent):
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "rr3",
+                    "method": "run.start",
+                    "params": {
+                        "message": "resume me",
+                        "sessionId": "missing-checkpoint",
+                        "resumeFromCheckpoint": True,
+                    },
+                }
+            )
+            await asyncio.sleep(0.05)
+
+        start_frame = mock_ws.sent[0]
+        assert start_frame["ok"] is True
+        assert start_frame["payload"]["resumedFromCheckpoint"] is False
+        assert "resume_from_checkpoint" not in captured["kwargs"]
 
     async def test_approval_list(self, rpc_handler, mock_ws, app_state):
         app_state.approval_store.create(
@@ -2190,6 +2817,95 @@ class TestWsRpcHandler:
         assert frame["ok"] is True
         assert len(frame["payload"]["approvals"]) == 1
         assert frame["payload"]["approvals"][0]["status"] == "pending"
+
+    async def test_approval_get_returns_enriched_payload(self, rpc_handler, mock_ws, app_state):
+        approval = app_state.approval_store.create(
+            session_id="session-1",
+            run_id="run-1",
+            surface="ws",
+            question="Approve filesystem write?",
+            kind="PAT_002_FILE_WRITE_OUTSIDE_WORKSPACE",
+            metadata={
+                "workspaceId": "workspace-7",
+                "triggeredBy": {"runId": "run-1", "toolCallId": "tool-3"},
+                "riskCode": "PAT_002_FILE_WRITE_OUTSIDE_WORKSPACE",
+            },
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "ap-get",
+                "method": "approval.get",
+                "params": {"approvalId": approval.approval_id},
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        assert frame["payload"]["approvalId"] == approval.approval_id
+        assert frame["payload"]["workspaceId"] == "workspace-7"
+        assert frame["payload"]["riskCode"] == "PAT_002_FILE_WRITE_OUTSIDE_WORKSPACE"
+        assert frame["payload"]["affectedScopes"] == ["filesystem"]
+        assert frame["payload"]["triggeredBy"] == {"runId": "run-1", "toolCallId": "tool-3"}
+
+    async def test_approval_submit_persists_scope_without_overwriting_response(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        approval = app_state.approval_store.create(
+            session_id="session-1",
+            run_id="run-1",
+            surface="ws",
+            question="Approve network access?",
+            kind="PAT_008_HTTP_REQUEST_UNAPPROVED",
+            metadata={"riskCode": "PAT_008_HTTP_REQUEST_UNAPPROVED"},
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "ap-submit",
+                "method": "approval.submit",
+                "params": {
+                    "requestId": approval.approval_id,
+                    "decision": "allow",
+                    "scope": "session",
+                    "allowFallback": True,
+                    "actor": "electron",
+                    "source": "ws",
+                },
+            }
+        )
+        await asyncio.sleep(0)
+
+        response_frame = next(
+            frame
+            for frame in mock_ws.sent
+            if frame.get("type") == "res" and frame.get("id") == "ap-submit"
+        )
+        assert response_frame["ok"] is True
+        assert response_frame["payload"]["approvalId"] == approval.approval_id
+        assert response_frame["payload"]["decision"] == "allow"
+        assert response_frame["payload"]["scope"] == "session"
+        assert response_frame["payload"]["status"] == "approved"
+        assert response_frame["payload"]["response"] is None
+
+        event_frame = next(
+            frame for frame in mock_ws.sent if frame.get("event") == "approval.resolved"
+        )
+        assert event_frame["payload"]["approvalId"] == approval.approval_id
+        assert event_frame["payload"]["status"] == "approved"
+        assert event_frame["payload"]["response"] is None
+
+        resolved = app_state.approval_store.get(approval.approval_id)
+        assert resolved is not None
+        assert resolved.status == ApprovalStatus.APPROVED
+        assert resolved.response is None
+        assert resolved.metadata["approvalScope"] == "session"
+        assert resolved.metadata["allowFallback"] is True
 
     async def test_approval_resolve(self, rpc_handler, mock_ws, app_state):
         approval = app_state.approval_store.create(
@@ -2240,8 +2956,8 @@ class TestWsRpcHandler:
         app_state.transcript_store.replace_messages(
             "session-1",
             [
-                ChatMessage(role=Role.USER, content="Hello"),
-                ChatMessage(role=Role.ASSISTANT, content="Hi"),
+                ChatMessage(role=Role.USER, content="Hello", message_id="msg-user-1"),
+                ChatMessage(role=Role.ASSISTANT, content="Hi", message_id="msg-assistant-1"),
             ],
         )
 
@@ -2257,6 +2973,463 @@ class TestWsRpcHandler:
         frame = mock_ws.sent[0]
         assert frame["ok"] is True
         assert len(frame["payload"]["messages"]) == 2
+        assert frame["payload"]["messages"][0]["messageId"] == "msg-user-1"
+        assert frame["payload"]["messages"][1]["messageId"] == "msg-assistant-1"
+
+    async def test_chat_history_attaches_result_cards_by_message(
+        self, rpc_handler, mock_ws, app_state
+    ):
+        from ds_agent.domain.entities.messages import ChatMessage, Role
+
+        app_state.transcript_store.replace_messages(
+            "session-cards",
+            [
+                ChatMessage(role=Role.USER, content="Hello", message_id="msg-user-2"),
+                ChatMessage(
+                    role=Role.ASSISTANT,
+                    content="Persisted answer",
+                    message_id="msg-assistant-2",
+                ),
+            ],
+        )
+        app_state.result_card_store.save_card(
+            "session-cards",
+            coerce_result_card(
+                "insight",
+                {
+                    "title": "Metric up",
+                    "summary": "Lifted",
+                    "evidence": ["auc +0.03"],
+                },
+                card_id="RC-history",
+                result_id="result-history",
+                created_at=datetime(2026, 4, 20, tzinfo=UTC),
+                source=ResultCardSource(messageId="msg-assistant-2", runId="run-history"),
+            ),
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "h-cards",
+                "method": "chat.history",
+                "params": {"sessionId": "session-cards"},
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        assistant_message = frame["payload"]["messages"][1]
+        assert assistant_message["messageId"] == "msg-assistant-2"
+        assert assistant_message["cards"][0]["cardId"] == "RC-history"
+        assert assistant_message["cards"][0]["resultId"] == "result-history"
+
+    # -- checkpoint.save / checkpoint.list / run.branch (Plan 03) --------
+
+    async def test_checkpoint_save_persists_named_entry(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        from ds_agent.domain.entities.messages import ChatMessage, Role
+        from ds_agent.domain.entities.session_checkpoint import SessionCheckpoint
+
+        session_id = "checkpoint-save-session"
+        app_state.checkpoint_store.save(
+            SessionCheckpoint(
+                session_id=session_id,
+                step=3,
+                messages=[
+                    ChatMessage(role=Role.USER, content="hello"),
+                    ChatMessage(role=Role.ASSISTANT, content="world"),
+                    ChatMessage(role=Role.USER, content="continue"),
+                ],
+            )
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "ckpt-save-1",
+                "method": "checkpoint.save",
+                "params": {
+                    "sessionId": session_id,
+                    "name": "before fe",
+                    "description": "snapshot before feature engineering",
+                },
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        checkpoint = frame["payload"]["checkpoint"]
+        assert checkpoint["sessionId"] == session_id
+        assert checkpoint["name"] == "before fe"
+        assert checkpoint["transcriptStep"] == 3
+        assert checkpoint["description"] == "snapshot before feature engineering"
+        assert isinstance(checkpoint["id"], str) and checkpoint["id"].startswith("ckpt_")
+        assert isinstance(checkpoint["createdAt"], (int, float))
+
+        persisted = app_state.checkpoint_store.list_named(session_id)
+        assert len(persisted) == 1
+        assert persisted[0].name == "before fe"
+        assert persisted[0].transcript_step == 3
+
+    async def test_checkpoint_list_returns_recent_named_entries(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        session_id = "checkpoint-list-session"
+        app_state.checkpoint_store.save_named(
+            session_id,
+            "first",
+            transcript_step=1,
+        )
+        app_state.checkpoint_store.save_named(
+            session_id,
+            "second",
+            transcript_step=2,
+            description="second save",
+        )
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "ckpt-list-1",
+                "method": "checkpoint.list",
+                "params": {"sessionId": session_id, "limit": 10},
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        items = frame["payload"]["checkpoints"]
+        assert {item["name"] for item in items} == {"first", "second"}
+        # Newest first.
+        assert items[0]["name"] == "second"
+        assert items[0]["description"] == "second save"
+        assert items[1]["description"] is None
+        for item in items:
+            assert item["sessionId"] == session_id
+            assert isinstance(item["transcriptStep"], int)
+
+    async def test_run_branch_links_parent_in_runstate(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        session_id = "branch-session"
+
+        async def _capture_run(message: str, **kwargs):
+            assert isinstance(message, str)
+            assert isinstance(kwargs, dict)
+            return "branched"
+
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock(side_effect=_capture_run)
+        mock_agent._budget = MagicMock()
+        mock_agent._budget.state = MagicMock()
+        mock_agent._budget.state.total_cost_usd = 0.0
+
+        with patch.object(app_state._sessions, "_create_agent", return_value=mock_agent):
+            # Seed a parent run via the normal start path.
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "rb-parent",
+                    "method": "run.start",
+                    "params": {
+                        "message": "parent message",
+                        "sessionId": session_id,
+                    },
+                }
+            )
+            await asyncio.sleep(0.05)
+            parent_payload = mock_ws.sent[0]["payload"]
+            parent_run_id = parent_payload["runId"]
+
+            # Branch from the seeded parent.
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "rb-branch",
+                    "method": "run.branch",
+                    "params": {
+                        "parentRunId": parent_run_id,
+                        "message": "branch message",
+                    },
+                }
+            )
+            await asyncio.sleep(0.05)
+
+        branch_frame = next(frame for frame in mock_ws.sent if frame.get("id") == "rb-branch")
+        assert branch_frame["ok"] is True
+        branch_payload = branch_frame["payload"]
+        assert branch_payload["sessionId"] == session_id
+        assert branch_payload["branchedFromRunId"] == parent_run_id
+        assert branch_payload["runId"] != parent_run_id
+
+        # The branched run is also recorded with parent linkage in the registry.
+        branched_run = app_state.get_run(branch_payload["runId"])
+        assert branched_run is not None
+        assert branched_run.branched_from_run_id == parent_run_id
+
+    # -- run.rerun / run.promote (Plan 03 §1.1 final actions) ------------
+
+    async def test_run_rerun_links_parent_and_node(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        session_id = "rerun-session"
+
+        async def _capture_run(message: str, **kwargs):
+            assert isinstance(message, str)
+            assert isinstance(kwargs, dict)
+            return "rerun-output"
+
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock(side_effect=_capture_run)
+        mock_agent._budget = MagicMock()
+        mock_agent._budget.state = MagicMock()
+        mock_agent._budget.state.total_cost_usd = 0.0
+
+        with patch.object(app_state._sessions, "_create_agent", return_value=mock_agent):
+            # Seed a parent run via the normal start path.
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "rr-parent",
+                    "method": "run.start",
+                    "params": {
+                        "message": "investigate churn drivers",
+                        "sessionId": session_id,
+                    },
+                }
+            )
+            await asyncio.sleep(0.05)
+            parent_payload = mock_ws.sent[0]["payload"]
+            parent_run_id = parent_payload["runId"]
+
+            # Rerun anchored at one plan-tree node, no message override.
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "rr-rerun",
+                    "method": "run.rerun",
+                    "params": {
+                        "parentRunId": parent_run_id,
+                        "planNodeId": "ds_workflow_plan/feature_engineering",
+                    },
+                }
+            )
+            await asyncio.sleep(0.05)
+
+        rerun_frame = next(frame for frame in mock_ws.sent if frame.get("id") == "rr-rerun")
+        assert rerun_frame["ok"] is True
+        rerun_payload = rerun_frame["payload"]
+        assert rerun_payload["sessionId"] == session_id
+        assert rerun_payload["branchedFromRunId"] == parent_run_id
+        assert rerun_payload["rerunFromNodeId"] == ("ds_workflow_plan/feature_engineering")
+        assert rerun_payload["runId"] != parent_run_id
+
+        # The rerun is also recorded with parent + node linkage in the registry.
+        rerun_run = app_state.get_run(rerun_payload["runId"])
+        assert rerun_run is not None
+        assert rerun_run.branched_from_run_id == parent_run_id
+        assert rerun_run.rerun_from_node_id == ("ds_workflow_plan/feature_engineering")
+        # Falls back to parent's message when no override is supplied.
+        assert rerun_run.message == "investigate churn drivers"
+
+    async def test_run_promote_persists_artifact(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "promote-1",
+                "method": "run.promote",
+                "params": {
+                    "runId": "run-xyz",
+                    "cardId": "RC-42",
+                    "audience": "exec",
+                    "title": "Q2 churn brief",
+                },
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        artifact = frame["payload"]["artifact"]
+        assert artifact["runId"] == "run-xyz"
+        assert artifact["cardId"] == "RC-42"
+        assert artifact["audience"] == "exec"
+        assert artifact["title"] == "Q2 churn brief"
+        assert isinstance(artifact["artifactId"], str)
+        assert artifact["artifactId"].startswith("art_")
+        assert isinstance(artifact["createdAt"], (int, float))
+
+        persisted = app_state.promoted_artifact_store.list_promoted_artifacts(
+            "run-xyz",
+        )
+        assert len(persisted) == 1
+        assert persisted[0].card_id == "RC-42"
+        assert persisted[0].audience == "exec"
+        assert persisted[0].title == "Q2 churn brief"
+
+    async def test_run_list_promoted_filters_by_card_id(
+        self,
+        rpc_handler,
+        mock_ws,
+    ):
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "promote-list-seed-a",
+                "method": "run.promote",
+                "params": {
+                    "runId": "run-xyz",
+                    "cardId": "RC-42",
+                    "audience": "exec",
+                    "title": "Q2 churn brief",
+                },
+            }
+        )
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "promote-list-seed-b",
+                "method": "run.promote",
+                "params": {
+                    "runId": "run-xyz",
+                    "cardId": "RC-99",
+                    "audience": "ml",
+                    "title": "Model handoff",
+                },
+            }
+        )
+        mock_ws.sent.clear()
+
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "promote-list",
+                "method": "run.list_promoted",
+                "params": {
+                    "runId": "run-xyz",
+                    "cardId": "RC-42",
+                },
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        artifacts = frame["payload"]["artifacts"]
+        assert len(artifacts) == 1
+        assert artifacts[0]["runId"] == "run-xyz"
+        assert artifacts[0]["cardId"] == "RC-42"
+        assert artifacts[0]["audience"] == "exec"
+
+    async def test_runs_list_lineage_returns_connected_tree(
+        self,
+        rpc_handler,
+        mock_ws,
+        app_state,
+    ):
+        session_id = "lineage-session"
+
+        async def _capture_run(message: str, **kwargs):
+            assert isinstance(message, str)
+            assert isinstance(kwargs, dict)
+            return "lineage-output"
+
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock(side_effect=_capture_run)
+        mock_agent._budget = MagicMock()
+        mock_agent._budget.state = MagicMock()
+        mock_agent._budget.state.total_cost_usd = 0.0
+
+        with patch.object(app_state._sessions, "_create_agent", return_value=mock_agent):
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "lineage-parent",
+                    "method": "run.start",
+                    "params": {
+                        "message": "parent message",
+                        "sessionId": session_id,
+                    },
+                }
+            )
+            await asyncio.sleep(0.05)
+            parent_run_id = mock_ws.sent[0]["payload"]["runId"]
+
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "lineage-branch",
+                    "method": "run.branch",
+                    "params": {
+                        "parentRunId": parent_run_id,
+                        "message": "branch message",
+                    },
+                }
+            )
+            await asyncio.sleep(0.05)
+            branch_frame = next(
+                frame for frame in mock_ws.sent if frame.get("id") == "lineage-branch"
+            )
+            branch_run_id = branch_frame["payload"]["runId"]
+
+            await rpc_handler.handle_message(
+                {
+                    "type": "req",
+                    "id": "lineage-rerun",
+                    "method": "run.rerun",
+                    "params": {
+                        "parentRunId": branch_run_id,
+                        "planNodeId": "ds_workflow_plan/feature_engineering",
+                    },
+                }
+            )
+            await asyncio.sleep(0.05)
+            rerun_frame = next(
+                frame for frame in mock_ws.sent if frame.get("id") == "lineage-rerun"
+            )
+            rerun_run_id = rerun_frame["payload"]["runId"]
+
+        mock_ws.sent.clear()
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "lineage-list",
+                "method": "runs.list_lineage",
+                "params": {"rootRunId": rerun_run_id},
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["ok"] is True
+        payload = frame["payload"]
+        assert payload["rootRunId"] == parent_run_id
+        assert payload["seedRunId"] == rerun_run_id
+        assert [item["runId"] for item in payload["nodes"]] == [
+            parent_run_id,
+            branch_run_id,
+            rerun_run_id,
+        ]
+        assert [item["depth"] for item in payload["nodes"]] == [0, 1, 2]
+        assert payload["nodes"][0]["isRoot"] is True
+        assert payload["nodes"][2]["isSeed"] is True
+        assert payload["nodes"][2]["rerunFromNodeId"] == ("ds_workflow_plan/feature_engineering")
 
 
 # ---------------------------------------------------------------------------

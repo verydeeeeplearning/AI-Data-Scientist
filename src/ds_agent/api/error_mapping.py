@@ -29,7 +29,11 @@ def present_invalid_params_error(raw_message: str) -> ErrorPresentation:
     catalog = get_error_code(catalog_code)
     return ErrorPresentation(
         catalog_code=catalog_code,
-        message=format_error_message(catalog_code, override_message=raw_message, include_hint=False),
+        message=format_error_message(
+            catalog_code,
+            override_message=raw_message,
+            include_hint=False,
+        ),
         support_message=catalog.support_message,
         recovery_hint=catalog.recovery_hint,
         technical_message=raw_message,

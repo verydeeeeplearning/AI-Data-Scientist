@@ -1,6 +1,12 @@
-"""Slash command handlers for the interactive TUI."""
+"""Slash command handlers for the interactive TUI plus deep-link subcommands."""
 
 from __future__ import annotations
+
+import shutil
+import subprocess
+import sys
+from collections.abc import Sequence
+from typing import Final
 
 from rich.console import Console
 from rich.table import Table
@@ -8,6 +14,13 @@ from rich.table import Table
 from ds_agent.cli.certification_cli import show_certification_status
 from ds_agent.cli.task_contract_cli import show_active_task_contract
 from ds_agent.cli.verdict_cli import show_active_review_verdict
+from ds_agent.domain.value_objects.deep_link import (
+    DEEP_LINK_RESOURCE_TYPES,
+    DeepLink,
+    DeepLinkParseError,
+    build_deep_link_uri,
+    parse_deep_link,
+)
 
 HELP_TEXT = """\
 [bold]Slash Commands[/]
@@ -158,3 +171,192 @@ def _handle_budget(console: Console, context: dict) -> bool:
         for key, val in budget.items():
             console.print(f"  {key}: {val}")
     return True
+
+
+# --------------------------------------------------------------------------- #
+# Deep link subcommands (PLAN_03 sp3.3) — `ds-agent open` / `ds-agent share`. #
+# --------------------------------------------------------------------------- #
+
+OPEN_USAGE: Final[str] = "Usage: ds-agent open <ds-agent://...>"
+SHARE_USAGE: Final[str] = (
+    "Usage: ds-agent share <resource_type> <resource_id> [--workspace <id>] [--action <name>]"
+)
+DEFAULT_WORKSPACE_ID: Final[str] = "default"
+
+
+def _format_parse_error(error: DeepLinkParseError | None) -> str:
+    return (error.value if error is not None else "unknown_error").replace("_", " ")
+
+
+def run_open_command(
+    argv: Sequence[str],
+    *,
+    console: Console | None = None,
+    launcher: object | None = None,
+) -> int:
+    """Handle ``ds-agent open <url>``.
+
+    Validates the URI through the domain parser **before** any side effect, then
+    asks the OS to launch the registered ``ds-agent://`` handler (Electron).
+
+    ``launcher`` (testing hook): a callable ``(uri: str) -> int`` that replaces
+    the default OS-specific launcher.
+    """
+
+    out = console or Console()
+    if len(argv) != 1:
+        out.print(f"  [error]{OPEN_USAGE}[/]")
+        return 2
+
+    uri = argv[0].strip()
+    parse_result = parse_deep_link(uri)
+    if not parse_result.ok:
+        out.print(f"  [error]Invalid deep link[/]: {_format_parse_error(parse_result.error)}")
+        return 1
+
+    try:
+        rc = (launcher or _launch_protocol_handler)(uri)  # type: ignore[operator]
+    except Exception as exc:  # pragma: no cover - defensive
+        out.print(f"  [error]Failed to launch handler[/]: {exc}")
+        return 1
+    if isinstance(rc, int) and rc != 0:
+        out.print(f"  [warning]Handler exited with code {rc}[/]")
+        return rc
+    out.print(f"  [success]Opened[/] {uri}")
+    return 0
+
+
+def run_share_command(
+    argv: Sequence[str],
+    *,
+    console: Console | None = None,
+    default_workspace_id: str = DEFAULT_WORKSPACE_ID,
+    clipboard: object | None = None,
+) -> int:
+    """Handle ``ds-agent share <type> <id> [--workspace W] [--action A]``.
+
+    Builds a wire-format URI and copies it to the clipboard (best-effort —
+    falls back to plain print if ``pyperclip`` is unavailable).
+
+    ``clipboard`` (testing hook): callable ``(text: str) -> bool`` that replaces
+    the default ``pyperclip`` adapter. Returning ``True`` means "copied".
+    """
+
+    out = console or Console()
+    parsed = _parse_share_args(argv)
+    if parsed is None:
+        out.print(f"  [error]{SHARE_USAGE}[/]")
+        out.print(f"  [muted]resource_type ∈ {list(DEEP_LINK_RESOURCE_TYPES)}[/]")
+        return 2
+
+    resource_type, resource_id, workspace_id, action = parsed
+    if workspace_id is None:
+        workspace_id = default_workspace_id
+
+    link = DeepLink(
+        workspace_id=workspace_id,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        action=action,
+    )
+    uri = build_deep_link_uri(link)
+
+    # Re-parse so any malformed user input is rejected with the same error
+    # vocabulary as `ds-agent open`. Shares MUST round-trip through the parser.
+    verify = parse_deep_link(uri)
+    if not verify.ok:
+        out.print(f"  [error]Refusing to share[/]: {_format_parse_error(verify.error)}")
+        return 1
+
+    copied = False
+    try:
+        copy = clipboard if clipboard is not None else _copy_to_clipboard
+        copied = bool(copy(uri))  # type: ignore[operator]
+    except Exception:
+        copied = False
+
+    out.print(uri)
+    if copied:
+        out.print("  [muted](copied to clipboard)[/]")
+    else:
+        out.print("  [muted](clipboard unavailable — pip install pyperclip)[/]")
+    return 0
+
+
+def _parse_share_args(
+    argv: Sequence[str],
+) -> tuple[str, str, str | None, str | None] | None:
+    """Tiny argparse-free flag parser to keep the subcommand self-contained.
+
+    Returns ``(resource_type, resource_id, workspace_id, action)`` or ``None``
+    when the args do not match the expected shape.
+    """
+
+    if len(argv) < 2:
+        return None
+
+    positional: list[str] = []
+    workspace_id: str | None = None
+    action: str | None = None
+
+    i = 0
+    while i < len(argv):
+        token = argv[i]
+        if token == "--workspace":
+            if i + 1 >= len(argv):
+                return None
+            workspace_id = argv[i + 1]
+            i += 2
+            continue
+        if token == "--action":
+            if i + 1 >= len(argv):
+                return None
+            action = argv[i + 1]
+            i += 2
+            continue
+        if token.startswith("--"):
+            return None
+        positional.append(token)
+        i += 1
+
+    if len(positional) != 2:
+        return None
+    return positional[0], positional[1], workspace_id, action
+
+
+def _launch_protocol_handler(uri: str) -> int:
+    """Open ``uri`` with the OS-registered protocol handler.
+
+    Branches on platform:
+      * Windows → ``cmd /c start "" "<uri>"`` (the empty title slot is
+        required so ``start`` does not consume the URI as a window title).
+      * macOS   → ``open "<uri>"``
+      * Linux   → ``xdg-open "<uri>"``
+    """
+
+    if sys.platform.startswith("win"):
+        # ``shell=True`` lets ``start`` resolve correctly; the URI is already
+        # validated by `parse_deep_link`, so injection risk is bounded.
+        return subprocess.call(
+            ["cmd", "/c", "start", "", uri],
+            shell=False,
+        )
+    if sys.platform == "darwin":
+        return subprocess.call(["open", uri])
+    # Assume xdg-compatible (Linux / *BSD).
+    opener = shutil.which("xdg-open") or "xdg-open"
+    return subprocess.call([opener, uri])
+
+
+def _copy_to_clipboard(text: str) -> bool:
+    """Best-effort clipboard copy using ``pyperclip`` if installed."""
+
+    try:
+        import pyperclip  # type: ignore[import-not-found,import-untyped]
+    except ImportError:
+        return False
+    try:
+        pyperclip.copy(text)
+        return True
+    except Exception:
+        return False

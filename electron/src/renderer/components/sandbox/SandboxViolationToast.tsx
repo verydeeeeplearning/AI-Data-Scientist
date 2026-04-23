@@ -7,8 +7,9 @@
  * surfaces them to the user the moment they happen, with an 8s auto-dismiss.
  */
 
-import { ShieldAlert, Network, FolderX, MemoryStick, Terminal, X } from 'lucide-react';
+import { ShieldAlert, Network, FolderX, MemoryStick, Terminal } from 'lucide-react';
 import { useEffect } from 'react';
+import { Toast, ToastViewport } from '../../design-system/primitives';
 import { useWorkflowStore } from '../../stores/workflowStore';
 import type { SandboxViolationRecord } from '../../stores/workflowStore';
 
@@ -58,43 +59,29 @@ export function SandboxViolationToast() {
   if (visible.length === 0) return null;
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="fixed bottom-4 right-4 z-40 flex flex-col gap-2 max-w-[360px]"
+    <ToastViewport
+      placement="bottom-right"
+      label="Sandbox violations"
+      className="z-40 max-w-[360px]"
     >
       {visible.map((v) => (
-        <div
+        <Toast
           key={v.id}
-          className={`rounded-md border px-3 py-2 shadow-lg text-xs animate-in fade-in slide-in-from-bottom-2 ${
-            v.blocked
-              ? 'bg-ds-error/10 border-ds-error/40 text-ds-text'
-              : 'bg-ds-warn/10 border-ds-warn/40 text-ds-text'
-          }`}
+          title={KIND_LABEL[v.kind] ?? 'Sandbox violation'}
+          description={v.detail}
+          meta={v.tool}
+          tone={v.blocked ? 'danger' : 'warning'}
+          leadingIcon={<KindIcon kind={v.kind} />}
+          announce="polite"
+          onDismiss={() => acknowledge(v.id)}
+          dismissLabel="Dismiss sandbox violation"
+          className="text-xs"
         >
-          <div className="flex items-start gap-2">
-            <KindIcon kind={v.kind} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold">
-                  {KIND_LABEL[v.kind] ?? 'Sandbox violation'}
-                </span>
-                <span className="text-[10px] text-ds-muted font-mono shrink-0">{v.tool}</span>
-              </div>
-              <div className="mt-1 text-[11px] text-ds-text/90 break-words leading-snug">
-                {v.detail}
-              </div>
-            </div>
-            <button
-              onClick={() => acknowledge(v.id)}
-              aria-label="Dismiss"
-              className="text-ds-muted hover:text-ds-text shrink-0"
-            >
-              <X size={12} />
-            </button>
+          <div className="text-[11px] leading-snug text-ds-text/90">
+            {v.blocked ? 'Action was blocked by policy.' : 'Action was flagged before completion.'}
           </div>
-        </div>
+        </Toast>
       ))}
-    </div>
+    </ToastViewport>
   );
 }

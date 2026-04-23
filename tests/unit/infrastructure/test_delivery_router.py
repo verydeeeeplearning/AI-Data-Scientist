@@ -87,6 +87,43 @@ def test_delivery_router_blocks_auditor_without_signature(tmp_path) -> None:
     assert result.receipts[0].reason == "signature_required"
 
 
+def test_delivery_router_allows_mission_required_jira_channel_override(tmp_path) -> None:
+    base_pack = _executive_pack()
+    pack = base_pack.model_copy(
+        update={
+            "global_context": {"mission_required_delivery_channels": "jira_ticket"},
+            "artifacts": [
+                base_pack.artifacts[0].model_copy(
+                    update={
+                        "delivery_channel": [
+                            DeliveryChannel.EMAIL,
+                            DeliveryChannel.SLACK_DM,
+                            DeliveryChannel.JIRA_TICKET,
+                        ]
+                    }
+                )
+            ],
+        }
+    )
+    router = DeliveryRouter(
+        adapters=build_default_channel_adapters(),
+        policy=DeliveryPolicyEngine(default_policy=DeliveryPolicy()),
+        log=JsonlDeliveryDispatchLog(tmp_path),
+    )
+
+    result = router.dispatch(
+        pack=pack,
+        artifact_ids={"art-exec"},
+        channels={DeliveryChannel.JIRA_TICKET},
+        approve_manual_review=True,
+    )
+
+    assert result.dispatch_status == "dispatched"
+    assert result.sent_count == 1
+    assert result.receipts[0].channel is DeliveryChannel.JIRA_TICKET
+    assert result.receipts[0].status == "sent"
+
+
 def test_jsonl_delivery_log_query_filters_newest_first(tmp_path) -> None:
     log = JsonlDeliveryDispatchLog(tmp_path)
     log.append(
@@ -262,9 +299,7 @@ def test_delivery_router_applies_project_override_policy(tmp_path) -> None:
 
     assert result.dispatch_status == "blocked"
     assert result.blocked_count == 2
-    assert {receipt.reason for receipt in result.receipts} == {
-        "artifact_auto_delivery_disabled"
-    }
+    assert {receipt.reason for receipt in result.receipts} == {"artifact_auto_delivery_disabled"}
 
 
 def _executive_pack() -> DeliveryPack:

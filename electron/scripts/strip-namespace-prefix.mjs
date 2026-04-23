@@ -23,6 +23,7 @@ const NAMESPACES = [
   'settings',
   'approval',
   'trust',
+  'run',
   'cards',
   'chat',
 ];

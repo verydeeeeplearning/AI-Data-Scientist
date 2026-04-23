@@ -107,6 +107,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('taskContract:active', params),
     get: (params: { taskId: string; include?: string[] }) =>
       ipcRenderer.invoke('taskContract:get', params),
+    create: (params: {
+      session_id: string;
+      contract_type: string;
+      business_goal: string;
+      goal_brief: {
+        business_question: string;
+        ds_problem_statement: string;
+        comparison_baseline: string;
+        decision_to_make: string;
+        hypothesis?: string | null;
+        expected_effort: string;
+      };
+      required_deliverables: Array<{
+        type: string;
+        audience: string;
+        format: string;
+        count?: number | null;
+      }>;
+      allowed_data_sources?: Record<string, unknown>[];
+      forbidden_data_patterns?: string[];
+      budget?: Record<string, unknown>;
+      autonomy?: Record<string, unknown>;
+      decision_owner?: string | null;
+      decision_deadline?: string | null;
+      definition_of_done?: Record<string, unknown> | null;
+      authority?: string | null;
+      audience?: string | null;
+      mission?: string | null;
+      created_by?: string;
+    }) => ipcRenderer.invoke('taskContract:create', params),
     update: (params: {
       taskId: string;
       expectedVersion: number;
@@ -185,6 +215,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
       const listener = (_evt: unknown, payload: Record<string, unknown>) => handler(payload);
       ipcRenderer.on(`updater:${event}`, listener);
       return () => ipcRenderer.off(`updater:${event}`, listener);
+    },
+  },
+
+  // Mobile web push (W4 PLAN_06b)
+  webPush: {
+    getPublicKey: () => ipcRenderer.invoke('webPush:getPublicKey'),
+    getSubject: () => ipcRenderer.invoke('webPush:getSubject'),
+    setSubject: (payload: { subject: string }) => ipcRenderer.invoke('webPush:setSubject', payload),
+    registerSubscription: (payload: {
+      endpoint: string;
+      p256dhKey: string;
+      authKey: string;
+    }) => ipcRenderer.invoke('webPush:registerSubscription', payload),
+    unregisterSubscription: (payload: { endpoint: string }) =>
+      ipcRenderer.invoke('webPush:unregisterSubscription', payload),
+  },
+
+  // Cross-surface deep link (W4-C / PLAN_03)
+  deepLink: {
+    onDeepLink: (handler: (uri: string) => void) => {
+      const listener = (_evt: unknown, uri: string) => handler(uri);
+      ipcRenderer.on('ds-agent:deep-link', listener);
+      return () => ipcRenderer.off('ds-agent:deep-link', listener);
     },
   },
 });

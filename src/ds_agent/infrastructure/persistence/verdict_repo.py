@@ -83,6 +83,19 @@ class SqliteVerdictRepository:
             ).fetchall()
         return [ReviewVerdict.model_validate_json(row["payload_json"]) for row in rows]
 
+    def list_recent(self, *, limit: int = 50) -> list[ReviewVerdict]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT payload_json
+                FROM review_verdicts
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (max(1, int(limit)),),
+            ).fetchall()
+        return [ReviewVerdict.model_validate_json(row["payload_json"]) for row in rows]
+
     def _initialize(self) -> None:
         with self._lock, self._connect() as conn:
             conn.executescript(_MIGRATION_SQL)

@@ -424,3 +424,103 @@ ADR-0003 의 i18next 채택 결정이 본 ADR 로 구체화. 이후 wave 의 신
 
 > 새 ADR 작성 시 일자/상태/제안자/관련 PLAN을 정확히 기록.
 > 기존 ADR을 supersede할 때는 새 ADR 작성 + 기존 상태를 `Superseded by ADR-NNNN` 으로 변경.
+
+### ADR-0012: Wave 4 design-system 토큰은 CSS variable emit 을 canonical source 로 채택
+
+**일자**: 2026-04-20
+**상태**: Accepted
+**제안자**: codex-w4a-foundation-001
+**관련 PLAN**: phase4_platform_maturity/PLAN_01_design_system.md
+
+#### 컨텍스트
+Wave 4 PLAN_01 은 spacing/typography/radius/shadow/motion/color 토큰을 design-system 으로 정식화하고, 기존 renderer 가 이미 사용 중인 `bg-ds-*` / `text-ds-*` Tailwind semantic classes 와도 호환되어야 한다. 토큰 source of truth 를 Tailwind config literal 로 둘지, CSS variable emit 으로 둘지 결정 필요.
+
+#### 결정
+- 토큰의 canonical runtime surface 는 **CSS variables** 로 둔다.
+- `renderer/design-system/tokens/*` 는 token map 을 정의하고, `renderer/design-system/themes/*` 는 theme-specific color variables 를 정의한다.
+- `ThemeProvider` / `applyThemeToDocument()` 가 root 에 CSS variables 를 주입한다.
+- `tailwind.config.js` 는 literal 값을 직접 들고 있지 않고, semantic alias (`bg-ds-surface`, `text-ds-muted` 등) 를 CSS variables 로만 참조한다.
+
+#### 근거
+- 기존 renderer 의 `--ds-*` 사용 표면과 가장 자연스럽게 호환된다.
+- density mode, high-contrast, Storybook theme switch, Electron runtime theme persistence 를 모두 같은 변수 계층으로 풀 수 있다.
+- 기존 ad-hoc 컴포넌트를 한 번에 갈아엎지 않아도 점진 migration 이 가능하다.
+
+#### 대안 (검토했으나 기각)
+- Option A: Tailwind config literal 을 source of truth 로 두고 CSS 를 후행 생성.
+  - 기각 사유: 런타임 theme swap 과 Storybook globals 연동이 더 복잡해진다.
+- Option B: CSS 파일에만 literal 을 두고 TS 토큰 모델은 만들지 않음.
+  - 기각 사유: Storybook / contract test / docs surface 에서 토큰 구조를 코드로 다루기 어렵다.
+
+#### 결과 / 영향
+- `electron/src/renderer/design-system/tokens/*`
+- `electron/src/renderer/design-system/themes/*`
+- `electron/src/renderer/components/providers/ThemeProvider.tsx`
+- `electron/src/renderer/styles/globals.css`
+- `electron/tailwind.config.js`
+
+### ADR-0013: Wave 4 design-system 문서화/검증 표면으로 Storybook 8.6.14 를 채택
+
+**일자**: 2026-04-20
+**상태**: Accepted
+**제안자**: codex-w4a-foundation-001
+**관련 PLAN**: phase4_platform_maturity/PLAN_01_design_system.md
+
+#### 컨텍스트
+PLAN_01 은 Storybook 도입과 `build-storybook` CI gate 를 요구한다. 현재 Electron renderer 는 Vite 기반이며 별도 component explorer 가 없다.
+
+#### 결정
+- Storybook stack 은 `storybook@8.6.14` + `@storybook/react-vite@8.6.14` + `@storybook/addon-essentials@8.6.14`.
+- `.storybook/main.ts` + `.storybook/preview.tsx` 를 repo-local 설정으로 추가한다.
+- 초기 범위는 design-system primitive stories only 이며, preview toolbar 로 `dark / light / high-contrast` theme 전환을 제공한다.
+
+#### 근거
+- 현재 Electron/Vite 환경과 가장 적은 friction 으로 붙는다.
+- build-only verification (`npm run build-storybook`) 이 가능해 CI gate 로 쓰기 쉽다.
+- docs/autodocs 와 theme globals 를 같은 toolchain 안에서 처리 가능하다.
+
+#### 대안 (검토했으나 기각)
+- Option A: 별도 docs site 없이 markdown examples 만 유지.
+  - 기각 사유: wave 4 의 component-library 목표와 visual regression 준비도에 부족하다.
+- Option B: Ladle 등 대체 explorer 사용.
+  - 기각 사유: 현재 team convention 과 ecosystem support 면에서 Storybook 이 더 안정적이다.
+
+#### 결과 / 영향
+- `electron/.storybook/*`
+- `electron/package.json`
+- `electron/package-lock.json`
+- `electron/src/renderer/design-system/**/*.stories.tsx`
+
+### ADR-0014: Design-system lint gate 는 managed surfaces 부터 단계적으로 강제
+
+**일자**: 2026-04-20
+**상태**: Accepted
+**제안자**: codex-w4a-foundation-001
+**관련 PLAN**: phase4_platform_maturity/PLAN_01_design_system.md
+
+#### 컨텍스트
+AGENT_DISPATCH 는 hex literal / arbitrary Tailwind value 차단 rule 을 요구한다. 그러나 현재 renderer legacy surface 에는 pre-wave4 arbitrary Tailwind usage 가 광범위하게 남아 있어 전면 차단 시 baseline 자체가 깨진다.
+
+#### 결정
+- `lint-design-system` gate 는 1차로 managed surfaces 에만 적용한다:
+  - `renderer/design-system/primitives/**`
+  - `renderer/design-system/composites/**`
+  - `renderer/components/providers/**`
+- tokens/themes 는 raw value 정의가 필요한 영역이므로 scan 대상에서 제외한다.
+- legacy renderer surface 전체 차단은 후속 migration slices 에서 allowlist 축소 또는 범위 확대 방식으로 단계 적용한다.
+
+#### 근거
+- foundation 도입 시점에 gate 를 바로 켜되, 기존 제품 표면 전체를 동시에 깨지 않게 할 수 있다.
+- 새 design-system surface 는 처음부터 token-driven 원칙을 강제할 수 있다.
+- staged migration 전략이 PLAN_01 의 "추가만, 점진 migration" 원칙과 맞다.
+
+#### 대안 (검토했으나 기각)
+- Option A: 전체 renderer 전면 차단.
+  - 기각 사유: legacy arbitrary utility usage 가 많아 즉시 fail, wave 4 foundation 진행을 막는다.
+- Option B: lint gate 자체를 미룬다.
+  - 기각 사유: foundation 가드레일 없이 새 primitive 가 다시 ad-hoc 로 흐를 위험이 크다.
+
+#### 결과 / 영향
+- `electron/scripts/lintDesignSystemCore.cjs`
+- `electron/scripts/lint-design-system.mjs`
+- `electron/tests/contract/designSystemLint.spec.ts`

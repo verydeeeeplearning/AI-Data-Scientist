@@ -164,6 +164,7 @@ import './styles.css';
 - [ ] TypeScript 측: `electron/src/renderer/infrastructure/ws/eventSchemaRegistry.ts` 에 `registerEventSchema(...)` 호출 추가 (runtime validator)
 - [ ] Emit 경로: 백엔드는 `WsAgentCallbacks._emit(...)` 만 사용 (직접 `send_json` 금지) — envelope 자동 부착
 - [ ] 새 필드 추가는 optional (minor 버전 호환). 필수 필드는 새 major 만 허용
+- [ ] envelope `ts` 단위는 ms 정수 (Python `int(time.time()*1000)`, TS `Date.now()`) — ADR-0009
 - [ ] Test: `tests/unit/api/` 에 round-trip 테스트, `electron/tests/contract/eventSchemaRegistry.spec.ts` 의 pre-seed 목록에 type 추가
 - [ ] DEVELOPMENT_LOG / INTEGRATION_POINTS 갱신 (WS Event Stream 행)
 

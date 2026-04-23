@@ -4,9 +4,7 @@ Test 0-3.8: Agent can use memory_store and memory_search tools
 with real SQLite backend across simulated sessions.
 """
 
-import json
 
-import pytest
 
 from ds_agent.domain.entities.memory import MemoryEntry, MemoryType
 

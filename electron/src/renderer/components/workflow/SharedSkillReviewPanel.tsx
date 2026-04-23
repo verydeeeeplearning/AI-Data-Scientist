@@ -43,6 +43,7 @@ export function SharedSkillReviewPanel({ runs }: Props) {
       <select
         value={artifactRunId}
         onChange={(event) => setArtifactRunId(event.target.value)}
+        aria-label="Run selected for shared skill review"
         data-testid="decision-os-artifact-run"
         className="w-full rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text"
       >

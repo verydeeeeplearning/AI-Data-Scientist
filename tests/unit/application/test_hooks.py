@@ -157,6 +157,28 @@ class TestHookRegistry:
         result = await registry.run_final_response_hooks("answer<!--x-->   ", HookContext())
         assert result.modified_response == "answer"
 
+    @pytest.mark.asyncio
+    async def test_final_response_hooks_propagate_followup_flags(self):
+        class FollowupHook(ToolHook):
+            name = "followup"
+            priority = 10
+
+            async def on_final_response(self, response, context):
+                return FinalResponseResult(
+                    modified_response=response + "\n\nVerifier follow-up required.",
+                    requires_followup=True,
+                    followup_reason="Resolve the verifier finding before review.",
+                )
+
+        registry = HookRegistry()
+        registry.register(FollowupHook())
+
+        result = await registry.run_final_response_hooks("answer", HookContext())
+
+        assert result.modified_response == "answer\n\nVerifier follow-up required."
+        assert result.requires_followup is True
+        assert result.followup_reason == "Resolve the verifier finding before review."
+
 
 # ---------------------------------------------------------------------------
 # PermissionPolicy
@@ -165,36 +187,36 @@ class TestHookRegistry:
 
 class TestPermissionPolicy:
     @staticmethod
-    def _mission_pack() -> MissionPack:
-        return MissionPack.model_validate(
-            {
-                "name": "weekly-kpi-triage",
-                "version": 1,
-                "summary": "Weekly KPI anomaly triage.",
-                "authority_default": "delegate",
-                "audience_default": "senior_staff",
-                "boundary": {
-                    "allowed_data_domains": ["growth", "sales"],
-                    "required_semantic_metrics": ["dau"],
-                    "allowed_action_classes": ["jira_create", "artifact_draft"],
+    def _mission_pack(**overrides) -> MissionPack:
+        payload = {
+            "name": "weekly-kpi-triage",
+            "version": 1,
+            "summary": "Weekly KPI anomaly triage.",
+            "authority_default": "delegate",
+            "audience_default": "senior_staff",
+            "boundary": {
+                "allowed_data_domains": ["growth", "sales"],
+                "required_semantic_metrics": ["dau"],
+                "allowed_action_classes": ["jira_create", "artifact_draft"],
+            },
+            "required_checks": ["schema_drift"],
+            "required_artifacts": ["exec_brief"],
+            "success_criteria": ["issue_classified"],
+            "action_policy_overrides": {"jira_create": {"delegate": "auto"}},
+            "certification": {
+                "current_level": "delegate",
+                "next_target": "autopilot",
+                "autopilot_requirements": {
+                    "shadow_runs_passed": 10,
+                    "critical_violations": 0,
+                    "verifier_avg_score": 0.85,
+                    "rollback_rehearsal": "passed",
+                    "owner_approvals": 2,
                 },
-                "required_checks": ["schema_drift"],
-                "required_artifacts": ["exec_brief"],
-                "success_criteria": ["issue_classified"],
-                "action_policy_overrides": {"jira_create": {"delegate": "auto"}},
-                "certification": {
-                    "current_level": "delegate",
-                    "next_target": "autopilot",
-                    "autopilot_requirements": {
-                        "shadow_runs_passed": 10,
-                        "critical_violations": 0,
-                        "verifier_avg_score": 0.85,
-                        "rollback_rehearsal": "passed",
-                        "owner_approvals": 2,
-                    },
-                },
-            }
-        )
+            },
+        }
+        payload.update(overrides)
+        return MissionPack.model_validate(payload)
 
     def test_full_access_allows_known_delegate_local_write(self):
         policy = PermissionPolicy(mode=PermissionMode.FULL_ACCESS, agent_mode="auto")
@@ -356,6 +378,49 @@ class TestPermissionPolicy:
         assert allowed is False
         assert "incident irreversible-action guard" in reason
 
+    def test_mission_auto_escalation_mentions_matching_signal(self):
+        from datetime import UTC, datetime
+
+        from ds_agent.domain.entities.review_verdict import ReviewVerdict
+
+        policy = PermissionPolicy(
+            mode=PermissionMode.FULL_ACCESS,
+            agent_mode="auto",
+            mission="weekly-kpi-triage",
+            mission_pack=self._mission_pack(
+                auto_escalate_when=["confidence_low"],
+                action_policy_overrides={},
+                boundary={
+                    "allowed_data_domains": ["growth"],
+                    "required_semantic_metrics": [],
+                    "allowed_action_classes": ["artifact_draft"],
+                },
+            ),
+            latest_review_verdict=ReviewVerdict.model_validate(
+                {
+                    "verdict_id": "RV-20260421002",
+                    "task_id": "TC-2026-001",
+                    "result": "warn",
+                    "summary": "Confidence dropped below threshold.",
+                    "created_at": datetime(2026, 4, 21, tzinfo=UTC),
+                    "confidence": {
+                        "score": 0.2,
+                        "grade": "low",
+                        "rationale": "Confidence dropped below threshold.",
+                    },
+                }
+            ),
+        )
+
+        allowed, reason = policy.check(
+            "write_file",
+            {"file_path": "notes.md", "content": "ok", "data_domain": "growth"},
+        )
+
+        assert allowed is False
+        assert "mission auto-escalation" in reason
+        assert "confidence_low" in reason
+
     def test_get_tool_safety_known(self):
         assert get_tool_safety("data_loader") == ToolSafetyLevel.SAFE
         assert get_tool_safety("execute_code") == ToolSafetyLevel.CAUTION
@@ -460,6 +525,76 @@ class TestPermissionHook:
         )
 
         assert result.action == HookAction.DENY
+
+    @pytest.mark.asyncio
+    async def test_latest_contract_verdict_flows_into_mission_auto_escalation(self):
+        class _TaskContractStore:
+            @staticmethod
+            def get_active_bundle(_session_id):
+                from datetime import UTC, datetime
+
+                from ds_agent.domain.entities.review_verdict import ReviewVerdict
+                from ds_agent.domain.entities.task_contract import TaskContract
+                from ds_agent.domain.entities.task_contract_bundle import TaskContractBundle
+
+                return TaskContractBundle(
+                    contract=TaskContract(
+                        task_id="TC-2026-001",
+                        session_id="session-1",
+                        type="ops_triage",
+                        business_goal="Triage KPI anomalies",
+                        authority="delegate",
+                        mission="weekly-kpi-triage",
+                        required_deliverables=[
+                            {"type": "exec_brief", "audience": "executive", "format": "md"}
+                        ],
+                        created_at=datetime(2026, 4, 15, tzinfo=UTC),
+                        updated_at=datetime(2026, 4, 15, tzinfo=UTC),
+                    ),
+                    review_verdicts=[
+                        ReviewVerdict.model_validate(
+                            {
+                                "verdict_id": "RV-20260421003",
+                                "task_id": "TC-2026-001",
+                                "result": "warn",
+                                "summary": "Confidence dropped below threshold.",
+                                "created_at": datetime(2026, 4, 21, 9, 0, tzinfo=UTC),
+                                "confidence": {
+                                    "score": 0.2,
+                                    "grade": "low",
+                                    "rationale": "Confidence dropped below threshold.",
+                                },
+                            }
+                        )
+                    ],
+                )
+
+        hook = PermissionHook(
+            PermissionPolicy(mode=PermissionMode.FULL_ACCESS),
+            task_contract_store=_TaskContractStore(),
+            mission_loader=MagicMock(),
+        )
+        hook._mission_loader.try_load.return_value = TestPermissionPolicy._mission_pack(
+            auto_escalate_when=["confidence_low"],
+            action_policy_overrides={},
+            boundary={
+                "allowed_data_domains": ["growth"],
+                "required_semantic_metrics": [],
+                "allowed_action_classes": ["artifact_draft"],
+            },
+        )
+        ctx = HookContext(mode="auto", session_id="session-1")
+
+        result = await hook.pre_tool_use(
+            "write_file",
+            {"file_path": "notes.md", "content": "ok", "data_domain": "growth"},
+            ctx,
+        )
+
+        assert result.action == HookAction.DENY
+        assert result.deny_reason is not None
+        assert "mission auto-escalation" in result.deny_reason
+        assert "confidence_low" in result.deny_reason
 
 
 class TestBudgetGuardHook:

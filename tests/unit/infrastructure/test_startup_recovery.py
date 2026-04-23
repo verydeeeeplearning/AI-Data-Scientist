@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from ds_agent.domain.entities.messages import ChatMessage, Role
 from ds_agent.domain.entities.session_checkpoint import SessionCheckpoint
+from ds_agent.domain.entities.working_memory import SessionWorkingMemory
+from ds_agent.domain.value_objects.analysis_stage import AnalysisStage
 from ds_agent.runtime.approval_store import JsonApprovalStore
 from ds_agent.runtime.checkpoint_store import JsonCheckpointStore
 from ds_agent.runtime.goal_store import JsonGoalStore
@@ -96,6 +98,90 @@ class TestStartupRecovery:
         memory = working_memory_store.load("session-2")
         assert memory is not None
         assert memory.pending_questions == ["Which target column should be used?"]
+
+    def test_recovery_preserves_existing_stage_context(self, tmp_path):
+        checkpoint_store = JsonCheckpointStore(base_dir=tmp_path)
+        goal_store = JsonGoalStore(base_dir=tmp_path)
+        working_memory_store = JsonWorkingMemoryStore(base_dir=tmp_path)
+        approval_store = JsonApprovalStore(base_dir=tmp_path)
+
+        checkpoint_store.save(
+            SessionCheckpoint(
+                session_id="session-3",
+                step=2,
+                messages=[ChatMessage(role=Role.USER, content="Continue profiling")],
+            )
+        )
+        goal_store.ensure_from_message("session-3", "Profile the dataset", run_id="run-3")
+        working_memory_store.save(
+            SessionWorkingMemory(
+                session_id="session-3",
+                current_summary="Profiling in progress.",
+                next_step="Inspect missingness by column.",
+                current_stage=AnalysisStage.PROFILING,
+                stage_entered_at=321.0,
+            )
+        )
+
+        recovery = StartupRecovery(
+            checkpoint_store=checkpoint_store,
+            goal_store=goal_store,
+            working_memory_store=working_memory_store,
+            approval_store=approval_store,
+        )
+
+        records = recovery.recover()
+
+        assert len(records) == 1
+        memory = working_memory_store.load("session-3")
+        assert memory is not None
+        assert memory.current_stage == AnalysisStage.PROFILING
+        assert memory.stage_entered_at == 321.0
+        assert memory.next_step == "Inspect missingness by column."
+
+    def test_recovery_restores_stage_and_next_step_from_compressed_checkpoint(self, tmp_path):
+        checkpoint_store = JsonCheckpointStore(base_dir=tmp_path)
+        goal_store = JsonGoalStore(base_dir=tmp_path)
+        working_memory_store = JsonWorkingMemoryStore(base_dir=tmp_path)
+        approval_store = JsonApprovalStore(base_dir=tmp_path)
+
+        checkpoint_store.save(
+            SessionCheckpoint(
+                session_id="session-4",
+                step=6,
+                messages=[
+                    ChatMessage(
+                        role=Role.ASSISTANT,
+                        content=(
+                            "[Conversation Summary]\n\n"
+                            "[Continuity State]\n"
+                            "- Current stage: modeling\n"
+                            "- Blocker: Which target column should be used?\n"
+                            "- Next step: Train the baseline classifier after the target is confirmed.\n\n"
+                            "Older compressed details."
+                        ),
+                    )
+                ],
+            )
+        )
+        goal_store.ensure_from_message("session-4", "Train a churn model", run_id="run-4")
+
+        recovery = StartupRecovery(
+            checkpoint_store=checkpoint_store,
+            goal_store=goal_store,
+            working_memory_store=working_memory_store,
+            approval_store=approval_store,
+        )
+
+        records = recovery.recover()
+
+        assert len(records) == 1
+        memory = working_memory_store.load("session-4")
+        assert memory is not None
+        assert memory.current_stage == AnalysisStage.MODELING
+        assert memory.next_step == "Train the baseline classifier after the target is confirmed."
+        assert memory.pending_questions == ["Which target column should be used?"]
+        assert "Current stage: modeling." in (memory.recovery_note or "")
 
 
 class TestCheckpointListing:

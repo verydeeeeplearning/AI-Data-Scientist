@@ -9,6 +9,7 @@ from ds_agent.domain.entities.messages import (
     ToolCall,
     ToolResult,
     Usage,
+    ensure_message_ids,
 )
 
 
@@ -41,6 +42,18 @@ class TestChatMessage:
         )
         assert msg.role == Role.TOOL
         assert msg.tool_call_id == "call_1"
+
+    def test_ensure_message_ids_assigns_durable_ids(self):
+        messages = [
+            ChatMessage(role=Role.USER, content="hello"),
+            ChatMessage(role=Role.ASSISTANT, content="world"),
+        ]
+
+        changed = ensure_message_ids(messages)
+
+        assert changed is True
+        assert messages[0].message_id is not None
+        assert messages[1].message_id is not None
 
 
 class TestToolCall:

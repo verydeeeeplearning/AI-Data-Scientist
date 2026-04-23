@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from ds_agent.application.dtos.task_contract import (
     AssumptionInputDTO,
@@ -27,11 +27,19 @@ from ds_agent.application.ports.task_contract_support import (
     DeliveryDispatchLogReader,
     EventPublisher,
     IdGenerator,
+    TaskContractFailureSignalRecorder,
+)
+from ds_agent.application.services.mission_required_artifacts import (
+    MissionRequiredArtifactResolver,
+)
+from ds_agent.application.services.mission_required_delivery_channels import (
+    MissionRequiredDeliveryChannelResolver,
 )
 from ds_agent.domain.entities.assumption_log import AssumptionEntry, AssumptionLog
 from ds_agent.domain.entities.delivery_pack import (
     AudienceKind,
     DeliveryArtifact,
+    DeliveryChannel,
     DeliveryItem,
     DeliveryPack,
     DeliveryPackStatus,
@@ -50,12 +58,15 @@ from ds_agent.domain.entities.task_contract import (
 from ds_agent.domain.entities.task_contract_bundle import TaskContractBundle
 from ds_agent.domain.entities.task_contract_event import TaskContractEvent
 from ds_agent.domain.errors.task_contract_errors import (
+    TaskContractError,
     TaskContractNotFoundError,
     VersionConflictError,
 )
 from ds_agent.domain.interfaces.task_contract import TaskContractStore
 from ds_agent.domain.services.delivery_pack_planner import plan_delivery_artifact
 from ds_agent.domain.services.task_contract_state_machine import (
+    MissionArtifactResolution,
+    MissionDeliveryChannelResolution,
     TaskContractStateMachine,
     TaskContractValidator,
 )
@@ -78,6 +89,13 @@ _PATCHABLE_FIELDS = frozenset(
         "audience",
         "mission",
     }
+)
+_MISSION_REQUIRED_DELIVERY_CHANNELS_CONTEXT_KEY = "mission_required_delivery_channels"
+_MISSION_DELIVERY_CHANNEL_ARTIFACT_PREFERENCE = (
+    "action_proposals",
+    "pm_action_memo",
+    "ds_appendix",
+    "ml_handoff_spec",
 )
 
 
@@ -230,6 +248,23 @@ class CreateTaskContractUseCase(_BaseTaskContractUseCase):
 class UpdateTaskContractUseCase(_BaseTaskContractUseCase):
     """Patch a contract and optionally transition its status."""
 
+    def __init__(
+        self,
+        store: TaskContractStore,
+        clock: Clock,
+        publisher: EventPublisher,
+        mission_required_artifact_resolver: MissionRequiredArtifactResolver | None = None,
+        mission_required_delivery_channel_resolver: MissionRequiredDeliveryChannelResolver
+        | None = None,
+        failure_signal_recorder: TaskContractFailureSignalRecorder | None = None,
+    ) -> None:
+        super().__init__(store=store, clock=clock, publisher=publisher)
+        self._mission_required_artifact_resolver = mission_required_artifact_resolver
+        self._mission_required_delivery_channel_resolver = (
+            mission_required_delivery_channel_resolver
+        )
+        self._failure_signal_recorder = failure_signal_recorder
+
     def execute(self, dto: TaskContractUpdateDTO) -> dict[str, Any]:
         bundle = self._load_bundle(dto.task_id)
         self._ensure_version(bundle.contract, dto.expected_version)
@@ -237,7 +272,33 @@ class UpdateTaskContractUseCase(_BaseTaskContractUseCase):
         updated_contract = self._apply_patch(bundle.contract, dto.patch)
         bundle.contract = updated_contract
         if dto.transition_to is not None:
-            TaskContractStateMachine.validate_transition(bundle, dto.transition_to)
+            mission_artifact_resolution: MissionArtifactResolution | None = cast(
+                MissionArtifactResolution | None,
+                (
+                    self._mission_required_artifact_resolver.resolve_for_bundle(bundle)
+                    if self._mission_required_artifact_resolver is not None
+                    else None
+                ),
+            )
+            mission_delivery_channel_resolution: MissionDeliveryChannelResolution | None = cast(
+                MissionDeliveryChannelResolution | None,
+                (
+                    self._mission_required_delivery_channel_resolver.resolve_for_bundle(bundle)
+                    if self._mission_required_delivery_channel_resolver is not None
+                    else None
+                ),
+            )
+            try:
+                TaskContractStateMachine.validate_transition(
+                    bundle,
+                    dto.transition_to,
+                    current_run_id=dto.run_id,
+                    mission_artifact_resolution=mission_artifact_resolution,
+                    mission_delivery_channel_resolution=mission_delivery_channel_resolution,
+                )
+            except TaskContractError as exc:
+                self._record_transition_failure(bundle, dto, exc)
+                raise
             bundle.contract.status = dto.transition_to
         bundle.contract.updated_at = now
         bundle.contract.version += 1
@@ -256,11 +317,60 @@ class UpdateTaskContractUseCase(_BaseTaskContractUseCase):
         )
         self._store.save_bundle(bundle, expected_version=dto.expected_version, events=[event])
         self._publish(event)
+        self._record_operator_intervention(bundle, dto)
         return {
             "task_id": bundle.contract.task_id,
             "status": bundle.contract.status.value,
             "new_version": bundle.contract.version,
         }
+
+    def _record_operator_intervention(
+        self,
+        bundle: TaskContractBundle,
+        dto: TaskContractUpdateDTO,
+    ) -> None:
+        if self._failure_signal_recorder is None:
+            return
+        normalized_reason = (dto.reason or "").strip()
+        if not normalized_reason:
+            return
+        if dto.transition_to is not None:
+            intervention_kind = "forced_transition"
+            extra_metadata: dict[str, object] = {
+                "transition_to": dto.transition_to.value,
+                "patch_fields": sorted(dto.patch.keys()),
+            }
+        elif dto.patch:
+            intervention_kind = "patch_override"
+            extra_metadata = {"patch_fields": sorted(dto.patch.keys())}
+        else:
+            return
+        self._failure_signal_recorder.record_operator_intervention(
+            task_id=bundle.contract.task_id,
+            session_id=bundle.contract.session_id,
+            run_id=dto.run_id,
+            intervention_kind=intervention_kind,
+            reason=normalized_reason,
+            metadata=extra_metadata,
+        )
+
+    def _record_transition_failure(
+        self,
+        bundle: TaskContractBundle,
+        dto: TaskContractUpdateDTO,
+        exc: TaskContractError,
+    ) -> None:
+        if self._failure_signal_recorder is None:
+            return
+        self._failure_signal_recorder.record_transition_failure(
+            task_id=bundle.contract.task_id,
+            session_id=bundle.contract.session_id,
+            run_id=dto.run_id,
+            transition_to=dto.transition_to.value if dto.transition_to is not None else None,
+            error_code=exc.error_code,
+            message=str(exc),
+            metadata=exc.metadata,
+        )
 
 
 class AddAssumptionUseCase(_BaseTaskContractUseCase):
@@ -429,9 +539,15 @@ class BuildDeliveryPackUseCase(_BaseTaskContractUseCase):
         clock: Clock,
         ids: IdGenerator,
         publisher: EventPublisher,
+        mission_required_delivery_channel_resolver: (
+            MissionRequiredDeliveryChannelResolver | None
+        ) = None,
     ) -> None:
         super().__init__(store=store, clock=clock, publisher=publisher)
         self._ids = ids
+        self._mission_required_delivery_channel_resolver = (
+            mission_required_delivery_channel_resolver
+        )
 
     def execute(self, dto: BuildDeliveryPackDTO) -> dict[str, Any]:
         bundle = self._load_bundle(dto.task_id)
@@ -441,6 +557,14 @@ class BuildDeliveryPackUseCase(_BaseTaskContractUseCase):
             {_normalize_delivery_audience(value) for value in dto.audiences}
             if dto.audiences
             else None
+        )
+        mission_delivery_channel_resolution: MissionDeliveryChannelResolution | None = cast(
+            "MissionDeliveryChannelResolution | None",
+            (
+                self._mission_required_delivery_channel_resolver.resolve_for_bundle(bundle)
+                if self._mission_required_delivery_channel_resolver is not None
+                else None
+            ),
         )
 
         artifacts = []
@@ -468,6 +592,15 @@ class BuildDeliveryPackUseCase(_BaseTaskContractUseCase):
                     + ", ".join(missing)
                 )
 
+        artifacts = _ensure_mission_required_delivery_channels(
+            artifacts,
+            mission_delivery_channel_resolution,
+        )
+        global_context = _merge_mission_required_delivery_channel_context(
+            dto.global_context,
+            mission_delivery_channel_resolution,
+        )
+
         delivery_pack = DeliveryPack(
             pack_id=self._ids.new_artifact_id("DP"),
             task_id=dto.task_id,
@@ -477,7 +610,7 @@ class BuildDeliveryPackUseCase(_BaseTaskContractUseCase):
             confidence=dto.confidence or 1.0,
             signed_by=dto.signed_by or "ds-agent",
             signature=dto.signature,
-            global_context=dto.global_context,
+            global_context=global_context,
             artifacts=artifacts,
             status=DeliveryPackStatus.DRAFT,
             tenant=dto.tenant,
@@ -508,6 +641,92 @@ class BuildDeliveryPackUseCase(_BaseTaskContractUseCase):
             "status": delivery_pack.status.value,
             "new_version": bundle.contract.version,
         }
+
+
+def _ensure_mission_required_delivery_channels(
+    artifacts: list[DeliveryArtifact],
+    mission_delivery_channel_resolution: MissionDeliveryChannelResolution | None,
+) -> list[DeliveryArtifact]:
+    if (
+        not artifacts
+        or mission_delivery_channel_resolution is None
+        or not mission_delivery_channel_resolution.mission_loaded
+    ):
+        return artifacts
+
+    available_channels = {
+        channel for artifact in artifacts for channel in artifact.delivery_channel
+    }
+    missing_channels: list[DeliveryChannel] = []
+    for channel_id in mission_delivery_channel_resolution.resolved_delivery_channels:
+        channel = DeliveryChannel(channel_id)
+        if channel in available_channels:
+            continue
+        missing_channels.append(channel)
+        available_channels.add(channel)
+
+    if not missing_channels:
+        return artifacts
+
+    # Prefer action/evidence-oriented artifacts when present; otherwise fall back
+    # to the first planned artifact so mission-required channels remain reachable.
+    target_index = _select_mission_delivery_channel_artifact_index(artifacts)
+    target_artifact = artifacts[target_index]
+    updated_channels = list(target_artifact.delivery_channel)
+    updated_channels.extend(missing_channels)
+    updated_artifact = target_artifact.model_copy(update={"delivery_channel": updated_channels})
+    updated_artifacts = list(artifacts)
+    updated_artifacts[target_index] = updated_artifact
+    return updated_artifacts
+
+
+def _merge_mission_required_delivery_channel_context(
+    global_context: dict[str, str],
+    mission_delivery_channel_resolution: MissionDeliveryChannelResolution | None,
+) -> dict[str, str]:
+    merged = dict(global_context)
+    if (
+        mission_delivery_channel_resolution is None
+        or not mission_delivery_channel_resolution.mission_loaded
+    ):
+        return merged
+
+    ordered_channels = list(
+        _split_csv_context(merged.get(_MISSION_REQUIRED_DELIVERY_CHANNELS_CONTEXT_KEY))
+    )
+    seen_channels = set(ordered_channels)
+    for channel in mission_delivery_channel_resolution.resolved_delivery_channels:
+        if channel in seen_channels:
+            continue
+        ordered_channels.append(channel)
+        seen_channels.add(channel)
+    if ordered_channels:
+        merged[_MISSION_REQUIRED_DELIVERY_CHANNELS_CONTEXT_KEY] = ",".join(ordered_channels)
+    return merged
+
+
+def _split_csv_context(value: str | None) -> list[str]:
+    if value is None:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _select_mission_delivery_channel_artifact_index(
+    artifacts: list[DeliveryArtifact],
+) -> int:
+    preference_order = {
+        artifact_type: index
+        for index, artifact_type in enumerate(_MISSION_DELIVERY_CHANNEL_ARTIFACT_PREFERENCE)
+    }
+    ranked = [
+        (preference_order.get(artifact.type.value), index)
+        for index, artifact in enumerate(artifacts)
+    ]
+    preferred = [(rank, index) for rank, index in ranked if rank is not None]
+    if not preferred:
+        return 0
+    preferred.sort()
+    return preferred[0][1]
 
 
 class RenderDeliveryArtifactUseCase(_BaseTaskContractUseCase):
@@ -788,13 +1007,48 @@ class RecordDeliveryPackUseCase(_BaseTaskContractUseCase):
 class GetTaskContractUseCase(_BaseTaskContractUseCase):
     """Load a detailed contract view."""
 
+    def __init__(
+        self,
+        store: TaskContractStore,
+        clock: Clock,
+        publisher: EventPublisher,
+        mission_required_artifact_resolver: MissionRequiredArtifactResolver | None = None,
+        mission_required_delivery_channel_resolver: MissionRequiredDeliveryChannelResolver
+        | None = None,
+    ) -> None:
+        super().__init__(store=store, clock=clock, publisher=publisher)
+        self._mission_required_artifact_resolver = mission_required_artifact_resolver
+        self._mission_required_delivery_channel_resolver = (
+            mission_required_delivery_channel_resolver
+        )
+
     def execute(self, task_id: str, include: list[str] | None = None) -> TaskContractViewDTO:
         bundle = self._load_bundle(task_id)
         include_set = set(include) if include is not None else None
+        mission_artifact_resolution: MissionArtifactResolution | None = cast(
+            MissionArtifactResolution | None,
+            (
+                self._mission_required_artifact_resolver.resolve_for_bundle(bundle)
+                if self._mission_required_artifact_resolver is not None
+                else None
+            ),
+        )
+        mission_delivery_channel_resolution: MissionDeliveryChannelResolution | None = cast(
+            MissionDeliveryChannelResolution | None,
+            (
+                self._mission_required_delivery_channel_resolver.resolve_for_bundle(bundle)
+                if self._mission_required_delivery_channel_resolver is not None
+                else None
+            ),
+        )
         return TaskContractViewDTO.from_bundle(
             bundle,
             include=include_set,
-            dod_summary=TaskContractValidator.build_dod_summary(bundle),
+            dod_summary=TaskContractValidator.build_dod_summary(
+                bundle,
+                mission_artifact_resolution=mission_artifact_resolution,
+                mission_delivery_channel_resolution=mission_delivery_channel_resolution,
+            ),
         )
 
 
@@ -819,16 +1073,56 @@ class ListTaskContractsUseCase(_BaseTaskContractUseCase):
 class CloseTaskContractUseCase(_BaseTaskContractUseCase):
     """Transition a contract from review to closed."""
 
+    def __init__(
+        self,
+        store: TaskContractStore,
+        clock: Clock,
+        publisher: EventPublisher,
+        mission_required_artifact_resolver: MissionRequiredArtifactResolver | None = None,
+        mission_required_delivery_channel_resolver: MissionRequiredDeliveryChannelResolver
+        | None = None,
+    ) -> None:
+        super().__init__(store=store, clock=clock, publisher=publisher)
+        self._mission_required_artifact_resolver = mission_required_artifact_resolver
+        self._mission_required_delivery_channel_resolver = (
+            mission_required_delivery_channel_resolver
+        )
+
     def execute(self, task_id: str, *, expected_version: int, closing_note: str) -> dict[str, Any]:
         bundle = self._load_bundle(task_id)
         self._ensure_version(bundle.contract, expected_version)
-        TaskContractStateMachine.validate_transition(bundle, TaskContractStatus.CLOSED)
+        mission_artifact_resolution: MissionArtifactResolution | None = cast(
+            MissionArtifactResolution | None,
+            (
+                self._mission_required_artifact_resolver.resolve_for_bundle(bundle)
+                if self._mission_required_artifact_resolver is not None
+                else None
+            ),
+        )
+        mission_delivery_channel_resolution: MissionDeliveryChannelResolution | None = cast(
+            MissionDeliveryChannelResolution | None,
+            (
+                self._mission_required_delivery_channel_resolver.resolve_for_bundle(bundle)
+                if self._mission_required_delivery_channel_resolver is not None
+                else None
+            ),
+        )
+        TaskContractStateMachine.validate_transition(
+            bundle,
+            TaskContractStatus.CLOSED,
+            mission_artifact_resolution=mission_artifact_resolution,
+            mission_delivery_channel_resolution=mission_delivery_channel_resolution,
+        )
         now = self._clock.now()
         bundle.contract.status = TaskContractStatus.CLOSED
         bundle.contract.updated_at = now
         bundle.contract.version += 1
         bundle.sync_references()
-        dod_summary = TaskContractValidator.build_dod_summary(bundle)
+        dod_summary = TaskContractValidator.build_dod_summary(
+            bundle,
+            mission_artifact_resolution=mission_artifact_resolution,
+            mission_delivery_channel_resolution=mission_delivery_channel_resolution,
+        )
         event = self._build_event(
             event_type="task_contract.closed",
             task_id=task_id,

@@ -20,6 +20,7 @@ def _mission_payload() -> dict[str, object]:
         },
         "required_checks": ["schema_drift"],
         "required_artifacts": ["exec_brief"],
+        "required_delivery_channels": ["jira_ticket"],
         "auto_escalate_when": ["confidence_low"],
         "success_criteria": ["issue_classified"],
     }
@@ -59,6 +60,18 @@ def test_mission_pack_rejects_blank_required_artifacts() -> None:
         assert "required_artifacts" in str(exc)
     else:
         raise AssertionError("Expected validation error for blank required_artifacts")
+
+
+def test_mission_pack_rejects_blank_required_delivery_channels() -> None:
+    payload = _mission_payload()
+    payload["required_delivery_channels"] = [" "]
+
+    try:
+        MissionPack.model_validate(payload)
+    except ValidationError as exc:
+        assert "required_delivery_channels" in str(exc)
+    else:
+        raise AssertionError("Expected validation error for blank required_delivery_channels")
 
 
 def test_mission_pack_policy_override_returns_mission_local_verdict() -> None:

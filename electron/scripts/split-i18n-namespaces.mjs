@@ -28,6 +28,7 @@ const NAMESPACES = [
   'settings',
   'approval',
   'trust',
+  'run',
   'cards',
   'chat',
 ];
@@ -42,6 +43,7 @@ const NAMESPACE_PREFIX_TO_NS = new Map([
   ['settings', 'settings'],
   ['approval', 'approval'],
   ['trust', 'trust'],
+  ['run', 'run'],
   ['cards', 'cards'],
   ['chat', 'chat'],
   ['mode', 'common'],

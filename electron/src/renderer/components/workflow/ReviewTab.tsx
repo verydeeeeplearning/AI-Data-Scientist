@@ -310,6 +310,7 @@ export function ReviewTab() {
             <select
               value={modelId}
               onChange={(event) => setModelId(event.target.value)}
+              aria-label="Model selected for post-deploy monitoring"
               data-testid="decision-os-post-deploy-model"
               className="rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text"
             >

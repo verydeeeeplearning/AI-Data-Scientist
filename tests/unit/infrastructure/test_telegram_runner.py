@@ -112,6 +112,51 @@ class TestTelegramCallbacks:
         assert "Run: run-1" in sent.text
         assert "Queue: 1 / 1" in sent.text
         assert f"/approval {approval.approval_id}" in sent.text
+        assert sent.reply_markup is not None
+        flat = [button for row in sent.reply_markup["inline_keyboard"] for button in row]
+        assert any(
+            button.get("callback_data") == f"approval:approve:{approval.approval_id}"
+            for button in flat
+        )
+        assert any(
+            button.get("callback_data") == f"approval:reject:{approval.approval_id}"
+            for button in flat
+        )
+
+    @pytest.mark.asyncio
+    async def test_harness_warning_is_ingested_without_sending_message(self, tmp_path):
+        from ds_agent.domain.learning.learning_item import LearningItemType
+        from ds_agent.gateway.telegram_runner import TelegramCallbacks
+        from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
+
+        plugin = MagicMock()
+        plugin.send_text = AsyncMock()
+        cb = TelegramCallbacks(plugin, "chat1", workspace_dir=str(tmp_path))
+
+        cb.emit_event(
+            "task.started",
+            {
+                "sessionId": "telegram:chat1",
+                "runId": "run-telegram-1",
+                "surface": "telegram",
+            },
+        )
+        cb.emit_event(
+            "harness.warning",
+            {
+                "type": "overfitting",
+                "message": "Validation gap exceeds tolerance.",
+                "severity": "high",
+            },
+        )
+        await asyncio.sleep(0)
+
+        store = SqliteLearningStore.for_workspace(str(tmp_path))
+        items = store.list_items(item_type=LearningItemType.PATTERN)
+        assert len(items) == 1
+        assert items[0].metadata["sessionId"] == "telegram:chat1"
+        assert items[0].metadata["warningType"] == "overfitting"
+        plugin.send_text.assert_not_called()
 
 
 class TestTelegramCommands:
@@ -143,9 +188,10 @@ class TestTelegramCommands:
         runner._runtime_event_log = RuntimeEventLog(base_dir=self._tmp_path)
         runner._workspace = WorkspaceService(str(self._tmp_path))
         runner._config_path = self._tmp_path / "config.yaml"
-        runner._runtime_sessions = RuntimeSessionRegistry()
-        runner._runs = RunRegistry(runner._runtime_sessions)
+        runner._runtime_sessions = RuntimeSessionRegistry(base_dir=self._tmp_path)
+        runner._runs = RunRegistry(runner._runtime_sessions, base_dir=self._tmp_path)
         runner._task_ledger = TaskLedger()
+        from ds_agent.channels.bundled.telegram.message_builder import TelegramMessageBuilder
         from ds_agent.runtime.action_token import ActionTokenStore
         from ds_agent.runtime.operator_alert_state_store import JsonOperatorAlertStateStore
         from ds_agent.runtime.operator_preferences_store import JsonOperatorPreferencesStore
@@ -157,6 +203,7 @@ class TestTelegramCommands:
         runner._operator_chats = set()
         runner._delivery_targets = {}
         runner._seen_runtime_event_ids = set()
+        runner._message_builder = TelegramMessageBuilder()
         runner._config = DSAgentConfig(
             agent=AgentConfig(workspace_dir=str(self._tmp_path)),
             gateway=GatewayConfig(
@@ -1161,6 +1208,31 @@ class TestTelegramCommands:
         assert sent.reply_markup is not None
 
     @pytest.mark.asyncio
+    async def test_runtime_alert_push_appends_open_in_electron_for_run_event(self):
+        runner = self._make_runner()
+        runner._operator_chats.add("chat1")
+        runner._runtime_event_log.record(
+            category="health",
+            kind="run.outcome.failed",
+            severity="error",
+            message="Training failed on fold 3.",
+            session_id="telegram:chat1",
+            run_id="run-42",
+            surface="daemon",
+            source="test",
+        )
+
+        await runner._process_runtime_alerts_once()
+
+        sent = runner._plugin.send_text.call_args[0][0]
+        assert sent.reply_markup is not None
+        flat = [button for row in sent.reply_markup["inline_keyboard"] for button in row]
+        assert any(button.get("callback_data") for button in flat)
+        assert any(
+            button.get("url") == "ds-agent://workspace/default/run/run-42" for button in flat
+        )
+
+    @pytest.mark.asyncio
     async def test_runtime_alert_push_suppresses_and_buffers_for_digest(self):
         runner = self._make_runner()
         runner._operator_chats.add("chat1")
@@ -1363,6 +1435,37 @@ class TestTelegramCommands:
         assert "pipeline.health.degraded" in digest_sent.text
         assert status_sent.text == "Digest sent above."
 
+    @pytest.mark.asyncio
+    async def test_digest_now_appends_open_in_electron_for_latest_run(self):
+        runner = self._make_runner()
+        event = runner._runtime_event_log.record(
+            category="health",
+            kind="run.outcome.failed",
+            severity="error",
+            message="Training failed on fold 7.",
+            session_id="telegram:chat1",
+            run_id="run-77",
+            surface="daemon",
+            source="test",
+        )
+        runner._alert_state.record_suppressed("chat1", event.event_id, "digest")
+        msg = InboundMessage(
+            text="/digest now",
+            sender_id="user1",
+            conversation_id="chat1",
+            channel_id="telegram",
+            account_id="bot1",
+        )
+
+        await runner._handle_command(msg)
+
+        digest_sent = runner._plugin.send_text.call_args_list[0][0][0]
+        assert digest_sent.reply_markup is not None
+        flat = [button for row in digest_sent.reply_markup["inline_keyboard"] for button in row]
+        assert any(
+            button.get("url") == "ds-agent://workspace/default/run/run-77" for button in flat
+        )
+
 
 class TestTelegramHandleMessage:
     """Test _handle_message routing and agent execution."""
@@ -1392,9 +1495,10 @@ class TestTelegramHandleMessage:
         runner._runtime_event_log = RuntimeEventLog(base_dir=tmp_path)
         runner._workspace = WorkspaceService(str(tmp_path))
         runner._config_path = tmp_path / "config.yaml"
-        runner._runtime_sessions = RuntimeSessionRegistry()
-        runner._runs = RunRegistry(runner._runtime_sessions)
+        runner._runtime_sessions = RuntimeSessionRegistry(base_dir=tmp_path)
+        runner._runs = RunRegistry(runner._runtime_sessions, base_dir=tmp_path)
         runner._task_ledger = TaskLedger()
+        from ds_agent.channels.bundled.telegram.message_builder import TelegramMessageBuilder
         from ds_agent.runtime.action_token import ActionTokenStore
         from ds_agent.runtime.operator_alert_state_store import JsonOperatorAlertStateStore
         from ds_agent.runtime.operator_preferences_store import JsonOperatorPreferencesStore
@@ -1406,6 +1510,7 @@ class TestTelegramHandleMessage:
         runner._operator_chats = set()
         runner._delivery_targets = {}
         runner._seen_runtime_event_ids = set()
+        runner._message_builder = TelegramMessageBuilder()
         runner._config = DSAgentConfig(
             agent=AgentConfig(workspace_dir=str(tmp_path)),
             gateway=GatewayConfig(
@@ -1723,6 +1828,39 @@ class TestTelegramHandleMessage:
         runner._plugin.edit_message_reply_markup.assert_awaited_once()
         sent = runner._plugin.send_text.call_args[0][0]
         assert f"Acknowledged: {event.event_id}" in sent.text
+
+    @pytest.mark.asyncio
+    async def test_callback_query_approval_wire_format_submits_decision(self, tmp_path):
+        runner = self._make_runner(tmp_path)
+        approval = runner._approval_store.create(
+            session_id="telegram:chat1",
+            run_id="run-1",
+            surface="telegram",
+            question="Approve training?",
+        )
+        msg = InboundMessage(
+            text=f"approval:approve:{approval.approval_id}",
+            sender_id="user1",
+            conversation_id="chat1",
+            channel_id="telegram",
+            account_id="bot1",
+            callback_data=f"approval:approve:{approval.approval_id}",
+            callback_query_id="query-approve-1",
+            source_message_id="12",
+        )
+
+        await runner._handle_message(msg)
+
+        runner._plugin.answer_callback_query.assert_awaited()
+        _, kwargs = runner._plugin.answer_callback_query.await_args
+        assert "Approved" in (kwargs.get("text") or "")
+        runner._plugin.edit_message_reply_markup.assert_awaited_once()
+        resolved = runner._approval_store.get(approval.approval_id)
+        assert resolved is not None
+        assert resolved.status == ApprovalStatus.APPROVED
+        sent = runner._plugin.send_text.call_args[0][0]
+        assert "Approval approved" in sent.text
+        assert approval.approval_id in sent.text
 
 
 class TestTelegramImportTools:

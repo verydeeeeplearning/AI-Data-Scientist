@@ -10,7 +10,7 @@ Keep both files in sync when adding or changing events.
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import NotRequired, Required, TypedDict
 
 # ---------------------------------------------------------------------------
 # DS Workflow events
@@ -60,6 +60,23 @@ class HarnessWarningEvent(TypedDict):
     suggestion: str | None
 
 
+class VerifierAutoRunEvent(TypedDict, total=False):
+    """``verifier.auto_run`` - auto-verifier execution telemetry."""
+
+    sessionId: Required[str | None]
+    runId: Required[str | None]
+    taskId: Required[str]
+    mode: Required[str]
+    status: Required[str]  # "success" | "timeout" | "error"
+    durationMs: Required[int]
+    verdictId: str
+    result: str
+    blockingIssueCount: int
+    confidenceScore: float
+    confidenceGrade: str
+    errorType: str
+
+
 class ProfileResultsEvent(TypedDict):
     """``profile.results`` - structured data profiling results.
 
@@ -104,6 +121,140 @@ class ContextStatusEvent(TypedDict):
 
     usedPct: float  # 0-100
     compressed: bool
+
+
+class MissionGoalEvent(TypedDict, total=False):
+    title: str
+    successCriteria: list[str]
+
+
+class MissionDataSourceEvent(TypedDict, total=False):
+    type: str
+    label: str
+    rowCount: int
+
+
+class MissionConstraintsEvent(TypedDict, total=False):
+    language: str
+    requiresApproval: bool
+    localOnlyModel: bool
+
+
+class MissionStageEvent(TypedDict, total=False):
+    current: int
+    total: int
+    label: str
+
+
+class MissionModelEvent(TypedDict, total=False):
+    primary: str
+    fallbacks: list[str]
+    capabilities: list[str]
+
+
+class MissionBudgetEvent(TypedDict, total=False):
+    spentUsd: float
+    limitUsd: float
+    elapsedSec: float
+    nearLimit: bool
+
+
+class MissionConnectionEvent(TypedDict, total=False):
+    state: str
+    latencyMs: float | None
+
+
+class MissionContextUpdatedEvent(TypedDict, total=False):
+    """``mission.context.updated`` - partial mission header patch."""
+
+    sessionId: str
+    goal: MissionGoalEvent
+    dataSources: list[MissionDataSourceEvent]
+    deliverables: list[str]
+    constraints: MissionConstraintsEvent
+    stage: MissionStageEvent
+    mode: str
+    model: MissionModelEvent
+    budget: MissionBudgetEvent
+    connection: MissionConnectionEvent
+
+
+# ---------------------------------------------------------------------------
+# Plan / reasoning events
+# ---------------------------------------------------------------------------
+
+
+class PlanNodePatchEvent(TypedDict, total=False):
+    """Partial plan-node patch used by ``plan.updated``."""
+
+    parentId: str | None
+    label: str
+    description: str
+    status: str
+    estimatedDurationSec: float
+    startedAt: int
+    completedAt: int
+    reasoningRefs: list[str]
+    toolEventRefs: list[str]
+    children: list[PlanNodeEvent]
+
+
+class PlanNodeEvent(PlanNodePatchEvent):
+    """Recursive plan node used by plan-tree events.
+
+    Inherits the optional patch fields from ``PlanNodePatchEvent`` but additionally
+    requires ``id`` so consumers can address the node in tree traversals.
+    """
+
+    id: str
+
+
+class ReplanDiffEvent(TypedDict):
+    """``plan.replanned`` - plan diff after a re-plan."""
+
+    oldNodes: list[PlanNodeEvent]
+    newNodes: list[PlanNodeEvent]
+    added: list[str]
+    removed: list[str]
+    modified: list[str]
+    reason: str
+
+
+class PlanCreatedEvent(TypedDict):
+    """``plan.created`` - a new plan tree was produced."""
+
+    planTree: PlanNodeEvent
+
+
+class PlanUpdatedEvent(TypedDict):
+    """``plan.updated`` - one plan node changed in-place."""
+
+    nodeId: str
+    updates: PlanNodePatchEvent
+
+
+class PlanReplannedEvent(TypedDict):
+    """``plan.replanned`` - a plan was rebuilt and diffed."""
+
+    diff: ReplanDiffEvent
+
+
+class ReasoningEmittedEvent(TypedDict, total=False):
+    """``reasoning.emitted`` - first-slice reasoning trace payload.
+
+    Wave 3 first slice emits ``thinking`` from the existing provider thinking
+    path so the renderer can start consuming reasoning traces before the full
+    4-tuple plan-linked contract lands.
+    """
+
+    emittedAt: Required[int]
+    id: NotRequired[str]
+    planNodeId: NotRequired[str]
+    thinking: NotRequired[str]
+    hypothesis: NotRequired[str]
+    action: NotRequired[str]
+    observation: NotRequired[str]
+    decision: NotRequired[str]
 
 
 # ---------------------------------------------------------------------------

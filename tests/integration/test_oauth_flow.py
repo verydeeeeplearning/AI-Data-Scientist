@@ -7,18 +7,17 @@ callback server, PKCE, OAuth service) are tested end-to-end.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import time
 import urllib.request
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from ds_agent.domain.entities.auth import AuthProfile, OAuthTokenSet
 from ds_agent.infrastructure.auth.callback_server import OAuthCallbackServer
 from ds_agent.infrastructure.auth.oauth_service import OAuthService
-from ds_agent.infrastructure.auth.pkce import generate_code_challenge, generate_code_verifier
 from ds_agent.infrastructure.auth.token_store import AuthProfileStore
 
 
@@ -183,10 +182,8 @@ class TestEdgeCases:
         async def send_bad_state():
             await asyncio.sleep(0.3)
             url = f"http://localhost:{unused_tcp_port}/oauth2callback?code=c&state=wrong"
-            try:
+            with contextlib.suppress(urllib.error.HTTPError):
                 await asyncio.to_thread(urllib.request.urlopen, url)
-            except urllib.error.HTTPError:
-                pass
 
         task = asyncio.create_task(send_bad_state())
         result = await server.wait_for_callback()

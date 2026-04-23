@@ -1,3 +1,5 @@
+import { Card } from '../../design-system/primitives';
+
 interface OverviewStatProps {
   label: string;
   value: number;
@@ -15,29 +17,33 @@ interface InlineErrorProps {
 
 export function OverviewStat({ label, value, testId }: OverviewStatProps) {
   return (
-    <div
+    <Card
       data-testid={testId}
-      className="rounded border border-ds-border/70 bg-ds-surface/60 px-2 py-1.5"
+      className="space-y-ds-1 border-ds-border/70 bg-ds-surface/60 px-ds-3 py-ds-2"
     >
       <div className="text-[10px] text-ds-muted">{label}</div>
       <div className="mt-1 text-sm font-mono text-ds-text">{value}</div>
-    </div>
+    </Card>
   );
 }
 
 export function StatusLine({ label, value }: StatusLineProps) {
   return (
-    <div className="rounded border border-ds-border/70 bg-ds-surface/60 px-2 py-1.5 text-[10px]">
+    <Card className="space-y-ds-1 border-ds-border/70 bg-ds-surface/60 px-ds-3 py-ds-2 text-[10px]">
       <div className="text-ds-muted">{label}</div>
       <div className="mt-1 text-ds-text">{value}</div>
-    </div>
+    </Card>
   );
 }
 
 export function InlineError({ message }: InlineErrorProps) {
   return (
-    <div className="rounded border border-ds-error/40 bg-ds-error/10 px-2 py-2 text-xs text-ds-error">
+    <Card
+      role="alert"
+      tone="danger"
+      className="border-ds-error/40 px-ds-3 py-ds-3 text-ds-xs text-ds-error"
+    >
       {message}
-    </div>
+    </Card>
   );
 }

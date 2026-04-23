@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
-from ds_agent.agent.factory import _build_memory_hints, _build_project_context
+from ds_agent.agent.callbacks import NullCallbacks
+from ds_agent.agent.factory import (
+    _build_memory_hints,
+    _build_project_context,
+    _verifier_auto_run_mode,
+    create_agent,
+    import_all_tools,
+)
+from ds_agent.tools.registry import ToolRegistry
 
 
 class TestBuildMemoryHints:
@@ -102,3 +111,94 @@ class TestBuildProjectContext:
             result = _build_project_context("/workspace", "proj1")
 
         assert result == ""
+
+
+def test_import_all_tools_registers_learning_tools():
+    original_tools = dict(ToolRegistry._tools)
+    try:
+        ToolRegistry.reset()
+        sys.modules.pop("ds_agent.tools.learning_tools", None)
+
+        import_all_tools()
+
+        names = set(ToolRegistry.list_tools())
+        assert {
+            "list_learning_inbox",
+            "review_learning_item",
+            "get_learning_item",
+            "list_promotions",
+            "list_deprecations",
+            "rollback_promotion",
+            "run_gc_loop",
+            "get_gc_report",
+        }.issubset(names)
+    finally:
+        ToolRegistry._tools = original_tools
+
+
+def test_create_agent_disables_post_learning_when_governance_flag_off(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.delenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", raising=False)
+
+    agent = create_agent(
+        provider=MagicMock(),
+        callbacks=NullCallbacks(),
+        workspace_dir=str(tmp_path),
+    )
+
+    assert agent._post_learner is None
+
+
+def test_create_agent_enables_post_learning_when_governance_flag_on(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "true")
+
+    agent = create_agent(
+        provider=MagicMock(),
+        callbacks=NullCallbacks(),
+        workspace_dir=str(tmp_path),
+    )
+
+    assert agent._post_learner is not None
+
+
+def test_verifier_auto_run_mode_defaults_to_shadow(monkeypatch):
+    monkeypatch.delenv("DS_AGENT_VERIFIER_AUTO_RUN_V1", raising=False)
+
+    assert _verifier_auto_run_mode() == "shadow"
+
+
+def test_create_agent_registers_auto_verifier_by_default(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.delenv("DS_AGENT_VERIFIER_AUTO_RUN_V1", raising=False)
+
+    agent = create_agent(
+        provider=MagicMock(),
+        callbacks=NullCallbacks(),
+        workspace_dir=str(tmp_path),
+    )
+
+    hook = next(hook for hook in agent._hooks.hooks if hook.name == "auto_verifier")
+    assert hook.priority == 59
+    assert hook.mode == "shadow"
+
+
+def test_create_agent_respects_explicit_auto_verifier_off_override(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("DS_AGENT_VERIFIER_AUTO_RUN_V1", "off")
+
+    agent = create_agent(
+        provider=MagicMock(),
+        callbacks=NullCallbacks(),
+        workspace_dir=str(tmp_path),
+    )
+
+    assert all(hook.name != "auto_verifier" for hook in agent._hooks.hooks)

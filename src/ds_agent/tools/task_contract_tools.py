@@ -23,6 +23,7 @@ from ds_agent.infrastructure.task_contract_container import (
     TaskContractContainer,
     build_task_contract_container,
 )
+from ds_agent.runtime.tool_runtime_context import get_tool_runtime_context
 from ds_agent.tools.registry import tool
 
 _container: TaskContractContainer | None = None
@@ -63,7 +64,17 @@ def _error_response(code: str, message: str, **payload: object) -> str:
 
 def _handle_error(exc: Exception) -> str:
     if isinstance(exc, TaskContractError):
-        return _error_response(exc.error_code, str(exc))
+        return json.dumps(
+            {
+                "ok": False,
+                "error": {
+                    "code": exc.error_code,
+                    "message": str(exc),
+                    "metadata": exc.metadata,
+                },
+            },
+            ensure_ascii=False,
+        )
     if isinstance(exc, ValueError):
         return _error_response("VALIDATION_ERROR", str(exc))
     return _error_response(type(exc).__name__.upper(), str(exc))
@@ -169,6 +180,7 @@ def create_task_contract(
             "task_id": {"type": "string"},
             "expected_version": {"type": "integer"},
             "patch": {"type": "object"},
+            "run_id": {"type": "string"},
             "transition_to": {
                 "type": "string",
                 "enum": ["agreed", "in_progress", "review", "closed", "abandoned"],
@@ -182,15 +194,22 @@ def update_task_contract(
     task_id: str,
     expected_version: int,
     patch: dict,
+    run_id: str | None = None,
     transition_to: Literal["agreed", "in_progress", "review", "closed", "abandoned"] | None = None,
     reason: str | None = None,
 ) -> str:
     try:
+        effective_run_id = run_id
+        if effective_run_id is None:
+            runtime_context = get_tool_runtime_context()
+            if runtime_context is not None:
+                effective_run_id = runtime_context.run_id
         dto = TaskContractUpdateDTO.model_validate(
             {
                 "task_id": task_id,
                 "expected_version": expected_version,
                 "patch": patch,
+                "run_id": effective_run_id,
                 "transition_to": transition_to,
                 "reason": reason,
             }

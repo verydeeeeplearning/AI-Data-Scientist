@@ -1,12 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MATRIX_VERDICT_OPTIONS = exports.MATRIX_AUTHORITY_COLUMNS = exports.POLICY_STUDIO_PRESETS = exports.AUDIENCE_PREVIEWS = exports.AUDIENCE_OPTIONS = exports.EFFECTIVE_AUTHORITY_CARDS = exports.CONTRACT_AUTHORITY_OPTIONS = void 0;
+exports.MATRIX_VERDICT_OPTIONS = exports.MATRIX_AUTHORITY_COLUMNS = exports.POLICY_RISK_TIER_DEFINITIONS = exports.POLICY_STUDIO_PRESETS = exports.AUDIENCE_PREVIEWS = exports.AUDIENCE_OPTIONS = exports.EFFECTIVE_AUTHORITY_CARDS = exports.CONTRACT_AUTHORITY_OPTIONS = void 0;
 exports.isContractAuthorityDraft = isContractAuthorityDraft;
 exports.isAudienceDraft = isAudienceDraft;
 exports.isEffectiveAuthorityMode = isEffectiveAuthorityMode;
 exports.formatAuthorityLabel = formatAuthorityLabel;
 exports.formatAudienceLabel = formatAudienceLabel;
 exports.formatMatrixVerdictLabel = formatMatrixVerdictLabel;
+exports.derivePolicyRiskTier = derivePolicyRiskTier;
 exports.isLegacyMode = isLegacyMode;
 exports.buildLegacyModeMigrationPreview = buildLegacyModeMigrationPreview;
 exports.CONTRACT_AUTHORITY_OPTIONS = [
@@ -168,6 +169,28 @@ exports.POLICY_STUDIO_PRESETS = [
         summary: 'Use step-by-step mentoring tone without keeping the whole session in legacy step-by-step mode.',
     },
 ];
+exports.POLICY_RISK_TIER_DEFINITIONS = [
+    {
+        value: 'routine',
+        label: 'T0 Routine',
+        summary: 'Read-mostly or easily reversible work with low blast radius.',
+    },
+    {
+        value: 'guarded',
+        label: 'T1 Guarded',
+        summary: 'Local writes, medium spend, or other reversible work that still needs care.',
+    },
+    {
+        value: 'sensitive',
+        label: 'T2 Sensitive',
+        summary: 'Restricted data, external side effects, or audit-bound actions.',
+    },
+    {
+        value: 'critical',
+        label: 'T3 Critical',
+        summary: 'Irreversible or high-blast-radius actions that should stay tightly controlled.',
+    },
+];
 const AUTHORITY_LABELS = {
     shadow: 'Shadow',
     supervised: 'Supervised',
@@ -239,6 +262,25 @@ function formatAudienceLabel(value) {
 }
 function formatMatrixVerdictLabel(value) {
     return exports.MATRIX_VERDICT_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+function derivePolicyRiskTier(row) {
+    if (row.writeSideEffect === 'irreversible'
+        || row.reversibility === 'irreversible') {
+        return 'critical';
+    }
+    if (row.dataSensitivity === 'pii'
+        || row.writeSideEffect === 'external'
+        || row.auditRequired
+        || row.costImpact === 'high') {
+        return 'sensitive';
+    }
+    if (row.dataSensitivity === 'restricted'
+        || row.writeSideEffect === 'local'
+        || row.costImpact === 'medium'
+        || row.reversibility === 'soft_reversible') {
+        return 'guarded';
+    }
+    return 'routine';
 }
 function isLegacyMode(value) {
     return value === 'auto'

@@ -4,18 +4,10 @@
 
 import { useCallback, useState } from 'react';
 import { useWs } from './WsProvider';
-import { useChatStore, type PersistedChatMessage } from '../stores/chatStore';
-
-function normalizeMessages(payload: unknown): PersistedChatMessage[] {
-  if (!Array.isArray(payload)) return [];
-  return payload
-    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
-    .map((item) => ({
-      role: typeof item.role === 'string' ? item.role : 'assistant',
-      content: typeof item.content === 'string' ? item.content : '',
-    }))
-    .filter((item) => item.content.length > 0);
-}
+import {
+  normalizeChatHistoryPayload,
+  useChatStore,
+} from '../stores/chatStore';
 
 export function useSessionHistory() {
   const { rpc } = useWs();
@@ -54,7 +46,8 @@ export function useSessionHistory() {
           sessionId: normalized,
           limit: 200,
         });
-        replaceConversation(normalizeMessages(result.messages), normalized);
+        const history = normalizeChatHistoryPayload(result);
+        replaceConversation(history.messages, normalized, history.cards);
         return true;
       } catch (err) {
         console.warn('[useSessionHistory] chat.history failed:', err);

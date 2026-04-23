@@ -1,11 +1,16 @@
 """DSAgent core loop tests with mock provider and tools."""
 
 import json
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from ds_agent.agent.core import DSAgent
+from ds_agent.agent.ds_workflow_hooks import WorkflowTrackerHook
+from ds_agent.agent.hooks import FinalResponseResult, HookContext, HookRegistry, ToolHook
+from ds_agent.agent.prompt_builder import PromptBuilder
 from ds_agent.domain.entities.goal import GoalStatus
 from ds_agent.domain.entities.messages import (
     ChatMessage,
@@ -15,6 +20,10 @@ from ds_agent.domain.entities.messages import (
     Usage,
 )
 from ds_agent.domain.entities.session_checkpoint import SessionCheckpoint
+from ds_agent.domain.entities.task_contract import DeliverableSpec, TaskContract, TaskContractStatus
+from ds_agent.domain.entities.task_contract_bundle import TaskContractBundle
+from ds_agent.domain.result_card import ResultCardSource, coerce_result_card
+from ds_agent.domain.value_objects.analysis_stage import AnalysisStage
 from ds_agent.domain.value_objects.budget import BudgetPolicy
 
 
@@ -250,6 +259,70 @@ class TestDSAgentCore:
         assert agent._budget.get_summary()["iterations_used"] == 1
 
     @pytest.mark.asyncio
+    async def test_final_response_context_uses_current_turn_messages_and_active_contract(
+        self,
+        make_mock_provider,
+        make_mock_tool_registry,
+        tmp_path,
+    ):
+        provider = make_mock_provider(
+            [
+                LLMResponse(
+                    content="Final answer.",
+                    usage=Usage(input_tokens=100, output_tokens=50),
+                )
+            ]
+        )
+        captured: list[HookContext] = []
+
+        class CaptureContextHook(ToolHook):
+            name = "capture_context"
+            priority = 5
+
+            async def on_final_response(self, response, context):
+                captured.append(context)
+                return FinalResponseResult()
+
+        contract_store = MagicMock()
+        contract_store.get_active_bundle.return_value = TaskContractBundle(
+            contract=TaskContract(
+                task_id="TC-2026-123",
+                session_id="session-ctx",
+                type="analysis",
+                status=TaskContractStatus.IN_PROGRESS,
+                business_goal="Explain weekly retention movement.",
+                required_deliverables=[
+                    DeliverableSpec(type="exec_brief", audience="executive", format="md")
+                ],
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
+            )
+        )
+        hooks = HookRegistry()
+        hooks.register(CaptureContextHook())
+        agent = DSAgent(
+            provider=provider,
+            tool_registry=make_mock_tool_registry(),
+            hook_registry=hooks,
+            prompt_builder=PromptBuilder(
+                workspace_dir=str(tmp_path),
+                session_id="session-ctx",
+                task_contract_store=contract_store,
+            ),
+            session_id="session-ctx",
+        )
+
+        result = await agent.run("Summarize the retention change.")
+
+        assert result == "Final answer."
+        assert captured
+        assert captured[0].user_message == "Summarize the retention change."
+        assert captured[0].recent_messages[-1].content == "Summarize the retention change."
+        assert captured[0].active_task_contract is not None
+        assert captured[0].active_task_contract.task_id == "TC-2026-123"
+        assert captured[0].workspace_path == str(tmp_path)
+
+    @pytest.mark.asyncio
     async def test_background_run_emits_task_completed_event(
         self,
         make_mock_provider,
@@ -326,6 +399,63 @@ class TestDSAgentCore:
         emitted = [call.args[0] for call in callbacks.emit_event.call_args_list]
         assert "task.started" in emitted
         assert "task.progress" in emitted
+
+    @pytest.mark.asyncio
+    async def test_run_emits_mission_context_updates(
+        self,
+        tmp_path,
+        make_mock_provider,
+        make_mock_tool_registry,
+    ):
+        from ds_agent.runtime.goal_store import JsonGoalStore
+
+        provider = make_mock_provider(
+            [
+                LLMResponse(
+                    content="Analysis complete.",
+                    usage=Usage(input_tokens=100, output_tokens=50),
+                )
+            ]
+        )
+
+        callbacks = MagicMock()
+        callbacks.on_step = AsyncMock()
+        callbacks.on_status = AsyncMock()
+        callbacks.on_thinking = AsyncMock()
+        callbacks.on_budget_warning = AsyncMock()
+        callbacks.on_stream_delta = AsyncMock()
+        callbacks.emit_event = MagicMock()
+
+        agent = DSAgent(
+            provider=provider,
+            tool_registry=make_mock_tool_registry(),
+            callbacks=callbacks,
+            session_id="mission-session",
+            goal_store=JsonGoalStore(base_dir=tmp_path),
+        )
+        agent.set_runtime_context("run-mission-1", "ws")
+
+        await agent.run("Build a churn model")
+
+        mission_payloads = [
+            call.args[1]
+            for call in callbacks.emit_event.call_args_list
+            if call.args and call.args[0] == "mission.context.updated"
+        ]
+        assert len(mission_payloads) >= 3
+        assert all(payload["sessionId"] == "mission-session" for payload in mission_payloads)
+        assert any(
+            payload.get("goal", {}).get("title") == "Build a churn model"
+            for payload in mission_payloads
+        )
+        assert any(
+            payload.get("stage", {}).get("label") == "Analysis running"
+            for payload in mission_payloads
+        )
+        assert any(
+            payload.get("stage", {}).get("label") == "Completed" for payload in mission_payloads
+        )
+        assert any("budget" in payload for payload in mission_payloads)
 
     @pytest.mark.asyncio
     async def test_run_emits_task_failed_on_llm_timeout(
@@ -625,7 +755,106 @@ class TestDSAgentCore:
         assert [m.role for m in persisted] == [Role.USER, Role.ASSISTANT]
         assert persisted[0].content == "Persist this"
         assert persisted[1].content == "Stored response"
+        assert persisted[0].message_id is not None
+        assert persisted[1].message_id is not None
+        assert agent.last_assistant_message_id == persisted[1].message_id
         assert "session-1" in checkpoint_store.cleared
+
+    @pytest.mark.asyncio
+    async def test_final_response_emits_cards_and_persists_stripped_message(
+        self, make_mock_provider, make_mock_tool_registry
+    ):
+        provider = make_mock_provider(
+            [
+                LLMResponse(
+                    content=(
+                        "Summary before."
+                        '<card type="insight">'
+                        '{"title":"Metric up","summary":"Lifted","evidence":["auc +0.03"]}'
+                        "</card>"
+                        "Summary after."
+                    ),
+                    usage=Usage(input_tokens=10, output_tokens=5),
+                )
+            ]
+        )
+
+        class StubTranscriptStore:
+            def __init__(self) -> None:
+                self.messages: dict[str, list[ChatMessage]] = {}
+
+            def load_messages(self, session_id: str, limit: int | None = None) -> list[ChatMessage]:
+                loaded = self.messages.get(session_id, [])
+                return loaded if limit is None else loaded[-limit:]
+
+            def replace_messages(self, session_id: str, messages: list[ChatMessage]) -> None:
+                self.messages[session_id] = list(messages)
+
+        class StubCheckpointStore:
+            def load(self, session_id: str):
+                return None
+
+            def save(self, checkpoint) -> None:
+                return None
+
+            def clear(self, session_id: str) -> None:
+                return None
+
+        @dataclass
+        class StubEmissionResult:
+            stripped_message: str
+            cards: list[object]
+
+        class StubResultCardEmitter:
+            def execute(
+                self,
+                *,
+                session_id: str,
+                run_id: str,
+                message_id: str,
+                content: str,
+                tool_call_id: str | None = None,
+            ) -> StubEmissionResult:
+                assert session_id == "session-cards"
+                assert run_id == "run-cards"
+                assert '<card type="insight">' in content
+                card = coerce_result_card(
+                    "insight",
+                    {
+                        "title": "Metric up",
+                        "summary": "Lifted",
+                        "evidence": ["auc +0.03"],
+                    },
+                    card_id="RC-1",
+                    result_id="result-1",
+                    created_at=datetime(2026, 4, 20, tzinfo=UTC),
+                    source=ResultCardSource(messageId=message_id, runId=run_id),
+                )
+                return StubEmissionResult(
+                    stripped_message="Summary before.Summary after.",
+                    cards=[card],
+                )
+
+        transcript_store = StubTranscriptStore()
+        agent = DSAgent(
+            provider=provider,
+            tool_registry=make_mock_tool_registry(),
+            session_id="session-cards",
+            transcript_store=transcript_store,
+            checkpoint_store=StubCheckpointStore(),
+            result_card_emitter=StubResultCardEmitter(),
+        )
+        agent.set_runtime_context("run-cards")
+
+        result = await agent.run("Persist cards")
+
+        assert result == "Summary before.Summary after."
+        persisted = transcript_store.messages["session-cards"]
+        assert persisted[-1].content == "Summary before.Summary after."
+        assert agent.last_assistant_message_id == persisted[-1].message_id
+        assert len(agent.last_result_cards) == 1
+        assert agent.last_result_cards[0].card_id == "RC-1"
+        assert agent.last_result_cards[0].result_id == "result-1"
 
     def test_loads_checkpoint_history_before_transcript(self, make_mock_tool_registry):
         provider = MagicMock()
@@ -703,6 +932,226 @@ class TestDSAgentCore:
         assert "follow-up goal" in memory.next_step
 
     @pytest.mark.asyncio
+    async def test_workflow_stage_persists_into_working_memory(
+        self, tmp_path, make_mock_provider, make_mock_tool_registry
+    ):
+        from ds_agent.runtime.goal_store import JsonGoalStore
+        from ds_agent.runtime.working_memory import JsonWorkingMemoryStore
+
+        provider = make_mock_provider(
+            [
+                LLMResponse(
+                    tool_calls=[ToolCall(id="tc-profile", name="data_profiler", arguments={})],
+                    usage=Usage(input_tokens=20, output_tokens=10),
+                ),
+                LLMResponse(
+                    content="Profiling complete. Continue with EDA.",
+                    usage=Usage(input_tokens=25, output_tokens=10),
+                ),
+            ]
+        )
+
+        hook_registry = HookRegistry()
+        hook_registry.register(WorkflowTrackerHook())
+        working_memory_store = JsonWorkingMemoryStore(base_dir=tmp_path)
+        agent = DSAgent(
+            provider=provider,
+            tool_registry=make_mock_tool_registry(
+                {"data_profiler": lambda: "200 rows, 15 columns, missing 5.2%, Grade: B"}
+            ),
+            hook_registry=hook_registry,
+            session_id="session-stage-1",
+            goal_store=JsonGoalStore(base_dir=tmp_path),
+            working_memory_store=working_memory_store,
+        )
+        agent.set_runtime_context("run-stage-1")
+
+        await agent.run("Profile the dataset before modeling")
+
+        memory = working_memory_store.load("session-stage-1")
+        assert memory is not None
+        assert memory.current_stage == AnalysisStage.PROFILING
+        assert memory.stage_entered_at is not None
+
+    @pytest.mark.asyncio
+    async def test_session_init_stage_refreshes_first_system_prompt(
+        self, tmp_path, make_mock_provider, make_mock_tool_registry
+    ):
+        from ds_agent.runtime.goal_store import JsonGoalStore
+        from ds_agent.runtime.working_memory import JsonWorkingMemoryStore
+
+        provider = make_mock_provider(
+            [
+                LLMResponse(
+                    content="Mission scope captured. Ready for data loading.",
+                    usage=Usage(input_tokens=20, output_tokens=10),
+                )
+            ]
+        )
+        goal_store = JsonGoalStore(base_dir=tmp_path)
+        working_memory_store = JsonWorkingMemoryStore(base_dir=tmp_path)
+        contract_store = MagicMock()
+        contract_store.get_active_bundle.return_value = TaskContractBundle(
+            contract=TaskContract(
+                task_id="TC-2026-778",
+                session_id="session-stage-scope-prompt",
+                type="analysis",
+                status=TaskContractStatus.DRAFT,
+                business_goal="Clarify the churn triage request before execution.",
+                required_deliverables=[
+                    DeliverableSpec(type="exec_brief", audience="executive", format="md")
+                ],
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
+            )
+        )
+
+        hook_registry = HookRegistry()
+        hook_registry.register(WorkflowTrackerHook())
+        agent = DSAgent(
+            provider=provider,
+            tool_registry=make_mock_tool_registry(),
+            hook_registry=hook_registry,
+            prompt_builder=PromptBuilder(
+                workspace_dir=str(tmp_path),
+                session_id="session-stage-scope-prompt",
+                task_contract_store=contract_store,
+                goal_store=goal_store,
+                working_memory_store=working_memory_store,
+            ),
+            session_id="session-stage-scope-prompt",
+            goal_store=goal_store,
+            working_memory_store=working_memory_store,
+        )
+        agent.set_runtime_context("run-stage-scope-prompt")
+
+        await agent.run("Start the churn triage mission.")
+
+        first_call_messages = provider.chat.await_args_list[0].kwargs["messages"]
+        assert "Stage-Aware Guidance" in first_call_messages[0].content
+        assert "Execution Continuity" in first_call_messages[0].content
+        assert "Current stage: scoping" in first_call_messages[0].content
+
+    @pytest.mark.asyncio
+    async def test_active_task_contract_bootstraps_scoping_stage_on_session_init(
+        self, tmp_path, make_mock_provider, make_mock_tool_registry
+    ):
+        from ds_agent.runtime.goal_store import JsonGoalStore
+        from ds_agent.runtime.working_memory import JsonWorkingMemoryStore
+
+        provider = make_mock_provider(
+            [
+                LLMResponse(
+                    content="Mission scope captured. Ready for data loading.",
+                    usage=Usage(input_tokens=20, output_tokens=10),
+                )
+            ]
+        )
+        contract_store = MagicMock()
+        contract_store.get_active_bundle.return_value = TaskContractBundle(
+            contract=TaskContract(
+                task_id="TC-2026-777",
+                session_id="session-stage-scope",
+                type="analysis",
+                status=TaskContractStatus.DRAFT,
+                business_goal="Clarify the churn triage request before execution.",
+                required_deliverables=[
+                    DeliverableSpec(type="exec_brief", audience="executive", format="md")
+                ],
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
+            )
+        )
+
+        hook_registry = HookRegistry()
+        hook_registry.register(WorkflowTrackerHook())
+        working_memory_store = JsonWorkingMemoryStore(base_dir=tmp_path)
+        agent = DSAgent(
+            provider=provider,
+            tool_registry=make_mock_tool_registry(),
+            hook_registry=hook_registry,
+            prompt_builder=PromptBuilder(
+                workspace_dir=str(tmp_path),
+                session_id="session-stage-scope",
+                task_contract_store=contract_store,
+            ),
+            session_id="session-stage-scope",
+            goal_store=JsonGoalStore(base_dir=tmp_path),
+            working_memory_store=working_memory_store,
+        )
+        agent.set_runtime_context("run-stage-scope")
+
+        await agent.run("Start the churn triage mission.")
+
+        memory = working_memory_store.load("session-stage-scope")
+        assert memory is not None
+        assert memory.current_stage == AnalysisStage.SCOPING
+        assert memory.stage_entered_at is not None
+
+    @pytest.mark.asyncio
+    async def test_tool_stage_refresh_preserves_session_init_injection(
+        self, tmp_path, make_mock_provider, make_mock_tool_registry
+    ):
+        from ds_agent.runtime.goal_store import JsonGoalStore
+        from ds_agent.runtime.working_memory import JsonWorkingMemoryStore
+
+        class InitRulesHook(ToolHook):
+            name = "init_rules"
+            priority = 10
+
+            async def on_session_init(self, context):
+                return "## Init Rules\nAlways record assumptions before modeling."
+
+        provider = make_mock_provider(
+            [
+                LLMResponse(
+                    tool_calls=[ToolCall(id="tc-profile", name="data_profiler", arguments={})],
+                    usage=Usage(input_tokens=20, output_tokens=10),
+                ),
+                LLMResponse(
+                    content="Profiling complete. Continue with EDA.",
+                    usage=Usage(input_tokens=25, output_tokens=10),
+                ),
+            ]
+        )
+        goal_store = JsonGoalStore(base_dir=tmp_path)
+        working_memory_store = JsonWorkingMemoryStore(base_dir=tmp_path)
+        hook_registry = HookRegistry()
+        hook_registry.register(WorkflowTrackerHook())
+        hook_registry.register(InitRulesHook())
+        agent = DSAgent(
+            provider=provider,
+            tool_registry=make_mock_tool_registry(
+                {"data_profiler": lambda: "200 rows, 15 columns, missing 5.2%, Grade: B"}
+            ),
+            hook_registry=hook_registry,
+            prompt_builder=PromptBuilder(
+                workspace_dir=str(tmp_path),
+                session_id="session-stage-refresh",
+                goal_store=goal_store,
+                working_memory_store=working_memory_store,
+            ),
+            session_id="session-stage-refresh",
+            goal_store=goal_store,
+            working_memory_store=working_memory_store,
+        )
+        agent.set_runtime_context("run-stage-refresh")
+
+        await agent.run("Profile the dataset before modeling")
+
+        first_call_messages = provider.chat.await_args_list[0].kwargs["messages"]
+        second_call_messages = provider.chat.await_args_list[1].kwargs["messages"]
+
+        assert "Current stage: profiling" not in first_call_messages[0].content
+        assert "Init Rules" in first_call_messages[0].content
+        assert "Stage-Aware Guidance" in second_call_messages[0].content
+        assert "Execution Continuity" in second_call_messages[0].content
+        assert "Current stage: profiling" in second_call_messages[0].content
+        assert "Init Rules" in second_call_messages[0].content
+        assert "Always record assumptions before modeling." in second_call_messages[0].content
+        assert 'skill_view("data-profiling")' in second_call_messages[0].content
+
+    @pytest.mark.asyncio
     async def test_goal_becomes_blocked_when_agent_requests_input(
         self, tmp_path, make_mock_provider, make_mock_tool_registry
     ):
@@ -739,6 +1188,62 @@ class TestDSAgentCore:
         assert memory is not None
         assert memory.pending_questions == ["Please provide the target column name?"]
         assert "Blocked pending clarification" in memory.last_reflection
+
+    @pytest.mark.asyncio
+    async def test_final_response_hook_marks_goal_blocked_for_followup(
+        self, tmp_path, make_mock_provider, make_mock_tool_registry
+    ):
+        from ds_agent.runtime.goal_store import JsonGoalStore
+        from ds_agent.runtime.working_memory import JsonWorkingMemoryStore
+
+        class FollowupHook(ToolHook):
+            name = "followup"
+            priority = 10
+
+            async def on_final_response(self, response, context):
+                return FinalResponseResult(
+                    modified_response=response + "\n\nVerifier follow-up required.",
+                    requires_followup=True,
+                    followup_reason="Resolve the verifier finding before review.",
+                )
+
+        provider = make_mock_provider(
+            [
+                LLMResponse(
+                    content="Analysis complete. Report saved successfully.",
+                    usage=Usage(input_tokens=10, output_tokens=5),
+                )
+            ]
+        )
+
+        goal_store = JsonGoalStore(base_dir=tmp_path)
+        working_memory_store = JsonWorkingMemoryStore(base_dir=tmp_path)
+        hook_registry = HookRegistry()
+        hook_registry.register(FollowupHook())
+        agent = DSAgent(
+            provider=provider,
+            tool_registry=make_mock_tool_registry(),
+            hook_registry=hook_registry,
+            session_id="session-goal-followup",
+            goal_store=goal_store,
+            working_memory_store=working_memory_store,
+        )
+        agent.set_runtime_context("run-followup")
+
+        result = await agent.run("Build a churn model")
+
+        assert "Verifier follow-up required." in result
+        active_goal = goal_store.get_active_goal("session-goal-followup")
+        assert active_goal is not None
+        assert active_goal.status == GoalStatus.BLOCKED
+        assert active_goal.blocked_reason == "Resolve the verifier finding before review."
+        memory = working_memory_store.load("session-goal-followup")
+        assert memory is not None
+        assert memory.pending_questions == ["Resolve the verifier finding before review."]
+        assert (
+            memory.next_step
+            == "Address the required follow-up items before moving the task to review."
+        )
 
     @pytest.mark.asyncio
     async def test_session_outcome_is_sent_to_post_learner(
@@ -778,6 +1283,140 @@ class TestDSAgentCore:
         memory = working_memory_store.load("session-goal-3")
         assert memory is not None
         assert "Completed the current goal" in memory.last_reflection
+
+
+class TestWorkflowTrackerRestore:
+    """GAP-3-1: WorkflowTrackerHook.restore() is called after on_session_init reset."""
+
+    @pytest.mark.asyncio
+    async def test_restore_is_called_with_persisted_stage(
+        self, make_mock_provider, make_mock_tool_registry
+    ):
+        """After run_session_init (which calls reset()), restore() propagates
+        the working memory stage back into WorkflowTrackerHook."""
+        from unittest.mock import patch
+
+        from ds_agent.domain.entities.working_memory import SessionWorkingMemory
+
+        provider = make_mock_provider(
+            [LLMResponse(content="Done.", usage=Usage(input_tokens=10, output_tokens=5))]
+        )
+
+        class StubWorkingMemoryStore:
+            def __init__(self) -> None:
+                self._memory = SessionWorkingMemory(
+                    session_id="session-restore",
+                    current_stage=AnalysisStage.PROFILING,
+                )
+
+            def load(self, session_id: str):
+                return self._memory
+
+            def save(self, memory) -> None:
+                self._memory = memory
+
+        tracker = WorkflowTrackerHook()
+        hook_registry = HookRegistry()
+        hook_registry.register(tracker)
+
+        with patch.object(tracker, "restore", wraps=tracker.restore) as mock_restore:
+            agent = DSAgent(
+                provider=provider,
+                tool_registry=make_mock_tool_registry(),
+                hook_registry=hook_registry,
+                session_id="session-restore",
+                working_memory_store=StubWorkingMemoryStore(),
+            )
+            await agent.run("Continue the analysis")
+
+        mock_restore.assert_called_once_with(
+            current_stage_id=AnalysisStage.PROFILING.value
+        )
+
+    @pytest.mark.asyncio
+    async def test_restore_not_called_when_no_working_memory(
+        self, make_mock_provider, make_mock_tool_registry
+    ):
+        """restore() is a no-op when working memory is absent (new session)."""
+        from unittest.mock import patch
+
+        provider = make_mock_provider(
+            [LLMResponse(content="Done.", usage=Usage(input_tokens=10, output_tokens=5))]
+        )
+
+        class EmptyWorkingMemoryStore:
+            def load(self, session_id: str):
+                return None
+
+            def save(self, memory) -> None:
+                pass
+
+        tracker = WorkflowTrackerHook()
+        hook_registry = HookRegistry()
+        hook_registry.register(tracker)
+
+        with patch.object(tracker, "restore", wraps=tracker.restore) as mock_restore:
+            agent = DSAgent(
+                provider=provider,
+                tool_registry=make_mock_tool_registry(),
+                hook_registry=hook_registry,
+                session_id="session-no-memory",
+                working_memory_store=EmptyWorkingMemoryStore(),
+            )
+            await agent.run("Start fresh")
+
+        mock_restore.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_restore_not_called_when_stage_is_none(
+        self, make_mock_provider, make_mock_tool_registry
+    ):
+        """restore() is a no-op when working memory has no stage set."""
+        from unittest.mock import patch
+
+        from ds_agent.domain.entities.working_memory import SessionWorkingMemory
+
+        provider = make_mock_provider(
+            [LLMResponse(content="Done.", usage=Usage(input_tokens=10, output_tokens=5))]
+        )
+
+        class NoStageWorkingMemoryStore:
+            def load(self, session_id: str):
+                return SessionWorkingMemory(session_id=session_id, current_stage=None)
+
+            def save(self, memory) -> None:
+                pass
+
+        tracker = WorkflowTrackerHook()
+        hook_registry = HookRegistry()
+        hook_registry.register(tracker)
+
+        with patch.object(tracker, "restore", wraps=tracker.restore) as mock_restore:
+            agent = DSAgent(
+                provider=provider,
+                tool_registry=make_mock_tool_registry(),
+                hook_registry=hook_registry,
+                session_id="session-no-stage",
+                working_memory_store=NoStageWorkingMemoryStore(),
+            )
+            await agent.run("Start fresh")
+
+        mock_restore.assert_not_called()
+
+    def test_restore_updates_current_stage_id_in_tracker(self):
+        """Unit test: restore() sets _current_stage_id on the tracker directly."""
+        tracker = WorkflowTrackerHook()
+        assert tracker.current_stage_id() is None
+
+        tracker.restore(current_stage_id=AnalysisStage.MODELING.value)
+
+        assert tracker.current_stage_id() == AnalysisStage.MODELING.value
+
+    def test_restore_survives_unknown_stage(self):
+        """restore() silently ignores unknown stage ids (defensive)."""
+        tracker = WorkflowTrackerHook()
+        tracker.restore(current_stage_id="nonexistent_stage")
+        assert tracker.current_stage_id() is None
 
 
 class TestIsToolError:

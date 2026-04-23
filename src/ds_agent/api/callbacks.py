@@ -9,7 +9,9 @@ import structlog
 from starlette.websockets import WebSocket, WebSocketState
 
 from ds_agent.api.event_envelope import ENVELOPE_VERSION, wrap_event
+from ds_agent.application.learning.harness_warning_ingestor import HarnessWarningIngestor
 from ds_agent.domain.value_objects.budget import BudgetThresholdEvent
+from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
 
 logger = structlog.get_logger()
 
@@ -23,10 +25,24 @@ class WsAgentCallbacks:
     ``ds_agent.domain.interfaces.llm_provider``.
     """
 
-    def __init__(self, websocket: WebSocket) -> None:
+    def __init__(
+        self,
+        websocket: WebSocket,
+        *,
+        workspace_dir: str | None = None,
+        warning_ingestor: HarnessWarningIngestor | None = None,
+    ) -> None:
         self._ws = websocket
         self._background_tasks: set[asyncio.Task] = set()  # type: ignore[type-arg]
         self._tool_start_times: dict[str, float] = {}
+        self._warning_ingestor = warning_ingestor
+        if self._warning_ingestor is None and workspace_dir is not None:
+            self._warning_ingestor = HarnessWarningIngestor(
+                SqliteLearningStore.for_workspace(workspace_dir)
+            )
+        self._current_session_id: str | None = None
+        self._current_run_id: str | None = None
+        self._surface = "ws"
 
     async def close(self) -> None:
         """CON-05: Cancel and await all pending background tasks on disconnect."""
@@ -43,6 +59,8 @@ class WsAgentCallbacks:
 
         Schedules the async WebSocket send on the running event loop.
         """
+        self._remember_runtime_context(payload)
+        self._ingest_warning_if_needed(event, payload)
         try:
             loop = asyncio.get_running_loop()
             task = loop.create_task(self._emit(event, payload))
@@ -95,9 +113,20 @@ class WsAgentCallbacks:
 
     # -- Helpers ----------------------------------------------------------------
 
-    async def emit_stream_done(self, content: str, cost: float) -> None:
+    async def emit_stream_done(
+        self,
+        content: str,
+        cost: float,
+        message_id: str | None = None,
+        cards: list[dict[str, object]] | None = None,
+    ) -> None:
         """Emit final stream.done event after agent completes."""
-        await self._emit("stream.done", {"content": content, "cost": cost})
+        payload: dict[str, object] = {"content": content, "cost": cost}
+        if message_id:
+            payload["messageId"] = message_id
+        if cards:
+            payload["cards"] = cards
+        await self._emit("stream.done", payload)
 
     async def emit_file_created(self, path: str, file_type: str, size: int) -> None:
         """Emit file.created event when agent produces an artifact."""
@@ -142,3 +171,37 @@ class WsAgentCallbacks:
     def envelope_version() -> str:
         """Expose current envelope version for handshake responses."""
         return ENVELOPE_VERSION
+
+    def _remember_runtime_context(self, payload: dict) -> None:
+        session_id = payload.get("sessionId")
+        run_id = payload.get("runId")
+        if isinstance(session_id, str) and session_id.strip():
+            self._current_session_id = session_id
+        if isinstance(run_id, str) and run_id.strip():
+            self._current_run_id = run_id
+        surface = payload.get("surface")
+        if isinstance(surface, str) and surface.strip():
+            self._surface = surface
+
+    def _ingest_warning_if_needed(self, event: str, payload: dict) -> None:
+        if event != "harness.warning" or self._warning_ingestor is None:
+            return
+        try:
+            self._warning_ingestor.ingest(
+                payload,
+                session_id=_first_non_empty_string(
+                    payload.get("sessionId"),
+                    self._current_session_id,
+                ),
+                run_id=_first_non_empty_string(payload.get("runId"), self._current_run_id),
+                surface=_first_non_empty_string(payload.get("surface"), self._surface) or "ws",
+            )
+        except Exception as exc:
+            logger.warning("harness_warning_ingest_failed", error=str(exc))
+
+
+def _first_non_empty_string(*values: object) -> str | None:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value
+    return None

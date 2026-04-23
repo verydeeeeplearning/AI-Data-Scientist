@@ -140,8 +140,7 @@ def _regression_alert_dispatch_report():
                     severity="high",
                     scope="overall",
                     message=(
-                        "Gold-suite pass rate dropped below the rolling baseline "
-                        "by more than 3pp."
+                        "Gold-suite pass rate dropped below the rolling baseline by more than 3pp."
                     ),
                     current_value=0.0,
                     baseline_value=1.0,
@@ -159,6 +158,21 @@ def _regression_alert_dispatch_report():
         ),
         fingerprint="fp-1",
     )
+
+
+def _seed_learning_gc_fixture(workspace) -> None:
+    from ds_agent.application.learning.harness_warning_ingestor import HarnessWarningIngestor
+    from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
+
+    ingestor = HarnessWarningIngestor(SqliteLearningStore.for_workspace(str(workspace)))
+    payload = {
+        "type": "baseline_missing",
+        "severity": "high",
+        "message": "No comparison baseline was recorded before training.",
+    }
+    ingestor.ingest(payload, session_id="learning:sess-1", run_id="run-gc-1", surface="daemon")
+    ingestor.ingest(payload, session_id="learning:sess-2", run_id="run-gc-2", surface="daemon")
+    ingestor.ingest(payload, session_id="learning:sess-3", run_id="run-gc-3", surface="daemon")
 
 
 class TestSensorHub:
@@ -284,6 +298,7 @@ class TestAppStateAutonomousRuntime:
         from ds_agent.api.ws_handler import AppState
         from ds_agent.config.schema import AgentConfig, DSAgentConfig, GatewayConfig
         from ds_agent.runtime.decision_os_scheduler import DecisionOsMonitorScheduler
+        from ds_agent.runtime.learning_governance_scheduler import LearningGovernanceScheduler
         from ds_agent.runtime.regression_alert_scheduler import RegressionAlertScheduler
 
         workspace = tmp_path / "workspace"
@@ -311,8 +326,9 @@ class TestAppStateAutonomousRuntime:
             state._policy_store.get_standing_order(DecisionOsMonitorScheduler.ORDER_ID) is not None
         )
         assert (
-            state._policy_store.get_standing_order(RegressionAlertScheduler.ORDER_ID) is not None
+            state._policy_store.get_standing_order(LearningGovernanceScheduler.ORDER_ID) is not None
         )
+        assert state._policy_store.get_standing_order(RegressionAlertScheduler.ORDER_ID) is not None
 
         await state.stop_background_runtime()
         assert state.get_status()["autonomousRuntimeRunning"] is False
@@ -440,6 +456,73 @@ class TestAppStateAutonomousRuntime:
 
             await state.stop_background_runtime()
 
+    async def test_schedule_tick_executes_registered_learning_governance_gc(self, tmp_path):
+        from ds_agent.api.ws_handler import AppState
+        from ds_agent.application.learning.failure_taxonomy_gc import latest_gc_report_path
+        from ds_agent.config.schema import AgentConfig, DSAgentConfig, GatewayConfig
+        from ds_agent.domain.learning.learning_item import LearningItemType
+        from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
+        from ds_agent.runtime.learning_governance_scheduler import LearningGovernanceScheduler
+
+        workspace = tmp_path / "workspace"
+        _seed_learning_gc_fixture(workspace)
+        config = DSAgentConfig(
+            agent=AgentConfig(workspace_dir=str(workspace)),
+            gateway=GatewayConfig(autonomous_runtime_enabled=True),
+        )
+        state = AppState(config=config)
+
+        with patch.dict("os.environ", {"DS_AGENT_GC_LOOP_CRON": "* * * * *"}):
+            await state.start_background_runtime()
+            daemon = state._autonomous_daemon
+            assert daemon is not None
+
+            order = state._policy_store.get_standing_order(LearningGovernanceScheduler.ORDER_ID)
+            assert order is not None
+            order.next_run_at = 0.0
+            state._policy_store.upsert_standing_order(order)
+
+            daemon._schedule_sensor.emit_tick()
+
+            await _wait_for(
+                lambda: (
+                    "completed"
+                    in [
+                        item["status"]
+                        for item in state._policy_store.list_standing_order_history(
+                            LearningGovernanceScheduler.ORDER_ID,
+                            limit=5,
+                        )
+                    ]
+                )
+            )
+
+            report_path = latest_gc_report_path(str(workspace))
+            assert report_path is not None
+            assert report_path.exists()
+
+            learning_store = SqliteLearningStore.for_workspace(str(workspace))
+            items = learning_store.list_items(item_type=LearningItemType.PATTERN)
+            assert len(items) == 1
+            assert items[0].metadata["failureTaxonomyClass"] == "missing_baseline"
+            assert items[0].metadata["failureTaxonomyPromotionCandidate"] is True
+
+            task_events = state.list_runtime_events(limit=20, category="task")
+            learning_events = state.list_runtime_events(limit=20, category="learning")
+            assert any(
+                getattr(event, "kind", "") == "standing_order.completed" for event in task_events
+            )
+            assert any(
+                getattr(event, "kind", "") == "learning_governance.gc_registered"
+                for event in learning_events
+            )
+            assert any(
+                getattr(event, "kind", "") == "learning_governance.gc_completed"
+                for event in learning_events
+            )
+
+            await state.stop_background_runtime()
+
     async def test_daemon_run_uses_background_mode_and_budget(self, tmp_path):
         from ds_agent.agent.callbacks import NullCallbacks
         from ds_agent.api.ws_handler import AppState
@@ -488,3 +571,88 @@ class TestAppStateAutonomousRuntime:
 
         events = state.list_runtime_events(limit=10, session_id="autonomous:inbox", category="task")
         assert any(getattr(event, "kind", "") == "task.completed" for event in events)
+
+    async def test_start_run_emits_mission_snapshot_events(self, tmp_path):
+        from ds_agent.agent.callbacks import NullCallbacks
+        from ds_agent.api.ws_handler import AppState
+        from ds_agent.application.dtos.mission_context_dto import (
+            MissionBudgetDTO,
+            MissionConnectionDTO,
+            MissionConstraintsDTO,
+            MissionContextDTO,
+            MissionGoalDTO,
+            MissionModelDTO,
+            MissionStageDTO,
+        )
+        from ds_agent.config.schema import AgentConfig, DSAgentConfig
+
+        class FakeCallbacks(NullCallbacks):
+            def __init__(self) -> None:
+                self.events: list[tuple[str, dict[str, object]]] = []
+
+            def emit_event(self, event: str, payload: dict) -> None:
+                self.events.append((event, payload))
+
+            async def emit_stream_done(
+                self,
+                content: str,
+                cost: float,
+                message_id: str | None = None,
+            ) -> None:
+                return None
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._budget = MagicMock()
+                self._budget.state = MagicMock()
+                self._budget.state.total_cost_usd = 0.05
+
+            def set_runtime_context(self, run_id=None, surface=None) -> None:
+                return None
+
+            async def run(self, message: str, **kwargs: object) -> str:
+                return "Analysis complete."
+
+        config = DSAgentConfig(agent=AgentConfig(workspace_dir=str(tmp_path / "workspace")))
+        state = AppState(config=config)
+        fake_agent = FakeAgent()
+        callbacks = FakeCallbacks()
+        mission = MissionContextDTO(
+            goal=MissionGoalDTO(title="Revenue analysis", successCriteria=[]),
+            dataSources=[],
+            deliverables=[],
+            constraints=MissionConstraintsDTO(
+                language="en",
+                requiresApproval=False,
+                localOnlyModel=False,
+            ),
+            stage=MissionStageDTO(current=2, total=4, label="Analysis running"),
+            mode="auto",
+            model=MissionModelDTO(primary="mock", fallbacks=[], capabilities=[]),
+            budget=MissionBudgetDTO(
+                spentUsd=0.05,
+                limitUsd=1.0,
+                elapsedSec=2.0,
+                nearLimit=False,
+            ),
+            connection=MissionConnectionDTO(state="connected", latencyMs=None),
+        )
+
+        with (
+            patch.object(state._sessions, "get_or_create", new=AsyncMock(return_value=fake_agent)),
+            patch.object(state, "get_mission_context", return_value=mission) as get_mission_context,
+        ):
+            run = await state.start_run(
+                session_id="session-mission-1",
+                message="Analyze revenue",
+                callbacks=callbacks,
+            )
+            await state.wait_for_run(run.run_id, timeout_ms=1000)
+
+        mission_events = [
+            payload for event, payload in callbacks.events if event == "mission.context.updated"
+        ]
+        assert len(mission_events) >= 2
+        assert all(payload["sessionId"] == "session-mission-1" for payload in mission_events)
+        assert all(payload["goal"]["title"] == "Revenue analysis" for payload in mission_events)
+        assert get_mission_context.call_count >= 2

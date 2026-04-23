@@ -10,6 +10,16 @@ files:
   - dist/**/*
   - resources/**/*
 
+# PLAN_03 cross-surface deep link: register ds-agent:// at install time so
+# the OS dispatches deep links to the bundled app even before first launch.
+# Runtime setAsDefaultProtocolClient('ds-agent') still applies for dev/local
+# runs, but production users get registration during installer execution.
+protocols:
+  - name: DS Agent Deep Link
+    schemes:
+      - ds-agent
+    role: Viewer
+
 # Bundle PyInstaller backend alongside Electron
 extraResources:
   - from: ../build/ds-agent-backend

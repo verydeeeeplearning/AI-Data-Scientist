@@ -11,6 +11,12 @@ from typing import cast
 
 from ds_agent.application.ports.task_contract_support import Clock, EventPublisher, IdGenerator
 from ds_agent.application.services.audience_renderer import ArtifactExporter, AudienceRenderer
+from ds_agent.application.services.mission_required_artifacts import (
+    MissionRequiredArtifactResolver,
+)
+from ds_agent.application.services.mission_required_delivery_channels import (
+    MissionRequiredDeliveryChannelResolver,
+)
 from ds_agent.application.services.task_contract_usecases import (
     AddAssumptionUseCase,
     BuildDeliveryPackUseCase,
@@ -37,9 +43,14 @@ from ds_agent.infrastructure.delivery import (
     SqliteDeliveryDispatchLog,
     build_default_channel_adapters,
 )
+from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
 from ds_agent.infrastructure.persistence.task_contract_store import SqliteTaskContractStore
 from ds_agent.runtime.delivery_policy_store import JsonDeliveryPolicyStore
+from ds_agent.runtime.task_contract_failure_signal_recorder import (
+    LearningTaskContractFailureSignalRecorder,
+)
 from ds_agent.runtime.transcript_store import get_runtime_storage_root
+from ds_agent.skills.mission_pack_loader import MissionPackLoader
 
 
 class SystemClock(Clock):
@@ -86,6 +97,8 @@ class TaskContractContainer:
     clock: Clock
     ids: IdGenerator
     publisher: InMemoryEventPublisher
+    mission_required_artifact_resolver: MissionRequiredArtifactResolver
+    mission_required_delivery_channel_resolver: MissionRequiredDeliveryChannelResolver
     create: CreateTaskContractUseCase
     update: UpdateTaskContractUseCase
     get: GetTaskContractUseCase
@@ -137,10 +150,19 @@ def build_task_contract_container(
         ),
     )
     runtime_root = _resolve_runtime_root(workspace_dir, resolved_store)
+    mission_loader = MissionPackLoader()
+    mission_required_artifact_resolver = MissionRequiredArtifactResolver(mission_loader)
     dispatch_log = (
         SqliteDeliveryDispatchLog(resolved_store.db_path)
         if isinstance(resolved_store, SqliteTaskContractStore)
         else JsonlDeliveryDispatchLog(runtime_root)
+    )
+    mission_required_delivery_channel_resolver = MissionRequiredDeliveryChannelResolver(
+        mission_loader,
+        dispatch_log,
+    )
+    failure_signal_recorder = LearningTaskContractFailureSignalRecorder(
+        SqliteLearningStore(runtime_root / "learning.db")
     )
     dispatcher = DeliveryRouter(
         adapters=build_default_channel_adapters(),
@@ -156,15 +178,42 @@ def build_task_contract_container(
         clock=clock,
         ids=ids,
         publisher=publisher,
+        mission_required_artifact_resolver=mission_required_artifact_resolver,
+        mission_required_delivery_channel_resolver=mission_required_delivery_channel_resolver,
         create=CreateTaskContractUseCase(resolved_store, clock, ids, publisher),
-        update=UpdateTaskContractUseCase(resolved_store, clock, publisher),
-        get=GetTaskContractUseCase(resolved_store, clock, publisher),
+        update=UpdateTaskContractUseCase(
+            resolved_store,
+            clock,
+            publisher,
+            mission_required_artifact_resolver,
+            mission_required_delivery_channel_resolver,
+            failure_signal_recorder,
+        ),
+        get=GetTaskContractUseCase(
+            resolved_store,
+            clock,
+            publisher,
+            mission_required_artifact_resolver,
+            mission_required_delivery_channel_resolver,
+        ),
         list_contracts=ListTaskContractsUseCase(resolved_store, clock, publisher),
         add_assumption=AddAssumptionUseCase(resolved_store, clock, ids, publisher),
         verify_assumption=VerifyAssumptionUseCase(resolved_store, clock, publisher),
-        close=CloseTaskContractUseCase(resolved_store, clock, publisher),
+        close=CloseTaskContractUseCase(
+            resolved_store,
+            clock,
+            publisher,
+            mission_required_artifact_resolver,
+            mission_required_delivery_channel_resolver,
+        ),
         record_review_verdict=RecordReviewVerdictUseCase(resolved_store, clock, ids, publisher),
-        build_delivery_pack=BuildDeliveryPackUseCase(resolved_store, clock, ids, publisher),
+        build_delivery_pack=BuildDeliveryPackUseCase(
+            resolved_store,
+            clock,
+            ids,
+            publisher,
+            mission_required_delivery_channel_resolver,
+        ),
         render_delivery_artifact=RenderDeliveryArtifactUseCase(
             resolved_store,
             clock,

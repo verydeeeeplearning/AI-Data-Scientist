@@ -126,9 +126,14 @@ def _seed_task_contract(workspace_dir: Path, session_id: str, task_id: str) -> N
             task_id=task_id,
             category="orchestrator",
             result="pass",
-            reviewer="verifier",
+            reviewer="verifier_orchestrator",
             summary="All required review gates passed.",
+            run_id="run-seeded-auto-review",
             confidence=ConfidenceBand(score=0.74),
+            metadata={
+                "source": "auto_verifier",
+                "auto_verifier_mode": "shadow",
+            },
         )
     )
 

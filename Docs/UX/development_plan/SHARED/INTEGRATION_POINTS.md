@@ -261,6 +261,14 @@
 |------|--------|--------|
 | Phase 1 PLAN_06 Model labels | capability_group / capability_badges / recommended_for / providerLabelLegacy curated registry + heuristic fallback; provider.models RPC enrichment; model_registry.py path absent in codebase, implemented as new providers/model_metadata.py | DONE (agent-w1c-models-backend-002, 2026-04-19) |
 
+### `src/ds_agent/channels/bundled/telegram/` + `domain/notification/`
+
+**Telegram Notification + PII masking + deep link** (added 2026-04-20 by agent-w4d-telegram-finalize-001)
+
+| PLAN | Change | Status |
+|------|--------|--------|
+| Phase 4 PLAN_04 Telegram close-out | `domain/notification/{notification,quiet_hours,digest}.py` (5-bucket category, tz-aware quiet hours, daily/weekly digest aggregation - zero external deps) + `application/use_cases/{send_notification,check_quiet_hours,build_digest}_usecase.py` (port-based) + `channels/bundled/telegram/message_builder.py` (4096 truncation -> 3-line summary + Open in Electron deep-link button via W4-C `build_deep_link_uri`; PII masking via `infrastructure/pii_detector` + sensitive-keyword set: email/ssn/phone/password/token/api_key/...) + `channels/bundled/telegram/callback_handler.py` (approval inline keyboard wire-format `approval:<approve\|reject>:<id>[:<reason>]`, 2s response budget with `on_late` hook) + `gateway/telegram_runner.py` dispatches runtime alerts/digests through `dispatch_notification()` so callback actions and deep-link buttons coexist on the live operator path. ERROR/APPROVAL bypass quiet hours; INFO/MILESTONE/DIGEST suppressed inside window. 57 new tests across runner/message-builder migration coverage, 0 regressions in `test_telegram_plugin.py`. | DONE (agent-w4d-telegram-finalize-001 + follow-up migration, 2026-04-20) |
+
 ### `src/ds_agent/infrastructure/telegram/`
 
 | PLAN | 蹂寃??댁슜 | ?곹깭 |
@@ -344,3 +352,399 @@
 
 - ?꾨뱶 異붽???backward compatible
 - ?꾨뱶 ?쒓굅/蹂寃쎌? leader ?⑹쓽 + DECISIONS??ADR
+
+---
+
+## Wave 3 First Slice (2026-04-20)
+
+### Renderer
+
+| Surface | Integration | Status |
+|---|---|---|
+| `AreaMainPanel.tsx` | IA v2 only `Cmd/Ctrl + K` mount point for the new command palette | landed |
+| `components/palette/` | `CommandPalette.tsx` + `CommandRow.tsx` render grouped command results with keyboard navigation | landed |
+| `application/command/` | command registry helpers, lightweight fuzzy-ish search, and first-slice command builders | landed |
+| `pages/runs/RunsPage.tsx` | `/runs` right rail now hosts `RunsCompareBoard` above the detail drawer | landed |
+| `components/runtime/RunsCompareBoard.tsx` | runtime-run-driven compare board using `decisionOs.compareRuns` | landed |
+
+### Event contract
+
+| Surface | Integration | Status |
+|---|---|---|
+| `src/ds_agent/api/event_schemas.py` | canonical Python contract for `plan.created`, `plan.updated`, `plan.replanned`, `reasoning.emitted` | landed |
+| `electron/src/renderer/types/events.ts` | matching TS payload types added to `EventPayloadMap` | landed |
+| `electron/src/renderer/infrastructure/ws/eventSchemaRegistry.ts` | concrete plan/reasoning validators replace placeholder permissive schemas | landed |
+| `electron/src/renderer/hooks/useWebSocket.ts` | envelope normalization + schema validation before dispatch for registered events | landed |
+| `src/ds_agent/agent/core.py` | existing provider thinking path now also emits `reasoning.emitted` | landed |
+
+### Deferred follow-ups
+
+- Plan Tree UI / stage-linked reasoning panel / replan overlay
+- workspace compare tab + artifact diff + decision trace diff
+- command sources for files / slash / agent plus full focus trap parity
+## Wave 3 Second Slice (2026-04-20)
+
+### Runtime reasoning surface
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/runtime/ExecutionTimeline.tsx` | mounts `useReasoningTraceBridge(true)` so the timeline subscribes to `reasoning.emitted` and `plan.*` | landed |
+| `electron/src/renderer/components/runtime/StageRow.tsx` | stage expansion now renders `ReasoningTracePanel` above the raw tool log | landed |
+| `electron/src/renderer/components/runtime/ReasoningTracePanel.tsx` | shows per-stage reasoning cards with timestamp, plan-node ref, thinking, hypothesis, action, observation, and decision | landed |
+| `electron/src/renderer/hooks/useReasoningTrace.ts` | bridges WS payloads into stage-linked trace entries using the current execution timeline | landed |
+| `electron/src/renderer/stores/reasoningTraceStore.ts` | in-memory trace buffer and plan-state markers (`created`, `updated`, `replanned`) | landed |
+
+### Checkpoint / resume surface
+
+| Surface | Integration | Status |
+|---|---|---|
+| `src/ds_agent/api/ws_handler.py` (`run.start`, `AppState.start_run`) | `run.start` accepts `resumeFromCheckpoint: bool`; when set and a `JsonCheckpointStore` entry exists, it replays the checkpoint via `agent.run(resume_from_checkpoint=...)` and returns `resumedFromCheckpoint` in the run payload | landed (Wave 3 Fourth Slice) |
+| `src/ds_agent/domain/entities/runtime_state.py` | `RunState.resumed_from_checkpoint` carries the replay flag through serialization | landed (Wave 3 Fourth Slice) |
+| `electron/src/renderer/application/run/{resumeFromCheckpoint,resumeFromCheckpointPort}.ts` | renderer use case + port for resume-from-checkpoint with input guards | landed (Wave 3 Fourth Slice) |
+| `electron/src/renderer/hooks/useResumeFromCheckpoint.ts` | composition root that binds the port to `rpc('run.start', { resumeFromCheckpoint: true })` | landed (Wave 3 Fourth Slice) |
+| `electron/src/renderer/components/mission/MissionHeader.tsx` | `Resume via Chat` button now invokes the real RPC and surfaces resumed/no-checkpoint outcomes; clipboard prompt path is kept only as graceful fallback on RPC failure | landed (Wave 3 Fourth Slice) |
+| `electron/src/renderer/components/runtime/RunDetailDrawer.tsx` | run inspector uses the same resume RPC; clipboard fallback retained on RPC failure | landed (Wave 3 Fourth Slice) |
+| `electron/src/renderer/infrastructure/api/checkpointResume.ts` | shared prompt builder and clipboard helper kept as the resume message body and as the fallback path on RPC failure | landed |
+
+### Save Checkpoint / Branch Run surface (Wave 3 Fifth Slice)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `src/ds_agent/runtime/checkpoint_store.py` (`JsonCheckpointStore.save_named/list_named/get_named`) | named checkpoints stored under `<workspace>/runtime/checkpoints/named/`, isolated from the implicit per-session checkpoint flow | landed (Wave 3 Fifth Slice) |
+| `src/ds_agent/domain/entities/session_checkpoint.py` (`NamedCheckpoint`) | sibling dataclass to `SessionCheckpoint` carrying `id, session_id, name, transcript_step, created_at, description` | landed (Wave 3 Fifth Slice) |
+| `src/ds_agent/application/use_cases/save_named_checkpoint_usecase.py` + `branch_run_usecase.py` | port-DI use cases (fakeable in tests); resolve transcript step from implicit `JsonCheckpointStore.load(session_id).step` with transcript-message fallback | landed (Wave 3 Fifth Slice) |
+| `src/ds_agent/api/ws_handler.py` (`checkpoint.save`, `checkpoint.list`, `run.branch`) | new RPC handlers; `start_run` accepts `branched_from_run_id` keyword and threads it onto `RunState`; `_serialize_run` exposes `branchedFromRunId` | landed (Wave 3 Fifth Slice) |
+| `src/ds_agent/domain/entities/runtime_state.py` (`RunState.branched_from_run_id`) | branch lineage marker through serialization | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/application/run/{saveCheckpoint,saveCheckpointPort,branchRun,branchRunPort}.ts` | renderer ports + use cases mirroring the existing `resumeFromCheckpoint*` pattern | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/hooks/{useSaveCheckpoint,useBranchRun}.ts` | composition roots binding ports to `rpc('checkpoint.save'\|'run.branch', ...)` | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/components/mission/MissionHeader.tsx` (Save Checkpoint button) | first slice uses `window.prompt` for name; surfaces success/failure via existing `setCheckpointResumeStatus` banner pattern | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/components/runtime/RunDetailDrawer.tsx` (Branch Run button) | first slice uses `window.prompt` for branch message; dedicated `branchStatus`/`branchError` banners | landed (Wave 3 Fifth Slice) |
+
+### Plan replan + reasoning↔plan-node linkage surface (Wave 3 Fifth Slice)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `src/ds_agent/agent/ds_workflow_hooks.py` (`mark_replan`, `_emit_plan_replanned`, `record_reasoning_ref`, `current_active_stage_id`) | explicit replan trigger contract + reasoning↔stage linkage; auto-emits `plan.replanned` when `pre_tool_use` re-enters a previously-terminal stage | landed (Wave 3 Fifth Slice) |
+| `src/ds_agent/agent/core.py` (reasoning emission) | reasoning events now carry a 12-hex `id` and a `planNodeId` resolved from the workflow tracker's active stage; calls `record_reasoning_ref` so the plan node's `reasoningRefs` lists every event id during its lifetime | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/application/runtime/applyPlanReplannedDiff.ts` | pure reducer applying `{added, removed, modified}` diff onto a plan-tree snapshot | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/stores/reasoningTraceStore.ts` (`applyReplanDiff`, `clearReplanHighlights`, `runId`, `setRunId`, `hydrateFromPersistence`, `clearPersistence`) | versioned localStorage snapshot (`ds-agent-plan-tree-snapshot`, v1); transient `replanAdded/Removed/ModifiedIds` for visual highlights | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/hooks/useReasoningTrace.ts` (reconnect-safe hydration) | rehydrates the persisted snapshot on WS reconnect with a 1.5s replacement window so live `plan.created` events take precedence; `task.started` clears persistence | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/components/runtime/PlanTreePanel.tsx` | added/removed/modified visual states with ~3000ms TTL + replanned timestamp pill | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/components/runtime/ReasoningTracePanel.tsx` | renders a `planNodeId` chip with looked-up node label | landed (Wave 3 Fifth Slice) |
+
+### Audience View Switcher surface (Wave 3 Fifth Slice)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/domain/workspace/audienceView.ts` | `AudienceView` ('ds'\|'exec'\|'ml'), `AUDIENCE_VIEW_PROFILES` (DS=all 5 tabs detail, Exec=summary+charts+export summary, ML=summary+tables+charts+files+export detail), `isAudienceView`, `getAudienceViewProfile` | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/application/workspace/applyAudienceView.ts` | pure helpers `applyAudienceViewToTabs`, `resolveActiveTabForAudience`, `applyAudienceViewToCard`, `emphasisToDisplayMode` | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/stores/workspaceStore.ts` (`audienceView`, `setAudienceView`, `loadAudienceView`, `__setAudienceViewStorageForTests`) | localStorage persistence under `ds-agent-workspace-audience-view`; invalid stored value falls back to `DEFAULT_AUDIENCE_VIEW` | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/components/workspace/AudienceViewSwitcher.tsx` | segmented control, ARIA radiogroup, arrow/Home/End nav, Check icon (no color-only signaling) | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/components/workspace/EvidenceWorkspace.tsx` | mounts the switcher; filters tabs through the active profile; auto-switches `activeTab` when filtered out via `resolveActiveTabForAudience` | landed (Wave 3 Fifth Slice) |
+| `electron/public/locales/{en,ko,ja}/workspace.json` (`workspace.audienceView.*`) | label / description / 3 option labels / 3 option hints, parity-locked | landed (Wave 3 Fifth Slice) |
+
+### CLI slash parity catalog surface (Wave 3 Fifth Slice)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/domain/command/cliSlashCatalog.ts` | single source of truth `CLI_SLASH_CATALOG` + `paletteVisibleSlashEntries()` filter helper | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/application/command/buildPaletteCommands.ts` | derives slash entries from the catalog; preserves existing 6 ids plus `mode`/`model`/`certification` | landed (Wave 3 Fifth Slice) |
+| `electron/src/renderer/components/palette/CommandPalette.tsx` | announces `slash:`/`agent:` execution via `aria-live="polite"` using existing `cmd:announce.sentToChat` / `cmd:announce.agentSentToChat` keys | landed (Wave 3 Fifth Slice) |
+
+### Rerun-from-Step + Promote-to-Artifact surface (Wave 3 Sixth Slice)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `src/ds_agent/domain/entities/run_lineage.py` (`PromotedArtifact`) | frozen dataclass with whitelisted audience union | landed (Wave 3 Sixth Slice) |
+| `src/ds_agent/domain/entities/runtime_state.py` (`RunState.rerun_from_node_id`) | rerun lineage marker carried through `_serialize_run` as `rerunFromNodeId` | landed (Wave 3 Sixth Slice) |
+| `src/ds_agent/runtime/promoted_artifact_store.py` (`JsonPromotedArtifactStore`) | per-artifact JSON files under `<workspace>/runtime/promoted/` | landed (Wave 3 Sixth Slice) |
+| `src/ds_agent/application/use_cases/rerun_from_step_usecase.py` + `promote_to_artifact_usecase.py` | port-DI use cases (parent run lookup port, start-rerun port, promoted-artifact-store port) | landed (Wave 3 Sixth Slice) |
+| `src/ds_agent/api/ws_handler.py` (`run.rerun`, `run.promote`) | new RPC handlers; `_RerunFromStepStarter` adapter mounts use case onto existing `start_run` mechanics with branched_from_run_id threading | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/application/run/{rerunFromStep,promoteToArtifact}{,Port}.ts` | renderer ports + use cases with input guards | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/hooks/{useRerunFromStep,usePromoteToArtifact}.ts` | composition roots binding ports to `rpc('run.rerun'\|'run.promote', ...)` | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/components/runtime/RerunFromStepDialog.tsx` | depth-prefixed plan-node selector consuming `reasoningTraceStore.planState.planTree`; empty state when no plan available | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/components/mission/MissionHeader.tsx` (Rerun from Step button) | gated on `reasoningTraceStore.runId`; opens dialog | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/components/cards/ResultCard.tsx` (`PromoteCardAction`) | window.prompt for audience+title (validated against `'ds'\|'exec'\|'ml'`); inline status banner | landed (Wave 3 Sixth Slice) |
+
+### Risk-tier matrix persistence surface (Wave 3 Sixth Slice)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `src/ds_agent/domain/entities/risk_tier_matrix.py` (`RiskTierMatrixSnapshot`) | frozen dataclass `{saved_at, matrix, saved_by}` | landed (Wave 3 Sixth Slice) |
+| `src/ds_agent/runtime/policy_store.py` (`save_risk_tier_matrix`, `load_risk_tier_matrix`, `risk_tier_matrix_history`) | persists current at `<workspace>/runtime/policy/risk_tier_matrix.json` and appends to `risk_tier_matrix_history.jsonl` on every save | landed (Wave 3 Sixth Slice) |
+| `src/ds_agent/application/use_cases/risk_tier_matrix_usecases.py` | `LoadRiskTierMatrixUseCase`, `SaveRiskTierMatrixUseCase`, `BuildHistoryBackedImpactPreview` (last 200 snapshots aggregated into per-cell tier counts) | landed (Wave 3 Sixth Slice) |
+| `src/ds_agent/api/ws_handler.py` (`policy.matrix.get`/`policy.matrix.save`/`policy.matrix.preview`) | RPCs for matrix CRUD + history-backed preview | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/application/policy/{matrixPort,loadRiskTierMatrix,saveRiskTierMatrix,previewMatrixImpact}.ts` | port-DI use cases + pure helpers `mergeImpactPreview`, `formatLastSavedLabel`, `countMatrixCellDiff` | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/hooks/usePolicyMatrix.ts` | composition root | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/components/settings/PolicyStudio.tsx` | loads persisted matrix on mount, sequence-guarded preview RPC on draft change, "Last saved: <iso> by <savedBy>" line, Save Matrix Draft now persists via RPC | landed (Wave 3 Sixth Slice) |
+
+### Per-card emphasis adoption surface (Wave 3 Sixth Slice)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/application/workspace/cardEmphasisAdopter.ts` | pure `resolveCardDisplayMode(inputs, audienceView)` with precedence `userExpanded > forceExpanded > forceCollapsed > audience emphasis` | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/hooks/useAudienceView.ts` | `{view, profile, setView}` facade over the workspace store | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/components/cards/ResultCard.tsx` (emphasis adoption) | local `userExpanded` state; gates body+footer on `displayMode === 'expanded'`; `aria-expanded` toggle, audience-hint badge, manual-override badge, `data-audience-view`/`data-display-mode` for telemetry | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/components/workspace/WorkspacePinnedProjectionList.tsx` | calls `resolveCardDisplayMode` (rail variant `forceCollapsed`); item summary + meta gated | landed (Wave 3 Sixth Slice) |
+| `electron/public/locales/{en,ko,ja}/workspace.json` (`audienceView.cardHint.*`) | 4 new keys + filled in previously-missing `audienceView.label/description/option.*` keys (latent bug from prior round) | landed (Wave 3 Sixth Slice) |
+
+### Plan Tree a11y + setRunId wiring surface (Wave 3 Sixth Slice)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/hooks/useReasoningTrace.ts` (`task.started` handler) | `clearPersistence()` → `reset()` → `setRunId(payload.runId)` sequence; bumps `lastPlanCreatedAtRef` so the 1.5s reconnect window can't restore the just-cleared snapshot | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/application/runtime/planTreeKeyboardNav.ts` | pure reducer for ArrowDown/Up/Right/Left/Home/End — testable without React | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/components/runtime/PlanTreePanel.tsx` (ARIA tree) | `role="tree"`/`treeitem`, `aria-level`/`aria-setsize`/`aria-posinset`/`aria-expanded`, roving `tabindex`, `aria-label` combining label+status+reasoning-note count, replan-flagged nodes get `sr-only` describing text. Stable DOM id via exported `planTreeNodeDomId(id)` | landed (Wave 3 Sixth Slice) |
+| `electron/src/renderer/components/runtime/ReasoningTracePanel.tsx` (planNodeId jump) | `role="region"`; `planNodeId` chip is now a `<button>` that DOM-id-jumps and focuses the matching tree node | landed (Wave 3 Sixth Slice) |
+
+### Policy surface
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/settings/PolicyStudio.tsx` | read-only `Wave 3 Derived Risk Preview` summarizes current matrix rows into T0-T3 derived tiers | landed |
+| `electron/src/renderer/components/settings/policyStudioCatalog.ts` | centralized risk-tier definitions plus `derivePolicyRiskTier()` helper | landed |
+
+## Wave 4 First Slice (2026-04-20)
+
+### Design system foundation surface
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/design-system/tokens/*` | spacing / typography / radius / shadow / motion token maps introduced as Wave 4 foundation | landed |
+| `electron/src/renderer/design-system/themes/*` | `dark / light / high-contrast` theme definitions + `applyThemeToDocument()` root CSS-variable application | landed |
+| `electron/src/renderer/components/providers/ThemeProvider.tsx` | root theme sync wrapper mounted above `App` in `main.tsx` | landed |
+| `electron/src/renderer/styles/globals.css` | legacy `--ds-*` aliases now resolve from canonical design-system CSS variables | landed |
+| `electron/tailwind.config.js` | semantic color aliases retained; spacing / radius / shadow / typography / motion token hooks added | landed |
+| `electron/.storybook/*` | Storybook 8.6.14 preview + toolbar-based theme switch for design-system primitives | landed |
+| `electron/scripts/lint-design-system.mjs` | managed-surface lint gate for primitives/composites/providers; raw tokens remain allowed only in tokens/themes | landed |
+| `electron/src/renderer/components/settings/{SettingsPanel.tsx,LocaleSelector.tsx}` | theme selector + locale selector moved onto design-system `Select` / `Button` primitives | landed |
+| `electron/src/renderer/pages/admin/AdminPage.tsx` | admin appearance/onboarding actions now reuse design-system primitives | landed |
+| `electron/src/renderer/components/trust/{TrustStrip.tsx,TrustBadge.tsx}` | trust badges/containers now reuse design-system `Badge`, `Card`, `Button` | landed |
+| `electron/src/renderer/components/mission/MissionSlot.tsx` | mission slot styling now uses design-system spacing/radius/shadow utilities | landed |
+
+## Wave 4 Second Slice (2026-04-20)
+
+### Primitive expansion
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/design-system/primitives/{Input,Textarea,Spinner,Skeleton,DialogShell}.tsx` | text-entry, loading, and modal-shell primitives added with token-driven styling | landed |
+| `electron/src/renderer/design-system/primitives/*.stories.tsx` | Storybook coverage expanded for the new primitive family | landed |
+| `electron/tests/contract/designSystemPrimitives.spec.ts` | contract gate now checks that the new primitive exports remain wired into the public DS surface | landed |
+| `electron/package.json` | `test:contract:design-system` now runs theme + lint + primitive export contracts together | landed |
+
+### Composite / live-surface adoption
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/design-system/composites/ResultCardShell.tsx` | first Result Card composite shell centralizes meta pills, section panels, footer chrome, and action buttons | landed |
+| `electron/src/renderer/design-system/composites/ResultCardShell.stories.tsx` | Storybook composite example added for the shared Result Card shell | landed |
+| `electron/src/renderer/components/cards/ResultCard.tsx` | live result cards now consume the composite shell instead of repeating card chrome inline | landed |
+| `electron/src/renderer/components/mission/MissionHeader.tsx` | top mission summary shell now reuses design-system `Card`, `Button`, and `Badge` primitives | landed |
+| `electron/src/renderer/components/mission/ConnectionTooltip.tsx` | connection hover/detail surface now aligns to the same DS card/badge framing | landed |
+
+## Wave 4 Third Slice (2026-04-20)
+
+### Primitive expansion
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/design-system/primitives/{Checkbox,Radio,Chip}.tsx` | approval/dialog selection primitives added with token-driven states and form wiring | landed |
+| `electron/src/renderer/design-system/primitives/{Checkbox,Radio,Chip}.stories.tsx` | Storybook coverage expanded for the new selection/control primitives | landed |
+| `electron/tests/contract/designSystemPrimitives.spec.ts` | public DS primitive contract now asserts the expanded export surface (`Checkbox`, `Radio`, `Chip`) | landed |
+
+### Dialog / approval adoption
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/runtime/{PromoteDialog,SaveCheckpointDialog,ResumePromptFallbackDialog,RerunFromStepDialog}.tsx` | runtime dialogs now reuse `DialogShell` plus DS input/button primitives while keeping their existing focus-trap controller and runtime flow | landed |
+| `electron/src/renderer/components/sandbox/SandboxApprovalModal.tsx` | approval modal shell, section framing, quick choices, text areas, and footer actions now align to DS primitives | landed |
+
+### Command palette follow-through
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/application/command/buildPaletteCommands.ts` | palette now emits `slash` and `agent` prompt commands through the existing `onSend` path | landed |
+| `electron/src/renderer/domain/command/command.ts` | command categories extended with `slash` and `agent` | landed |
+| `electron/src/renderer/components/layout/AreaMainPanel.tsx` | palette builder now receives `onSend` so non-navigation commands can dispatch into mission chat | landed |
+| `electron/src/renderer/components/palette/CommandPalette.tsx` | category labels now have code fallbacks, so missing locale keys do not break grouping | landed |
+
+## Wave 3 Third Slice (2026-04-20)
+
+### Plan Tree surface
+
+| Surface | Integration | Status |
+|---|---|---|
+| `src/ds_agent/agent/ds_workflow_hooks.py` | `WorkflowTrackerHook` now emits `plan.created` on session init and `plan.updated` for stage and root node state transitions | landed |
+| `electron/src/renderer/stores/reasoningTraceStore.ts` | store now persists live `planTree` snapshots alongside reasoning traces and plan lifecycle timestamps | landed |
+| `electron/src/renderer/hooks/useReasoningTrace.ts` | bridge now applies `plan.created` / `plan.updated` payloads and resets state on `task.started` | landed |
+| `electron/src/renderer/components/runtime/PlanTreePanel.tsx` | new compact Plan Tree renderer for the execution timeline | landed |
+| `electron/src/renderer/components/runtime/ExecutionTimeline.tsx` | timeline now mounts `PlanTreePanel` above the stage rows | landed |
+
+### Command palette accessibility / file routing
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/application/command/buildPaletteCommands.ts` | recent workspace files now map to safe existing destinations (`tables`, `charts`, `files`) | landed |
+| `electron/src/renderer/components/palette/CommandPalette.tsx` | palette traps `Tab` / `Shift+Tab` and restores focus on close | landed |
+| `electron/src/renderer/components/layout/AreaMainPanel.tsx` | palette file sources continue to come from existing renderer file state | landed |
+
+### Policy preview follow-through
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/settings/PolicyStudio.tsx` | draft impact preview compares current effective verdict buckets against draft overrides per authority column | landed |
+
+### Confirmed gaps after backend/runtime review
+
+- `plan.replanned` is still typed but not produced by the backend.
+- Checkpoint resume beyond chat prompt preparation still needs a transport path in `ws_handler.py`.
+- Branch creation, rerun-from-step, and promote-to-artifact remain below the transport layer and are not honestly wired to the renderer yet.
+
+## Wave 3 Seventh Slice (2026-04-20)
+
+### PLAN_03 dialogs / lineage
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/runtime/RerunFromStepDialog.tsx` | dedicated rerun dialog replaces the prompt-driven rerun path and consumes the plan-tree snapshot | landed (Wave 3 Seventh Slice) |
+| `electron/src/renderer/components/mission/MissionHeader.tsx` / `electron/src/renderer/components/runtime/RunDetailDrawer.tsx` | dialog entrypoints for rerun / promote / branch flows now route through the modal surface instead of inline prompts | landed (Wave 3 Seventh Slice) |
+| `electron/src/renderer/components/runtime/ReasoningTracePanel.tsx` / `PlanTreePanel.tsx` | lineage jump targets and node references remain the visible hand-off from rerun/promote actions | landed (Wave 3 Seventh Slice) |
+
+### PLAN_05 risk-tier matrix editor / runtime overlay
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/settings/RiskTierMatrixEditor.tsx` | first-class matrix editor surface for live cell edits and diff preview | landed (Wave 3 Seventh Slice) |
+| `electron/src/renderer/hooks/usePolicyMatrix.ts` / `electron/src/renderer/application/policy/*` | save/load/preview path feeds the runtime overlay and persisted matrix model | landed (Wave 3 Seventh Slice) |
+| `electron/src/renderer/components/settings/PolicyStudio.tsx` | mounts the editor and runtime overlay inside the policy workflow | landed (Wave 3 Seventh Slice) |
+
+### PLAN_06 audience card rendering
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/hooks/useAudienceRenderedCard.ts` | selects audience-specific render data for each result card | landed (Wave 3 Seventh Slice) |
+| `electron/src/renderer/application/cards/renderCardForAudiencePort.ts` | port boundary for renderer-shaped audience rendering | landed (Wave 3 Seventh Slice) |
+| `electron/src/renderer/components/cards/ResultCard.tsx` / `electron/src/renderer/components/workspace/WorkspacePinnedProjectionList.tsx` | cards and pinned projections now render by audience profile instead of a single flat body | landed (Wave 3 Seventh Slice) |
+
+### PLAN_02 compare board
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/runtime/RunsCompareBoard.tsx` | compare board remains the runtime view for run diffs and now shares the Wave 3 follow-through path | landed (Wave 3 Seventh Slice) |
+| `electron/src/renderer/pages/runs/RunsPage.tsx` | `/runs` rail continues to mount the compare board above the detail drawer | landed (Wave 3 Seventh Slice) |
+
+### PLAN_04 slash dispatcher + palette e2e
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/application/command/cliSlashDispatcher.ts` | slash input normalization and palette dispatch routing | landed (Wave 3 Seventh Slice) |
+| `electron/src/renderer/components/palette/CommandPalette.tsx` | slash command execution is routed through the dispatcher before falling back to natural language | landed (Wave 3 Seventh Slice) |
+| `electron/tests/e2e/palette.spec.ts` | Playwright palette e2e coverage for slash dispatch and related UX paths | landed (Wave 3 Seventh Slice) |
+
+## Wave 4 Fourth Slice (2026-04-20)
+
+### PLAN_01 drawer/runtime design-system adoption
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/design-system/primitives/{DrawerShell,Tabs,Accordion}.tsx` | drawer/tabs/accordion primitives now extend the token-driven DS surface with Storybook coverage and contract export checks | landed |
+| `electron/src/renderer/design-system/primitives/Select.tsx` | select now generates a fallback control id so labels stay associated on lightweight dialog forms | landed |
+| `electron/src/renderer/design-system/composites/DrawerSurface.tsx` | inline drawer header/body/section/stat chrome introduced for runtime inspector-style rails | landed |
+| `electron/src/renderer/components/mission/{MissionDrawerShell,AssumptionDrawer}.tsx` | mission drawers now consume shared overlay drawer shell chrome instead of repeating ad-hoc focus/dismiss layout | landed |
+| `electron/src/renderer/components/runtime/RunDetailDrawer.tsx` | run inspector rail now consumes `DrawerSurface` for shared section framing and action chrome while preserving runtime logic | landed |
+| `electron/src/renderer/components/runtime/BranchRunDialog.tsx` | branch dialog now consumes `DialogShell` + DS form primitives while preserving stable ids and runtime dialog a11y control | landed |
+
+## Wave 4 Fifth Slice (2026-04-20)
+
+### PLAN_01 primitives completion + runtime composite follow-through
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/design-system/primitives/{Tooltip,Popover,Toast}.tsx` | tooltip/popover/toast primitives now complete the planned foundational DS surface with Storybook coverage | landed |
+| `electron/src/renderer/components/sandbox/SandboxViolationToast.tsx` | sandbox violation stack now renders through the shared `Toast` / `ToastViewport` primitives | landed |
+| `electron/src/renderer/components/runtime/{LineagePanel,ReasoningTracePanel}.tsx` | lineage and reasoning panels now consume shared DS sections/cards/badges while preserving navigation and data flow | landed |
+| `electron/src/renderer/components/runtime/PlanTreePanel.tsx` | plan tree header/status pills now use DS `Card` / `Badge` chrome instead of bespoke shell styling | landed |
+| `electron/src/renderer/components/runtime/RunDiffPanel.tsx` | runtime run-diff surface now uses DS card/badge framing with tighter semantic structure | landed |
+| `electron/src/renderer/components/runtime/RunsCompareBoard.tsx` | compare board filters, selectors, status pills, summary cards, and supporting sections now consume DS primitives | landed |
+| `electron/tests/contract/designSystemInteractiveA11y.spec.ts` | DS contract coverage now locks `Select` fallback-id wiring plus `Tabs` / `DrawerShell` semantic markup | landed |
+
+## Wave 4 Sixth Slice (2026-04-20)
+
+### PLAN_01 approval/workflow follow-through + tooltip live adoption
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/workflow/ApprovalPanel.tsx` | pending approval cards now use DS `Card` / `Badge` / `Button` chrome and replace the last `window.prompt(...)` response path with an inline `Popover` + `Textarea` approval flow | landed |
+| `electron/src/renderer/components/admin/ApprovalGrantsPanel.tsx` | approval-grants settings view now uses DS `Card` / `Button` / `Badge` for feedback banners, refresh/revoke actions, empty state, scope pills, and table shell while preserving the existing ports and i18n copy | landed |
+| `electron/src/renderer/components/sidebar/SidebarItem.tsx` | collapsed rail labels now render through the shared `Tooltip` primitive instead of bespoke hover/focus tooltip markup | landed |
+| `electron/src/renderer/components/workflow/DecisionOsReviewPrimitives.tsx` | shared review/promotion stat and inline-error shells now reuse DS `Card` chrome, lifting the review surfaces onto the common visual baseline | landed |
+| `electron/tests/contract/designSystemInteractiveA11y.spec.ts` | DS interactive contract coverage now also asserts `Tooltip` described-by wiring and `Popover` dialog-trigger semantics | landed |
+| `electron/tests/contract/sidebarCollapse.spec.ts` | sidebar contract now checks collapsed `SidebarItem` tooltip-wrapper behavior and confirms the rail item keeps its accessible label without a duplicate native title | landed |
+
+## Wave 4 Seventh Slice (2026-04-20)
+
+### PLAN_01 runtime/governance panel follow-through
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/runtime/{GatewayStatusPanel,PolicyPanel,RecurringGoalsPanel,StandingOrdersPanel}.tsx` | runtime console, policy, recurring-goal, and standing-order surfaces now use DS cards, badges, buttons, selects, and textareas while preserving their existing runtime store / RPC flows | landed |
+| `electron/src/renderer/components/runtime/{CertificationBoard,RegressionBoard}.tsx` | certification and regression boards now use DS primitives/composites for filters, section chrome, and status summaries without changing their hook-driven logic | landed |
+| `electron/src/renderer/components/workflow/{ReviewTab,SharedSkillReviewPanel,RunDiffPanel,WorkObjectPanel}.tsx` | governance review/select surfaces now expose accessible names so governance-panel axe coverage stays green under the IA v2 navigation shell | landed |
+| `electron/src/renderer/components/{layout/StatusBar,settings/SettingsPanel,layout/DisconnectOverlay,sidebar/ModelSelector,runtime/SessionsPanel,runtime/RuntimeAlertsPanel}.tsx` | warning-state badges/text now normalize on DS warning tokens so the expanded runtime/governance axe lane passes without contrast regressions | landed |
+| `electron/src/renderer/pages/admin/AdminPage.tsx` | the admin theme selector now uses an explicit label path so the existing settings/admin axe coverage stays green after the wider runtime panel scan | landed |
+| `electron/tests/e2e/a11y/runtime-panels.a11y.spec.ts` | new axe coverage scans `area-nav-governance` and `area-nav-runs` after onboarding, extending from rail-only coverage to visible governance/runtime panel surfaces | landed |
+| `electron/package.json` | `test:e2e:a11y` now includes the compiled `runtime-panels.a11y.spec.js` lane | landed |
+
+## Wave 4 Eighth Slice (2026-04-20)
+
+### PLAN_01 sidebar/workspace rail follow-through + composite Storybook expansion
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/sidebar/{ProjectPanel,FileExplorer}.tsx` | sidebar project/file surfaces now use DS cards, badges, buttons, inputs, and selects for shell chrome, row states, create flows, and file actions while preserving store/RPC behavior | landed |
+| `electron/src/renderer/components/workspace/{WorkspaceOverviewRail,WorkspaceContextRail}.tsx` | evidence workspace side rails now use DS cards, badges, and buttons for overview sections, recent-file panels, and export affordances, with labelled regions and semantic list treatment | landed |
+| `electron/src/renderer/design-system/composites/DrawerSurface.stories.tsx` | new Storybook coverage documents inspector-style composite usage for `DrawerSurface` and its stat/section helpers | landed |
+| `electron/src/renderer/design-system/composites/ResultCardShell.stories.tsx` | composite Storybook coverage now spans multiple operational result-card states instead of a single happy-path demo | landed |
+
+## Wave 4 Ninth Slice (2026-04-20)
+
+### PLAN_01 workspace/support surface follow-through + workspace a11y expansion
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/sidebar/{FileUpload,PlotGallery,UsageMeter}.tsx` | sidebar upload/plot/usage surfaces now use DS cards, badges, buttons, and structured status chrome while preserving upload/delete/store flows | landed |
+| `electron/src/renderer/components/workspace/{SchemaPreviewCard,SuggestedActions,UploadErrorState,WorkspaceEmptyState}.tsx` | workspace upload-preview and empty/error surfaces now use DS cards, badges, and buttons, with stronger semantic labeling and action consistency | landed |
+| `electron/src/renderer/components/workspace/{AudienceViewSwitcher,WorkspaceTabContent,EvidenceWorkspace}.tsx` | evidence workspace center surfaces now use DS cards, badges, and buttons for tabs, summary metrics, export sections, and audience controls while preserving route-driven behavior | landed |
+| `electron/tests/e2e/a11y/workspace-panels.a11y.spec.ts` | new axe coverage scans both the artifacts files view and the workspace evidence view after navigating through `area-nav-artifacts` | landed |
+| `electron/package.json` | `test:e2e:a11y` now includes the compiled `workspace-panels.a11y.spec.js` lane | landed |
+
+## Wave 4 Tenth Slice (2026-04-20)
+
+### PLAN_01 final close-out (sidebar legacy cleanup + quantitative audit)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `electron/src/renderer/components/sidebar/FilePreviewModal.tsx` | file preview modal now uses DS cards, buttons, badges, selects, and inputs while preserving preview RPC, Excel sheet/header-row controls, backdrop close, and Escape dismiss | landed |
+| `electron/src/renderer/components/sidebar/ModeSelector.tsx` | execution mode control now uses DS `Radio` inside a semantic `fieldset`/`legend` group instead of bespoke button-only markup | landed |
+| `electron/src/renderer/components/sidebar/ModelSelector.tsx` | model/preset picker now uses DS `Button` / `Badge` / `Card` chrome plus explicit popup trigger semantics while preserving recommendation/store wiring | landed |
+| `electron/tests/contract/{filePreviewModal,sidebarSelectors}.spec.ts` | focused contract coverage now locks preview request building/clamping and selector semantic output | landed |
+| `electron/scripts/audit-design-system-usage.mjs` | close-out audit now reports Storybook story count plus Wave 4 live-surface and legacy-migration DS adoption metrics from an explicit PLAN_01 target set | landed |
+| `electron/tests/contract/designSystemAudit.spec.ts` | DS contract lane now validates the audit output shape and PLAN_01 thresholds (50+ stories, 80% live-surface adoption, 30% legacy migration) | landed |
+| `electron/package.json` | added `audit:design-system`, `test:contract:file-preview-modal`, `test:contract:sidebar-selectors`, and extended `test:contract:design-system` with the audit contract | landed |
+
+## Wave 4 PLAN_03 Cross-Surface Deep Link (2026-04-20)
+
+### Deep Link CLI + Backend Mirror (Sub-Phase 3.3 + 3.5)
+
+| Surface | Integration | Status |
+|---|---|---|
+| `src/ds_agent/domain/value_objects/deep_link.py` | Python wire-format mirror of `electron/src/renderer/domain/deepLink/deepLink.ts` — `parse_deep_link` / `build_deep_link_uri` / `DeepLinkParseError` enum / `DeepLinkParseFailedError`. Stdlib only, zero external deps. Byte-by-byte identical wire-format with renderer (16 sanitize cases verified). | landed (agent-w4c-cli-backend-001, 2026-04-20) |
+| `src/ds_agent/application/use_cases/resolve_deep_link_usecase.py` | `ResolveDeepLinkUseCase` + `WorkspaceAuthorizationPort` / `ReauthSessionPort` Protocols, `DefaultWorkspaceAuthorization` (sole-user impl) + `InMemoryReauthSession`, `ReauthPolicy.{NONE, ONCE_PER_SESSION, ALWAYS}` (default `ONCE_PER_SESSION` per ADR D-W4-1). Pure application layer — depends only on domain. | landed (agent-w4c-cli-backend-001, 2026-04-20) |
+| `src/ds_agent/cli/commands.py` | `run_open_command` + `run_share_command` (Win/macOS/Linux launcher branch, optional `pyperclip` clipboard, re-parse round-trip guard before output). Slash-command surface untouched. | landed (agent-w4c-cli-backend-001, 2026-04-20) |
+| `src/ds_agent/cli/main.py` | `ds-agent open <url>` and `ds-agent share <type> <id> [--workspace W] [--action A]` subcommand dispatch wired into existing `main()`. | landed (agent-w4c-cli-backend-001, 2026-04-20) |
+| `tests/unit/domain/test_deep_link.py` | 24 cases — full parity with renderer 16-case contract spec + build/raise variants. **Drift guard**: changes here MUST mirror `electron/tests/contract/deepLinkParse.spec.ts`. | landed (agent-w4c-cli-backend-001, 2026-04-20) |
+| `tests/unit/application/test_resolve_deep_link_usecase.py` | 14 cases — invalid URI propagation, workspace-mismatch FORBIDDEN, port-level deny, all 3 reauth policies + parametrized matrix, default-policy assertion (ADR D-W4-1). | landed (agent-w4c-cli-backend-001, 2026-04-20) |
+| `tests/unit/cli/test_deep_link_cli.py` | 12 cases — `run_open_command` rejects bad URI without invoking launcher, propagates RC, share command happy + sad paths, clipboard injection point. | landed (agent-w4c-cli-backend-001, 2026-04-20) |
+
+**Cross-surface contract**: all four surfaces (renderer / Electron main / CLI / Telegram) MUST use either `parseDeepLink` (TS) or `parse_deep_link` (Python) before any side effect. Both implementations share the same wire format: scheme `ds-agent:`, host `workspace`, resource types `run|artifact|checkpoint|verifier_result`, ID `^[A-Za-z0-9_:.-]{1,128}$`, action `^[A-Za-z0-9_-]{1,64}$`, max URI 2048 bytes, no extra path segments. Error vocabularies are identical strings.

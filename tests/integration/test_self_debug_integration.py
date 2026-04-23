@@ -125,7 +125,7 @@ class TestSelfDebugInRegistry:
             )
 
         # 4th call triggers escalation
-        post_result = await registry.run_post_hooks(
+        await registry.run_post_hooks(
             "execute_code", {}, _error_result("Err"), True, ctx
         )
 

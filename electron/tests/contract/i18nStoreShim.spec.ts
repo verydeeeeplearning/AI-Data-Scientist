@@ -30,8 +30,10 @@ const NAMESPACES = [
   'settings',
   'approval',
   'trust',
+  'run',
   'cards',
   'chat',
+  'share',
 ] as const;
 
 const LOCALES = ['ko', 'en', 'ja'] as const;
@@ -113,7 +115,7 @@ test('namespace inference: bare key without dot uses common', () => {
   assert.deepEqual(resolveNamespaceAndKey('save'), { ns: 'common', key: 'save' });
 });
 
-test('i18next init: 3 locales x 12 namespaces resources load', async () => {
+test('i18next init: 3 locales x 14 namespaces resources load', async () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await i18next.init({
     resources: loadResources() as any,

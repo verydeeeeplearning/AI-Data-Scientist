@@ -7,6 +7,11 @@ import time
 from typing import Any
 
 from ds_agent.application.ports.task_contract_support import Clock
+from ds_agent.application.services.mission_required_checks import (
+    MissionRequiredCheckResolver,
+    MissionRequiredChecksResolution,
+    build_mission_required_check_metadata,
+)
 from ds_agent.domain.dtos.verifier_context import VerifierContext
 from ds_agent.domain.entities.review_verdict import (
     ActionHint,
@@ -49,6 +54,7 @@ class VerifierOrchestrator:
         clock: Clock,
         shadow_comparator: ShadowComparatorPort | None = None,
         shadow_repo: ShadowComparisonRepository | None = None,
+        mission_required_check_resolver: MissionRequiredCheckResolver | None = None,
     ) -> None:
         self._statistical = statistical
         self._data = data
@@ -59,9 +65,11 @@ class VerifierOrchestrator:
         self._clock = clock
         self._shadow_comparator = shadow_comparator
         self._shadow_repo = shadow_repo
+        self._mission_required_check_resolver = mission_required_check_resolver
 
     async def run(self, ctx: VerifierContext) -> ReviewVerdict:
         layers: list[LayerResult] = []
+        mission_preflight = self._resolve_mission_preflight(ctx)
         async with asyncio.TaskGroup() as tg:
             tasks = {
                 "statistical": tg.create_task(
@@ -110,10 +118,24 @@ class VerifierOrchestrator:
         verdict.confidence = confidence
         verdict.summary = confidence.rationale
         verdict.metadata.update(self._derive_metadata(layers))
+        if mission_preflight is not None:
+            verdict.metadata.update(
+                build_mission_required_check_metadata(mission_preflight, layers)
+            )
         verdict.recommended_actions = self._derive_actions(verdict)
         self._record_shadow_comparison(ctx, verdict)
         self._repo.save(verdict)
         return verdict
+
+    def _resolve_mission_preflight(
+        self,
+        ctx: VerifierContext,
+    ) -> MissionRequiredChecksResolution | None:
+        if self._mission_required_check_resolver is None:
+            return None
+        return self._mission_required_check_resolver.resolve_for_mission(
+            ctx.task_contract.mission
+        )
 
     def _record_shadow_comparison(self, ctx: VerifierContext, verdict: ReviewVerdict) -> None:
         if not ctx.config.shadow_mode:

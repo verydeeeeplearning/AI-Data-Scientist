@@ -1,6 +1,23 @@
 {
-  "metricSource.suggested.churnRate": "解約率",
+  "metricSource.suggested.churnRate": "\u89e3\u7d04\u7387",
   "metricSource.suggested.mau": "MAU",
   "metricSource.suggested.ltv": "LTV",
-  "metricSource.placeholder": "メトリックヘッダーにマウスを乗せるか、MAU / 解約率 / LTV を入力してください"
+  "metricSource.placeholder": "\u6307\u6a19\u30d8\u30c3\u30c0\u30fc\u306b\u30db\u30d0\u30fc\u3059\u308b\u304b\u3001MAU / \u89e3\u7d04\u7387 / LTV \u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044",
+  "promoteDialog.title": "\u30a2\u30fc\u30c6\u30a3\u30d5\u30a1\u30af\u30c8\u3092\u6607\u683c",
+  "promoteDialog.description": "\u3053\u306e\u7d50\u679c\u30ab\u30fc\u30c9\u3092\u30aa\u30fc\u30c7\u30a3\u30a8\u30f3\u30b9\u5225\u306e\u30a2\u30fc\u30c6\u30a3\u30d5\u30a1\u30af\u30c8\u306b\u6607\u683c\u3057\u307e\u3059\u3002",
+  "promoteDialog.audienceLabel": "\u30aa\u30fc\u30c7\u30a3\u30a8\u30f3\u30b9",
+  "promoteDialog.audience.ds": "DS",
+  "promoteDialog.audience.exec": "Exec",
+  "promoteDialog.audience.ml": "ML",
+  "promoteDialog.titleLabel": "\u30bf\u30a4\u30c8\u30eb",
+  "promoteDialog.titlePlaceholder": "\u7a7a\u6b04\u306e\u5834\u5408\u306f\u30ab\u30fc\u30c9 ID \u3092\u4f7f\u7528",
+  "promoteDialog.cancel": "\u30ad\u30e3\u30f3\u30bb\u30eb",
+  "promoteDialog.confirm": "\u6607\u683c",
+  "promoteDialog.confirmBusy": "\u6607\u683c\u4e2d...",
+  "promoteDialog.validation.audienceRequired": "\u30aa\u30fc\u30c7\u30a3\u30a8\u30f3\u30b9\u3092\u9078\u629e\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+  "promoteDialog.status.success": "{audience} \u5411\u3051\u306b\u6607\u683c\u3057\u3001{artifactId} \u3068\u3057\u3066\u4fdd\u5b58\u3057\u307e\u3057\u305f\u3002",
+  "promoteDialog.status.failed": "\u6607\u683c\u306b\u5931\u6557: {reason}",
+  "promotedBadge.label": "\u6607\u683c\u6e08\u307f",
+  "promotedBadge.entry": "{timestamp} \u306b {audience} \u5411\u3051\u306b\u6607\u683c",
+  "promotedBadge.more": "\u4ed6 {count} \u4ef6"
 }

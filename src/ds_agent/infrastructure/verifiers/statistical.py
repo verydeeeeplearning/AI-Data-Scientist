@@ -690,6 +690,170 @@ class MultipleTestingCorrectionCheck:
         )
 
 
+class SampleRatioMismatchCheck:
+    """Check whether experiment allocation exhibits sample-ratio mismatch."""
+
+    name = "sample_ratio_mismatch"
+    version = "1"
+
+    def run(self, ctx: VerifierContext) -> CheckResult:
+        start = perf_counter()
+        explicit = artifact(ctx, "sample_ratio_mismatch")
+        if isinstance(explicit, bool):
+            return CheckResult(
+                check_id=self.name,
+                status="fail" if explicit else "pass",
+                score=0.0 if explicit else 1.0,
+                evidence={"explicit_mismatch": explicit},
+                message=(
+                    "sample-ratio mismatch is explicitly recorded"
+                    if explicit
+                    else "sample-ratio mismatch is explicitly cleared"
+                ),
+                remediation_hint=(
+                    "Investigate assignment, instrumentation, and traffic splits before shipping."
+                    if explicit
+                    else None
+                ),
+                duration_ms=elapsed_ms(start),
+            )
+
+        srm = artifact(ctx, "srm")
+        if isinstance(srm, Mapping):
+            p_value = _coerce_float(srm.get("p_value"))
+            is_valid = srm.get("is_valid")
+            observed_counts = srm.get("observed_counts")
+            expected_counts = srm.get("expected_counts")
+            if p_value is None and isinstance(is_valid, bool):
+                p_value = 1.0 if is_valid else 0.0
+            if p_value is not None:
+                evidence = {
+                    "p_value": p_value,
+                    "is_valid": bool(is_valid) if isinstance(is_valid, bool) else p_value >= 0.05,
+                    "observed_counts": observed_counts,
+                    "expected_counts": expected_counts,
+                }
+                if p_value < 0.05:
+                    status: CheckStatus = "fail"
+                    score = 0.0
+                    message = "sample-ratio mismatch indicates assignment imbalance"
+                elif p_value < 0.10:
+                    status = "warn"
+                    score = 0.55
+                    message = "sample allocation is borderline imbalanced"
+                else:
+                    status = "pass"
+                    score = 1.0
+                    message = "sample allocation is consistent with the expected split"
+                return CheckResult(
+                    check_id=self.name,
+                    status=status,
+                    score=score,
+                    evidence=evidence,
+                    message=message,
+                    remediation_hint=(
+                        "Investigate assignment, instrumentation, "
+                        "and traffic splits before shipping."
+                        if status != "pass"
+                        else None
+                    ),
+                    duration_ms=elapsed_ms(start),
+                )
+
+        return CheckResult(
+            check_id=self.name,
+            status="skipped",
+            score=1.0,
+            evidence={},
+            message="sample-ratio mismatch evidence is unavailable",
+            duration_ms=elapsed_ms(start),
+        )
+
+
+class ConfidenceIntervalReviewCheck:
+    """Review whether confidence intervals support the stated experiment conclusion."""
+
+    name = "confidence_interval_review"
+    version = "1"
+
+    def run(self, ctx: VerifierContext) -> CheckResult:
+        start = perf_counter()
+        explicit = artifact(ctx, "confidence_interval_review")
+        if isinstance(explicit, bool):
+            return CheckResult(
+                check_id=self.name,
+                status="pass" if explicit else "fail",
+                score=1.0 if explicit else 0.0,
+                evidence={"explicit_review": explicit},
+                message=(
+                    "confidence-interval review is explicitly recorded"
+                    if explicit
+                    else "confidence-interval review is explicitly missing"
+                ),
+                remediation_hint=(
+                    None
+                    if explicit
+                    else "Inspect and report the confidence interval before moving to review."
+                ),
+                duration_ms=elapsed_ms(start),
+            )
+
+        ci_low = _coerce_float(artifact(ctx, "ci_low"))
+        ci_high = _coerce_float(artifact(ctx, "ci_high"))
+        if ci_low is None or ci_high is None:
+            interval = artifact(ctx, "confidence_interval")
+            if isinstance(interval, Mapping):
+                ci_low = _coerce_float(interval.get("low"))
+                ci_high = _coerce_float(interval.get("high"))
+        if ci_low is None or ci_high is None:
+            return CheckResult(
+                check_id=self.name,
+                status="skipped",
+                score=1.0,
+                evidence={},
+                message="confidence-interval evidence is unavailable",
+                duration_ms=elapsed_ms(start),
+            )
+
+        if ci_low > ci_high:
+            ci_low, ci_high = ci_high, ci_low
+        effect_size = abs(_coerce_float(artifact(ctx, "effect_size")) or 0.0)
+        width = ci_high - ci_low
+        spans_zero = ci_low <= 0.0 <= ci_high
+        evidence = {
+            "ci_low": ci_low,
+            "ci_high": ci_high,
+            "interval_width": width,
+            "effect_size": effect_size,
+            "spans_zero": spans_zero,
+        }
+        if spans_zero:
+            status: CheckStatus = "fail"
+            score = 0.0
+            message = "confidence interval still crosses zero"
+        elif effect_size > 0.0 and width > effect_size * 2:
+            status = "warn"
+            score = 0.55
+            message = "confidence interval is wide relative to the observed effect"
+        else:
+            status = "pass"
+            score = 1.0
+            message = "confidence interval supports the observed effect direction"
+        return CheckResult(
+            check_id=self.name,
+            status=status,
+            score=score,
+            evidence=evidence,
+            message=message,
+            remediation_hint=(
+                "Report the interval width and temper the recommendation until precision improves."
+                if status != "pass"
+                else None
+            ),
+            duration_ms=elapsed_ms(start),
+        )
+
+
 class EffectSizePracticalSignificanceCheck:
     """Ensure statistical signal meets the practical-effect threshold."""
 
@@ -755,7 +919,9 @@ class StatisticalVerifier(StatisticalVerifierPort):
                 ClassImbalanceImpactCheck(),
                 MulticollinearityCheck(),
                 OverfittingGapCheck(),
+                SampleRatioMismatchCheck(),
                 MultipleTestingCorrectionCheck(),
+                ConfidenceIntervalReviewCheck(),
                 EffectSizePracticalSignificanceCheck(),
             ]
         )
@@ -767,3 +933,12 @@ class StatisticalVerifier(StatisticalVerifierPort):
             checks=results,
             weights=_DOUBLE_WEIGHTED_CHECKS,
         )
+
+
+def _coerce_float(value: object) -> float | None:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None

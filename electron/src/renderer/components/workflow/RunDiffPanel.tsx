@@ -64,6 +64,7 @@ export function RunDiffPanel({ runs, connected, onOpenPromotionModal }: Props) {
         <select
           value={runAId}
           onChange={(event) => setRunAId(event.target.value)}
+          aria-label="Base run for comparison"
           data-testid="decision-os-run-diff-base"
           className="rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text"
         >
@@ -77,6 +78,7 @@ export function RunDiffPanel({ runs, connected, onOpenPromotionModal }: Props) {
         <select
           value={runBId}
           onChange={(event) => setRunBId(event.target.value)}
+          aria-label="Candidate run for comparison"
           data-testid="decision-os-run-diff-candidate"
           className="rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text"
         >

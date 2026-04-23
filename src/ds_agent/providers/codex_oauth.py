@@ -12,6 +12,7 @@ curl passes Cloudflare's bot detection.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -139,7 +140,9 @@ class CodexOAuthProvider:
                 load_by_provider = getattr(token_store, "load_by_provider", None)
                 profile = load_by_provider("codex") if callable(load_by_provider) else None
                 oauth = getattr(profile, "oauth", None) if profile is not None else None
-                access_token_from_store = getattr(oauth, "access", None) if oauth is not None else None
+                access_token_from_store = (
+                    getattr(oauth, "access", None) if oauth is not None else None
+                )
                 if isinstance(access_token_from_store, str) and access_token_from_store:
                     self._access_token = access_token_from_store
                 else:
@@ -237,8 +240,8 @@ class CodexOAuthProvider:
                 err_data = json.loads(output)
                 detail = err_data.get("detail") or err_data.get("error") or output[:300]
                 raise RuntimeError(f"API error: {detail}")
-            except json.JSONDecodeError:
-                raise RuntimeError(f"Unexpected response: {output[:300]}")
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(f"Unexpected response: {output[:300]}") from exc
 
         # Parse SSE events
         events: list[dict] = []
@@ -247,10 +250,8 @@ class CodexOAuthProvider:
             if line.startswith("data:"):
                 data_str = line[5:].strip()
                 if data_str and data_str != "[DONE]":
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError):
                         events.append(json.loads(data_str))
-                    except json.JSONDecodeError:
-                        pass
         return events
 
     @staticmethod

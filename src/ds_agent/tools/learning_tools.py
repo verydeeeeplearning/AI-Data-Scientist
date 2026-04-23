@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from ds_agent.tools.registry import tool
 
@@ -14,13 +15,40 @@ if TYPE_CHECKING:
 _learning_store: SqliteLearningStore | None = None
 
 
-def _get_learning_store() -> SqliteLearningStore | None:
+# ---------------------------------------------------------------------------
+# Official flag-off policy: Read-only-visible (adopted 2026-04-22, Gap 5A-1)
+#
+#   flag OFF (DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1 unset / falsy):
+#     - Read-only tools (list_learning_inbox, get_learning_item,
+#       list_promotions, list_deprecations, get_gc_report,
+#       get_learning_governance_status) remain accessible.
+#     - Mutation tools (review_learning_item, rollback_promotion,
+#       run_gc_loop, finalize_learning_candidate_promotion) return DISABLED.
+#
+#   flag ON (DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1=1/true/yes):
+#     - All tools active.
+#
+# Implementation: _get_learning_store(require_mutation=True) returns None
+# (→ DISABLED) when flag is OFF; _get_learning_store(require_mutation=False)
+# always returns the store, enabling read-only access regardless of flag.
+# ---------------------------------------------------------------------------
+
+
+def _governance_mutation_enabled() -> bool:
+    return os.environ.get("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
+def _get_learning_store(*, require_mutation: bool = False) -> SqliteLearningStore | None:
     global _learning_store
     if _learning_store is not None:
+        if require_mutation and not _governance_mutation_enabled():
+            return None
         return _learning_store
-    if os.environ.get("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "").lower() not in {
-        "1", "true", "yes",
-    }:
+    if require_mutation and not _governance_mutation_enabled():
         return None
     from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
     from ds_agent.tools.path_utils import get_active_workspace
@@ -32,6 +60,20 @@ def _get_learning_store() -> SqliteLearningStore | None:
     return _learning_store
 
 
+def _get_gc_workspace_path() -> str | None:
+    from ds_agent.tools.path_utils import get_active_workspace
+
+    workspace = get_active_workspace()
+    return str(workspace) if workspace is not None else None
+
+
+def _get_active_custom_skills_dir() -> Path | None:
+    override = os.environ.get("DS_AGENT_ACTIVE_CUSTOM_SKILLS_DIR", "").strip()
+    if not override:
+        return None
+    return Path(override).expanduser().resolve()
+
+
 def _ok(**payload: object) -> str:
     return json.dumps({"ok": True, **payload}, ensure_ascii=False)
 
@@ -41,6 +83,49 @@ def _err(code: str, msg: str) -> str:
         {"ok": False, "error": {"code": code, "message": msg}},
         ensure_ascii=False,
     )
+
+
+def _serialize_learning_item_summary(
+    item: Any,
+    *,
+    priority_score: float,
+) -> dict[str, object]:
+    return {
+        "item_id": item.item_id,
+        "type": item.item_type.value,
+        "status": item.status.value,
+        "title": item.title,
+        "priority_score": priority_score,
+        "evidence_count": len(item.evidence),
+        "conflict_count": len(item.conflict_refs),
+        "scope": item.scope,
+        "tags": item.tags,
+        "created_at": item.created_at.isoformat(),
+        "metadata": dict(item.metadata or {}),
+    }
+
+
+def _serialize_learning_item_detail(
+    item: Any,
+    *,
+    content_limit: int = 500,
+) -> dict[str, object]:
+    return {
+        "item_id": item.item_id,
+        "type": item.item_type.value,
+        "status": item.status.value,
+        "title": item.title,
+        "content": item.content[:content_limit],
+        "signature": item.signature,
+        "scope": item.scope,
+        "review_count": item.review_count,
+        "evidence_count": len(item.evidence),
+        "conflict_count": len(item.conflict_refs),
+        "tags": item.tags,
+        "created_at": item.created_at.isoformat(),
+        "updated_at": item.updated_at.isoformat(),
+        "metadata": dict(item.metadata or {}),
+    }
 
 
 @tool(
@@ -105,18 +190,7 @@ def list_learning_inbox(
         limit=limit,
     )
     items = [
-        {
-            "item_id": s.item.item_id,
-            "type": s.item.item_type.value,
-            "status": s.item.status.value,
-            "title": s.item.title,
-            "priority_score": s.priority_score,
-            "evidence_count": len(s.item.evidence),
-            "conflict_count": len(s.item.conflict_refs),
-            "scope": s.item.scope,
-            "tags": s.item.tags,
-        }
-        for s in scored
+        _serialize_learning_item_summary(s.item, priority_score=s.priority_score) for s in scored
     ]
     return _ok(items=items, count=len(items))
 
@@ -150,7 +224,7 @@ def review_learning_item(
         comment: Optional review comment.
         reviewer: Who is reviewing.
     """
-    store = _get_learning_store()
+    store = _get_learning_store(require_mutation=True)
     if store is None:
         return _err("DISABLED", "Self-improve governance is not enabled.")
 
@@ -170,12 +244,16 @@ def review_learning_item(
     except ValueError:
         return _err("INVALID_DECISION", f"Unknown decision: {decision}")
 
-    checklist = ReviewChecklist(
-        evidence_sufficient=True,
-        no_unresolved_conflicts=True,
-        scope_appropriate=True,
-        content_accurate=True,
-    ) if dec == ReviewDecision.APPROVE else None
+    checklist = (
+        ReviewChecklist(
+            evidence_sufficient=True,
+            no_unresolved_conflicts=True,
+            scope_appropriate=True,
+            content_accurate=True,
+        )
+        if dec == ReviewDecision.APPROVE
+        else None
+    )
 
     uc = ReviewLearningItemUseCase(store, _Clock())
     try:
@@ -222,20 +300,7 @@ def get_learning_item(item_id: str) -> str:
     if item is None:
         return _err("NOT_FOUND", f"Learning item {item_id} not found.")
 
-    return _ok(
-        item_id=item.item_id,
-        type=item.item_type.value,
-        status=item.status.value,
-        title=item.title,
-        content=item.content[:500],
-        signature=item.signature,
-        scope=item.scope,
-        review_count=item.review_count,
-        evidence_count=len(item.evidence),
-        conflict_count=len(item.conflict_refs),
-        tags=item.tags,
-        created_at=item.created_at.isoformat(),
-    )
+    return _ok(**_serialize_learning_item_detail(item))
 
 
 @tool(
@@ -332,7 +397,7 @@ def rollback_promotion(
         item_id: Learning item ID to rollback.
         reason: Reason for rollback.
     """
-    store = _get_learning_store()
+    store = _get_learning_store(require_mutation=True)
     if store is None:
         return _err("DISABLED", "Self-improve governance is not enabled.")
 
@@ -357,3 +422,230 @@ def rollback_promotion(
         new_status=updated.status.value,
         deprecation_record_id=dep_record.record_id,
     )
+
+
+@tool(
+    name="run_gc_loop",
+    description="Classify persisted governed failure signals and generate a GC report.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "promotion_threshold": {"type": "integer", "default": 3},
+            "limit": {"type": "integer", "default": 200},
+        },
+    },
+    safety_level="safe",
+)
+def run_gc_loop(
+    promotion_threshold: int = 3,
+    limit: int = 200,
+) -> str:
+    """Classify persisted governed failure signals and generate a GC report."""
+
+    store = _get_learning_store(require_mutation=True)
+    if store is None:
+        return _err("DISABLED", "Self-improve governance is not enabled.")
+
+    workspace_path = _get_gc_workspace_path()
+    if workspace_path is None:
+        return _err("NO_WORKSPACE", "No active workspace is available for GC reports.")
+
+    from datetime import UTC, datetime
+
+    from ds_agent.application.learning.failure_taxonomy_gc import (
+        FailureTaxonomyGCLoopUseCase,
+    )
+    from ds_agent.runtime.learning_failure_signal_sync import PersistedFailureSignalSync
+
+    class _Clock:
+        def now(self) -> datetime:
+            return datetime.now(UTC)
+
+    try:
+        result = FailureTaxonomyGCLoopUseCase(
+            store,
+            _Clock(),
+            workspace_path,
+            signal_sync=PersistedFailureSignalSync(
+                store=store,
+                workspace_dir=workspace_path,
+            ),
+        ).execute(
+            promotion_threshold=promotion_threshold,
+            limit=limit,
+            write_report=True,
+        )
+    except ValueError as exc:
+        return _err("GC_LOOP_ERROR", str(exc))
+
+    classes = [
+        {
+            "failure_class": summary.failure_class.value,
+            "item_count": summary.item_count,
+            "recurrence_count": summary.recurrence_count,
+            "warning_types": list(summary.warning_types),
+            "source_kinds": list(summary.source_kinds),
+        }
+        for summary in result.class_summaries
+    ]
+    return _ok(
+        generated_at=result.generated_at.isoformat(),
+        total_items=result.total_items,
+        total_recurrences=result.total_recurrences,
+        promotion_threshold=result.promotion_threshold,
+        promotion_candidate_classes=[
+            failure_class.value for failure_class in result.promotion_candidate_classes
+        ],
+        classes=classes,
+        skill_candidates=[
+            {
+                "failure_class": candidate.failure_class.value,
+                "candidate_id": candidate.candidate_id,
+                "status": candidate.status,
+                "pending_path": candidate.pending_path,
+                "reused_existing": candidate.reused_existing,
+            }
+            for candidate in result.registered_skill_candidates
+        ],
+        report_path=result.report_path,
+    )
+
+
+@tool(
+    name="finalize_learning_candidate_promotion",
+    description=(
+        "Finalize a pending learning candidate into promoted or blocked state "
+        "using explicit evaluation scores."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "candidate_id": {"type": "string"},
+            "candidate_score": {"type": "number"},
+            "passed_tasks": {"type": "integer"},
+            "total_tasks": {"type": "integer"},
+            "baseline_score": {"type": "number"},
+            "delta_threshold": {"type": "number", "default": 0.03},
+        },
+        "required": ["candidate_id", "candidate_score", "passed_tasks", "total_tasks"],
+    },
+    safety_level="caution",
+)
+def finalize_learning_candidate_promotion(
+    candidate_id: str,
+    candidate_score: float,
+    passed_tasks: int,
+    total_tasks: int,
+    baseline_score: float | None = None,
+    delta_threshold: float = 0.03,
+) -> str:
+    """Finalize one learning-governance candidate using explicit eval scores."""
+
+    _ = _get_learning_store(require_mutation=True)
+    if _ is None:
+        return _err("DISABLED", "Self-improve governance is not enabled.")
+
+    workspace_path = _get_gc_workspace_path()
+    if workspace_path is None:
+        return _err("NO_WORKSPACE", "No active workspace is available for candidate promotion.")
+
+    from ds_agent.application.learning.finalize_learning_candidate_promotion import (
+        FinalizeLearningCandidatePromotionUseCase,
+    )
+
+    try:
+        decision, candidate = FinalizeLearningCandidatePromotionUseCase(
+            workspace_path,
+            active_custom_dir=_get_active_custom_skills_dir(),
+        ).execute(
+            candidate_id=candidate_id,
+            candidate_score=candidate_score,
+            passed_tasks=passed_tasks,
+            total_tasks=total_tasks,
+            baseline_score=baseline_score,
+            delta_threshold=delta_threshold,
+        )
+    except ValueError as exc:
+        return _err("PROMOTION_ERROR", str(exc))
+
+    return _ok(
+        candidate_id=decision.candidate_id,
+        status=decision.status,
+        promoted=decision.promoted,
+        candidate_score=decision.candidate_score,
+        baseline_score=decision.baseline_score,
+        delta_score=decision.delta_score,
+        delta_threshold=decision.delta_threshold,
+        passed_tasks=decision.passed_tasks,
+        total_tasks=decision.total_tasks,
+        summary=decision.summary,
+        promoted_path=candidate.promoted_path,
+        pending_path=candidate.pending_path,
+    )
+
+
+@tool(
+    name="get_gc_report",
+    description="Return the latest failure-taxonomy GC report.",
+    parameters={
+        "type": "object",
+        "properties": {},
+    },
+    safety_level="safe",
+)
+def get_gc_report() -> str:
+    """Return the latest failure-taxonomy GC report."""
+
+    workspace_path = _get_gc_workspace_path()
+    if workspace_path is None:
+        return _err("NO_WORKSPACE", "No active workspace is available for GC reports.")
+
+    from ds_agent.application.learning.failure_taxonomy_gc import latest_gc_report_path
+
+    report_path = latest_gc_report_path(workspace_path)
+    if report_path is None:
+        return _err("NOT_FOUND", "No GC report has been generated yet.")
+
+    try:
+        content = report_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return _err("READ_ERROR", str(exc))
+
+    return _ok(path=str(report_path), content=content)
+
+
+@tool(
+    name="get_learning_governance_status",
+    description="Return a read-only operational snapshot for learning governance.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "history_limit": {"type": "integer", "default": 5},
+        },
+    },
+    safety_level="safe",
+)
+def get_learning_governance_status(history_limit: int = 5) -> str:
+    """Return a read-only operational snapshot for learning governance."""
+
+    workspace_path = _get_gc_workspace_path()
+    if workspace_path is None:
+        return _err("NO_WORKSPACE", "No active workspace is available for learning governance.")
+
+    store = _get_learning_store()
+    if store is None:
+        return _err("STORE_UNAVAILABLE", "Learning governance store is unavailable.")
+
+    from ds_agent.runtime.learning_governance_scheduler import (
+        build_learning_governance_status_payload,
+    )
+    from ds_agent.runtime.policy_store import JsonPolicyStore
+
+    payload = build_learning_governance_status_payload(
+        policy_store=JsonPolicyStore(workspace_dir=workspace_path),
+        store=store,
+        workspace_dir=workspace_path,
+        history_limit=history_limit,
+    )
+    payload["review_enabled"] = _governance_mutation_enabled()
+    return _ok(**payload)

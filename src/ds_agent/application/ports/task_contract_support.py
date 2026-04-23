@@ -86,3 +86,31 @@ class DeliveryDispatchLogReader(Protocol):
     ) -> DeliveryLogQueryResult: ...
 
     def summarize(self, *, pack: DeliveryPack) -> DeliveryLogSummary: ...
+
+
+@runtime_checkable
+class TaskContractFailureSignalRecorder(Protocol):
+    """Projects task-contract gate failures into governed learning signals."""
+
+    def record_transition_failure(
+        self,
+        *,
+        task_id: str,
+        session_id: str | None,
+        run_id: str | None,
+        transition_to: str | None,
+        error_code: str,
+        message: str,
+        metadata: Mapping[str, object] | None = None,
+    ) -> None: ...
+
+    def record_operator_intervention(
+        self,
+        *,
+        task_id: str,
+        session_id: str | None,
+        run_id: str | None,
+        intervention_kind: str,
+        reason: str | None,
+        metadata: Mapping[str, object] | None = None,
+    ) -> None: ...

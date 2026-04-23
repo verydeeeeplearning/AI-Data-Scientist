@@ -7,6 +7,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useCanMutate } from '../../hooks/useCanMutate';
 import { useWs } from '../../hooks/WsProvider';
 import { fetchPolicySnapshot } from '../../hooks/usePolicy';
 import { useCertificationBoard } from '../../hooks/useCertificationBoard';
@@ -18,6 +19,7 @@ import {
   type MatrixVerdict,
 } from '../../stores/policyStore';
 import { useRuntimeStore } from '../../stores/runtimeStore';
+import { RiskTierMatrixEditor } from './RiskTierMatrixEditor';
 import {
   AUDIENCE_OPTIONS,
   AUDIENCE_PREVIEWS,
@@ -60,6 +62,59 @@ function normalizeMatrixOverrides(overrides: ActionMatrixOverrideMap): ActionMat
   return normalized;
 }
 
+function countMatrixDiffRows(
+  current: ActionMatrixOverrideMap,
+  draft: ActionMatrixOverrideMap,
+): number {
+  return Object.keys({
+    ...current,
+    ...draft,
+  }).filter((actionClass) => {
+    return MATRIX_AUTHORITY_COLUMNS.some(
+      (column) => (current[actionClass]?.[column.value] ?? null)
+        !== (draft[actionClass]?.[column.value] ?? null),
+    );
+  }).length;
+}
+
+interface ImpactPreviewCounts {
+  autonomous: number;
+  guided: number;
+  blocked: number;
+}
+
+interface ImpactPreviewRow {
+  authority: MatrixAuthority;
+  label: string;
+  current: ImpactPreviewCounts;
+  preview: ImpactPreviewCounts;
+  changedRows: number;
+  isHighlighted: boolean;
+}
+
+function createImpactPreviewCounts(): ImpactPreviewCounts {
+  return {
+    autonomous: 0,
+    guided: 0,
+    blocked: 0,
+  };
+}
+
+function addImpactPreviewVerdict(
+  counts: ImpactPreviewCounts,
+  verdict: MatrixVerdict,
+): void {
+  if (verdict === 'auto') {
+    counts.autonomous += 1;
+    return;
+  }
+  if (verdict === 'skip') {
+    counts.blocked += 1;
+    return;
+  }
+  counts.guided += 1;
+}
+
 function countMatrixDiffCells(
   current: ActionMatrixOverrideMap,
   draft: ActionMatrixOverrideMap,
@@ -78,21 +133,6 @@ function countMatrixDiffCells(
   }
 
   return changed;
-}
-
-function countMatrixDiffRows(
-  current: ActionMatrixOverrideMap,
-  draft: ActionMatrixOverrideMap,
-): number {
-  return Object.keys({
-    ...current,
-    ...draft,
-  }).filter((actionClass) => {
-    return MATRIX_AUTHORITY_COLUMNS.some(
-      (column) => (current[actionClass]?.[column.value] ?? null)
-        !== (draft[actionClass]?.[column.value] ?? null),
-    );
-  }).length;
 }
 
 export function PolicyStudio() {
@@ -118,6 +158,8 @@ export function PolicyStudio() {
   const [audienceDraft, setAudienceDraft] = useState<AudienceDraft>('inherit');
   const [missionDraft, setMissionDraft] = useState<string>(NO_MISSION_VALUE);
   const [saving, setSaving] = useState(false);
+  const { canMutate, reason: mutateBlockedReason } = useCanMutate();
+  const mutateBlockedTitle = mutateBlockedReason ?? undefined;
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [matrixDraft, setMatrixDraft] = useState<ActionMatrixOverrideMap>({});
@@ -236,6 +278,35 @@ export function PolicyStudio() {
     () => countMatrixDiffRows(currentMatrixOverrides, matrixDraftNormalized),
     [currentMatrixOverrides, matrixDraftNormalized],
   );
+  const impactPreview = useMemo<ImpactPreviewRow[]>(() => {
+    return MATRIX_AUTHORITY_COLUMNS.map((column) => {
+      const current = createImpactPreviewCounts();
+      const preview = createImpactPreviewCounts();
+      let changedRows = 0;
+
+      for (const row of actionMatrixRows) {
+        const currentVerdict = row.effectiveVerdicts[column.value];
+        const previewVerdict = matrixDraftNormalized[row.actionClass]?.[column.value]
+          ?? row.defaultVerdicts[column.value];
+
+        addImpactPreviewVerdict(current, currentVerdict);
+        addImpactPreviewVerdict(preview, previewVerdict);
+
+        if (currentVerdict !== previewVerdict) {
+          changedRows += 1;
+        }
+      }
+
+      return {
+        authority: column.value,
+        label: column.label,
+        current,
+        preview,
+        changedRows,
+        isHighlighted: effectiveAuthorityCard === column.value,
+      };
+    });
+  }, [actionMatrixRows, effectiveAuthorityCard, matrixDraftNormalized]);
   const hasPendingMatrixChanges = matrixChangedCells > 0;
   const legacyDraftApplied = authorityDraft === legacyMigration.authority
     && audienceDraft === legacyMigration.audience;
@@ -561,7 +632,9 @@ export function PolicyStudio() {
                   type="button"
                   onClick={() => void handleApply()}
                   data-testid="policy-apply-task-contract"
-                  disabled={!hasPendingChanges || saving}
+                  disabled={!canMutate || !hasPendingChanges || saving}
+                  aria-disabled={!canMutate || undefined}
+                  title={canMutate ? undefined : mutateBlockedTitle}
                   className="rounded bg-ds-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
                 >
                   {saving ? 'Applying...' : 'Apply to TaskContract'}
@@ -912,113 +985,186 @@ export function PolicyStudio() {
             matrix state.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded border border-ds-border/70">
-            <table className="min-w-[1120px] w-full border-collapse text-left">
-              <thead className="bg-ds-bg/80 text-[10px] uppercase tracking-wider text-ds-muted">
-                <tr>
-                  <th className="border-b border-ds-border px-3 py-2 font-medium">Action class</th>
-                  {MATRIX_AUTHORITY_COLUMNS.map((column) => (
-                    <th
-                      key={column.value}
-                      className="border-b border-ds-border px-2 py-2 font-medium"
-                    >
-                      {column.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {actionMatrixRows.map((row) => (
-                  <tr key={row.actionClass} className="align-top">
-                    <td className="border-b border-ds-border/70 px-3 py-3">
-                      <div className="text-xs font-medium text-ds-text">{row.actionClass}</div>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                          data {row.dataSensitivity}
-                        </span>
-                        <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                          write {row.writeSideEffect}
-                        </span>
-                        <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                          cost {row.costImpact}
-                        </span>
-                        <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                          {row.reversibility}
-                        </span>
-                        {row.auditRequired && (
-                          <span className="rounded border border-amber-400/40 px-1.5 py-0.5 text-[10px] text-amber-200">
-                            audit
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    {MATRIX_AUTHORITY_COLUMNS.map((column) => {
-                      const currentOverride = currentMatrixOverrides[row.actionClass]?.[column.value] ?? null;
-                      const draftOverride = matrixDraftNormalized[row.actionClass]?.[column.value] ?? null;
-                      const draftValue = draftOverride ?? INHERIT_MATRIX_VALUE;
-                      const defaultVerdict = row.defaultVerdicts[column.value];
-                      const currentEffectiveVerdict = row.effectiveVerdicts[column.value];
-                      const previewVerdict = draftOverride ?? defaultVerdict;
-                      const changed = currentOverride !== draftOverride;
+          <>
+            <div
+              data-testid="policy-impact-preview"
+              className="rounded border border-ds-border/70 bg-ds-bg/70 p-3"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 text-[11px] font-medium text-ds-text">
+                    <BriefcaseBusiness size={12} className="text-ds-muted" />
+                    Draft Impact Preview
+                  </div>
+                  <p className="mt-1 max-w-3xl text-[11px] text-ds-muted">
+                    Compares current effective verdicts against the unsaved matrix draft for each
+                    authority column. Autonomous counts track <span className="font-mono">auto</span>,
+                    guided counts group <span className="font-mono">ask / approve / dual</span>,
+                    and blocked counts track <span className="font-mono">skip</span>.
+                  </p>
+                </div>
+                <div className="rounded border border-ds-border/70 bg-ds-surface/70 px-2 py-1 text-[10px] text-ds-muted">
+                  Current runtime authority: {formatAuthorityLabel(effectiveAuthorityCard)}
+                </div>
+              </div>
 
-                      return (
-                        <td
-                          key={`${row.actionClass}-${column.value}`}
-                          className={`border-b border-ds-border/70 px-2 py-3 ${
-                            changed ? 'bg-amber-400/5' : ''
-                          }`}
-                        >
-                          <select
-                            value={draftValue}
-                            onChange={(event) =>
-                              setMatrixCellDraft(
-                                row.actionClass,
-                                column.value,
-                                event.target.value as MatrixVerdict | typeof INHERIT_MATRIX_VALUE,
-                              )
-                            }
-                            data-testid={`policy-matrix-${row.actionClass}-${column.value}`}
-                            aria-label={`${row.actionClass} verdict for ${column.label}`}
-                            disabled={matrixSaving}
-                            className={`w-full rounded border px-2 py-1.5 text-xs ${
-                              changed
-                                ? 'border-amber-400/40 bg-amber-400/5 text-ds-text'
-                                : 'border-ds-border bg-ds-bg text-ds-text'
+              <div className="mt-3 grid gap-2 xl:grid-cols-3">
+                {impactPreview.map((item) => (
+                  <div
+                    key={item.authority}
+                    className={`rounded border px-3 py-3 ${
+                      item.isHighlighted
+                        ? 'border-ds-accent/50 bg-ds-accent/10'
+                        : 'border-ds-border/70 bg-ds-surface/70'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium text-ds-text">{item.label}</span>
+                      {item.isHighlighted && (
+                        <span className="rounded border border-ds-accent/50 px-1.5 py-0.5 text-[10px] text-ds-accent">
+                          live
+                        </span>
+                      )}
+                      <span className="ml-auto rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
+                        {item.changedRows} changed row{item.changedRows === 1 ? '' : 's'}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-2 py-2">
+                        <div className="text-[10px] text-ds-muted">Autonomous</div>
+                        <div className="mt-1 text-xs text-ds-text">
+                          {item.current.autonomous} → {item.preview.autonomous}
+                        </div>
+                      </div>
+                      <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-2 py-2">
+                        <div className="text-[10px] text-ds-muted">Guided</div>
+                        <div className="mt-1 text-xs text-ds-text">
+                          {item.current.guided} → {item.preview.guided}
+                        </div>
+                      </div>
+                      <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-2 py-2">
+                        <div className="text-[10px] text-ds-muted">Blocked</div>
+                        <div className="mt-1 text-xs text-ds-text">
+                          {item.current.blocked} → {item.preview.blocked}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded border border-ds-border/70">
+              <table className="min-w-[1120px] w-full border-collapse text-left">
+                <thead className="bg-ds-bg/80 text-[10px] uppercase tracking-wider text-ds-muted">
+                  <tr>
+                    <th className="border-b border-ds-border px-3 py-2 font-medium">Action class</th>
+                    {MATRIX_AUTHORITY_COLUMNS.map((column) => (
+                      <th
+                        key={column.value}
+                        className="border-b border-ds-border px-2 py-2 font-medium"
+                      >
+                        {column.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {actionMatrixRows.map((row) => (
+                    <tr key={row.actionClass} className="align-top">
+                      <td className="border-b border-ds-border/70 px-3 py-3">
+                        <div className="text-xs font-medium text-ds-text">{row.actionClass}</div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
+                            data {row.dataSensitivity}
+                          </span>
+                          <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
+                            write {row.writeSideEffect}
+                          </span>
+                          <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
+                            cost {row.costImpact}
+                          </span>
+                          <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
+                            {row.reversibility}
+                          </span>
+                          {row.auditRequired && (
+                            <span className="rounded border border-amber-400/40 px-1.5 py-0.5 text-[10px] text-amber-200">
+                              audit
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      {MATRIX_AUTHORITY_COLUMNS.map((column) => {
+                        const currentOverride = currentMatrixOverrides[row.actionClass]?.[column.value] ?? null;
+                        const draftOverride = matrixDraftNormalized[row.actionClass]?.[column.value] ?? null;
+                        const draftValue = draftOverride ?? INHERIT_MATRIX_VALUE;
+                        const defaultVerdict = row.defaultVerdicts[column.value];
+                        const currentEffectiveVerdict = row.effectiveVerdicts[column.value];
+                        const previewVerdict = draftOverride ?? defaultVerdict;
+                        const changed = currentOverride !== draftOverride;
+
+                        return (
+                          <td
+                            key={`${row.actionClass}-${column.value}`}
+                            className={`border-b border-ds-border/70 px-2 py-3 ${
+                              changed ? 'bg-amber-400/5' : ''
                             }`}
                           >
-                            <option value={INHERIT_MATRIX_VALUE}>
-                              Inherit ({formatMatrixVerdictLabel(defaultVerdict)})
-                            </option>
-                            {MATRIX_VERDICT_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
+                            <select
+                              value={draftValue}
+                              onChange={(event) =>
+                                setMatrixCellDraft(
+                                  row.actionClass,
+                                  column.value,
+                                  event.target.value as MatrixVerdict | typeof INHERIT_MATRIX_VALUE,
+                                )
+                              }
+                              data-testid={`policy-matrix-${row.actionClass}-${column.value}`}
+                              aria-label={`${row.actionClass} verdict for ${column.label}`}
+                              disabled={matrixSaving}
+                              className={`w-full rounded border px-2 py-1.5 text-xs ${
+                                changed
+                                  ? 'border-amber-400/40 bg-amber-400/5 text-ds-text'
+                                  : 'border-ds-border bg-ds-bg text-ds-text'
+                              }`}
+                            >
+                              <option value={INHERIT_MATRIX_VALUE}>
+                                Inherit ({formatMatrixVerdictLabel(defaultVerdict)})
                               </option>
-                            ))}
-                          </select>
-                          <div className="mt-1.5 space-y-1 text-[10px] leading-4 text-ds-muted">
-                            <div>
-                              Current {formatMatrixVerdictLabel(currentEffectiveVerdict)}
+                              {MATRIX_VERDICT_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="mt-1.5 space-y-1 text-[10px] leading-4 text-ds-muted">
+                              <div>
+                                Current {formatMatrixVerdictLabel(currentEffectiveVerdict)}
+                              </div>
+                              <div>
+                                Preview{' '}
+                                <span className={changed ? 'text-amber-200' : 'text-ds-text'}>
+                                  {formatMatrixVerdictLabel(previewVerdict)}
+                                </span>
+                              </div>
+                              <div>
+                                Override {currentOverride ? formatMatrixVerdictLabel(currentOverride) : 'none'}
+                              </div>
                             </div>
-                            <div>
-                              Preview{' '}
-                              <span className={changed ? 'text-amber-200' : 'text-ds-text'}>
-                                {formatMatrixVerdictLabel(previewVerdict)}
-                              </span>
-                            </div>
-                            <div>
-                              Override {currentOverride ? formatMatrixVerdictLabel(currentOverride) : 'none'}
-                            </div>
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
+
+      <RiskTierMatrixEditor actionMatrixRows={actionMatrixRows} />
     </div>
   );
 }

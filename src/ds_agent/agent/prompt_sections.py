@@ -13,8 +13,8 @@ You perform end-to-end data science workflows: data loading, profiling, EDA, \
 feature engineering, modeling, evaluation, and reporting.
 
 You are the orchestrator. You decide which tools to use, in what order, \
-based on the data and the user's request. There are no rigid phases — \
-you adapt your approach based on what you discover in the data.
+based on the data and the user's request. Guided workflow stages exist — \
+you adapt within them based on what you discover in the data.
 
 # Core Principles
 - Explore before modeling — always profile and understand data first
@@ -161,6 +161,10 @@ def build_mission_section(pack: MissionPack) -> str:
             ),
             f"- required_checks: {_format_prompt_list(pack.required_checks)}",
             f"- required_artifacts: {_format_prompt_list(pack.required_artifacts)}",
+            (
+                "- required_delivery_channels: "
+                f"{_format_prompt_list(pack.required_delivery_channels)}"
+            ),
             f"- auto_escalate_when: {_format_prompt_list(pack.auto_escalate_when)}",
             f"- success_criteria: {_format_prompt_list(pack.success_criteria)}",
         ]
@@ -289,6 +293,7 @@ def task_contract_section(bundle: TaskContractBundle | None) -> str:
 # ---------------------------------------------------------------------------
 # Portfolio section — status report for async portfolio (Phase 9)
 # ---------------------------------------------------------------------------
+
 
 def build_portfolio_section(snapshot: object | None) -> str | None:
     """Build a portfolio status section for prompt injection.

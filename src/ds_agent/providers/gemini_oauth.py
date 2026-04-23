@@ -131,7 +131,7 @@ class GeminiOAuthProvider:
         self._transport = "litellm"
         self._api_key = resolved_key
         litellm_model = model if model.startswith("gemini/") else f"gemini/{model}"
-        self._delegate = LiteLLMProvider(
+        self._delegate = LiteLLMProvider(  # type: ignore[assignment]
             litellm_model,
             ProviderSDKConfig(api_key=resolved_key or ""),
         )

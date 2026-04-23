@@ -2,6 +2,7 @@ import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 import koCommon from '../../public/locales/ko/common.json';
+import koArea from '../../public/locales/ko/area.json';
 import koMission from '../../public/locales/ko/mission.json';
 import koWorkspace from '../../public/locales/ko/workspace.json';
 import koExecution from '../../public/locales/ko/execution.json';
@@ -11,10 +12,14 @@ import koOnboarding from '../../public/locales/ko/onboarding.json';
 import koSettings from '../../public/locales/ko/settings.json';
 import koApproval from '../../public/locales/ko/approval.json';
 import koTrust from '../../public/locales/ko/trust.json';
+import koRun from '../../public/locales/ko/run.json';
 import koCards from '../../public/locales/ko/cards.json';
 import koChat from '../../public/locales/ko/chat.json';
+import koCmd from '../../public/locales/ko/cmd.json';
+import koShare from '../../public/locales/ko/share.json';
 
 import enCommon from '../../public/locales/en/common.json';
+import enArea from '../../public/locales/en/area.json';
 import enMission from '../../public/locales/en/mission.json';
 import enWorkspace from '../../public/locales/en/workspace.json';
 import enExecution from '../../public/locales/en/execution.json';
@@ -24,10 +29,14 @@ import enOnboarding from '../../public/locales/en/onboarding.json';
 import enSettings from '../../public/locales/en/settings.json';
 import enApproval from '../../public/locales/en/approval.json';
 import enTrust from '../../public/locales/en/trust.json';
+import enRun from '../../public/locales/en/run.json';
 import enCards from '../../public/locales/en/cards.json';
 import enChat from '../../public/locales/en/chat.json';
+import enCmd from '../../public/locales/en/cmd.json';
+import enShare from '../../public/locales/en/share.json';
 
 import jaCommon from '../../public/locales/ja/common.json';
+import jaArea from '../../public/locales/ja/area.json';
 import jaMission from '../../public/locales/ja/mission.json';
 import jaWorkspace from '../../public/locales/ja/workspace.json';
 import jaExecution from '../../public/locales/ja/execution.json';
@@ -37,14 +46,18 @@ import jaOnboarding from '../../public/locales/ja/onboarding.json';
 import jaSettings from '../../public/locales/ja/settings.json';
 import jaApproval from '../../public/locales/ja/approval.json';
 import jaTrust from '../../public/locales/ja/trust.json';
+import jaRun from '../../public/locales/ja/run.json';
 import jaCards from '../../public/locales/ja/cards.json';
 import jaChat from '../../public/locales/ja/chat.json';
+import jaCmd from '../../public/locales/ja/cmd.json';
+import jaShare from '../../public/locales/ja/share.json';
 
 export const SUPPORTED_LNGS = ['ko', 'en', 'ja'] as const;
 export type SupportedLng = (typeof SUPPORTED_LNGS)[number];
 
 export const I18N_NAMESPACES = [
   'common',
+  'area',
   'mission',
   'workspace',
   'execution',
@@ -54,8 +67,11 @@ export const I18N_NAMESPACES = [
   'settings',
   'approval',
   'trust',
+  'run',
   'cards',
   'chat',
+  'cmd',
+  'share',
 ] as const;
 export type I18nNamespace = (typeof I18N_NAMESPACES)[number];
 
@@ -65,6 +81,7 @@ export const LEGACY_LOCALE_KEY = 'ds-agent-locale';
 export const I18N_RESOURCES = {
   ko: {
     common: koCommon,
+    area: koArea,
     mission: koMission,
     workspace: koWorkspace,
     execution: koExecution,
@@ -74,11 +91,15 @@ export const I18N_RESOURCES = {
     settings: koSettings,
     approval: koApproval,
     trust: koTrust,
+    run: koRun,
     cards: koCards,
     chat: koChat,
+    cmd: koCmd,
+    share: koShare,
   },
   en: {
     common: enCommon,
+    area: enArea,
     mission: enMission,
     workspace: enWorkspace,
     execution: enExecution,
@@ -88,11 +109,15 @@ export const I18N_RESOURCES = {
     settings: enSettings,
     approval: enApproval,
     trust: enTrust,
+    run: enRun,
     cards: enCards,
     chat: enChat,
+    cmd: enCmd,
+    share: enShare,
   },
   ja: {
     common: jaCommon,
+    area: jaArea,
     mission: jaMission,
     workspace: jaWorkspace,
     execution: jaExecution,
@@ -102,8 +127,11 @@ export const I18N_RESOURCES = {
     settings: jaSettings,
     approval: jaApproval,
     trust: jaTrust,
+    run: jaRun,
     cards: jaCards,
     chat: jaChat,
+    cmd: jaCmd,
+    share: jaShare,
   },
 } as const;
 

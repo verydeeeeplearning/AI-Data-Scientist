@@ -114,7 +114,8 @@ def export_file(
     if export_format == ExportFormat.XLSX:
         if suffix not in _TABULAR_SOURCES:
             raise ExportError("XLSX export requires a CSV/TSV source")
-        _export_tabular_to_xlsx(source_path, output_path, delimiter="\t" if suffix == ".tsv" else ",")
+        delimiter = "\t" if suffix == ".tsv" else ","
+        _export_tabular_to_xlsx(source_path, output_path, delimiter=delimiter)
         return ExportResult(output_path=output_path, format=export_format)
 
     raise ExportError(f"Unhandled export format: {export_format.value}")

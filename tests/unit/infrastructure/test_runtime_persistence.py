@@ -7,6 +7,7 @@ import asyncio
 from ds_agent.domain.entities.messages import ChatMessage, Role, ToolCall
 from ds_agent.domain.entities.session_checkpoint import SessionCheckpoint
 from ds_agent.domain.entities.working_memory import SessionWorkingMemory
+from ds_agent.domain.value_objects.analysis_stage import AnalysisStage
 from ds_agent.runtime.approval_store import JsonApprovalStore
 from ds_agent.runtime.checkpoint_store import JsonCheckpointStore
 from ds_agent.runtime.goal_store import JsonGoalStore
@@ -20,14 +21,19 @@ class TestJsonTranscriptStore:
     def test_replace_and_load_messages_roundtrip(self, tmp_path):
         store = JsonTranscriptStore(base_dir=tmp_path)
         messages = [
-            ChatMessage(role=Role.USER, content="Hello"),
+            ChatMessage(role=Role.USER, content="Hello", message_id="msg-user-1"),
             ChatMessage(
                 role=Role.ASSISTANT,
                 content="Calling tool",
                 tool_calls=[ToolCall(id="tc1", name="load_data", arguments={"path": "data.csv"})],
+                message_id="msg-assistant-1",
             ),
             ChatMessage(
-                role=Role.TOOL, content='{"rows": 100}', tool_call_id="tc1", name="load_data"
+                role=Role.TOOL,
+                content='{"rows": 100}',
+                tool_call_id="tc1",
+                name="load_data",
+                message_id="msg-tool-1",
             ),
         ]
 
@@ -36,9 +42,12 @@ class TestJsonTranscriptStore:
 
         assert len(loaded) == 3
         assert loaded[0].role == Role.USER
+        assert loaded[0].message_id == "msg-user-1"
         assert loaded[1].tool_calls is not None
         assert loaded[1].tool_calls[0].name == "load_data"
+        assert loaded[1].message_id == "msg-assistant-1"
         assert loaded[2].tool_call_id == "tc1"
+        assert loaded[2].message_id == "msg-tool-1"
 
     def test_load_messages_limit_returns_tail(self, tmp_path):
         store = JsonTranscriptStore(base_dir=tmp_path)
@@ -80,6 +89,24 @@ class TestJsonTranscriptStore:
         loaded = store.load_messages("telegram:chat1:77")
 
         assert [msg.content for msg in loaded] == ["topic specific"]
+
+    def test_load_messages_backfills_missing_message_ids(self, tmp_path):
+        store = JsonTranscriptStore(base_dir=tmp_path)
+        store.replace_messages(
+            "session-3",
+            [
+                ChatMessage(role=Role.USER, content="legacy ask"),
+                ChatMessage(role=Role.ASSISTANT, content="legacy answer"),
+            ],
+        )
+
+        loaded = store.load_messages("session-3")
+
+        assert all(message.message_id for message in loaded)
+        reloaded = store.load_messages("session-3")
+        assert [message.message_id for message in reloaded] == [
+            message.message_id for message in loaded
+        ]
 
 
 class TestJsonCheckpointStore:
@@ -176,6 +203,8 @@ class TestJsonWorkingMemoryStore:
                 current_summary="Legacy summary",
                 next_step="Legacy next step",
                 recovery_note="Legacy recovery note",
+                current_stage=AnalysisStage.EDA,
+                stage_entered_at=42.0,
             )
         )
 
@@ -184,6 +213,8 @@ class TestJsonWorkingMemoryStore:
         assert memory is not None
         assert memory.current_summary == "Legacy summary"
         assert memory.next_step == "Legacy next step"
+        assert memory.current_stage == AnalysisStage.EDA
+        assert memory.stage_entered_at == 42.0
 
 
 class TestRuntimeEventLog:

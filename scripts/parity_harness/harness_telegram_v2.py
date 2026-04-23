@@ -40,7 +40,6 @@ from pathlib import Path
 from typing import Any
 
 import websockets
-
 from scripts.parity_harness.backend_control import BackendHandle, BackendManager
 from scripts.parity_harness.extract import RunResult, build_run_result
 from scripts.parity_harness.scenarios import Scenario

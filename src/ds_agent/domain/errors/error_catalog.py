@@ -85,7 +85,9 @@ ERROR_CATALOG: dict[str, ErrorCode] = {
     "DSA-SYS-004": ErrorCode(
         code="DSA-SYS-004",
         user_message="The external service connection failed.",
-        support_message="External dependency connection failed before a valid response was received.",
+        support_message=(
+            "External dependency connection failed before a valid response was received."
+        ),
         recovery_hint="Verify the remote host, credentials, and network access, then retry.",
     ),
 }

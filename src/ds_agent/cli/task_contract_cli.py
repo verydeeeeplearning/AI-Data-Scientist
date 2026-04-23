@@ -48,7 +48,13 @@ def run_contract_command(
         if not session_id:
             console.print("Session id is required. Pass `--session-id` after the first run.")
             return 1
-        view = _get_active_view(container.store.get_active_bundle(session_id))
+        view = _get_active_view(
+            container.store.get_active_bundle(session_id),
+            mission_required_artifact_resolver=container.mission_required_artifact_resolver,
+            mission_required_delivery_channel_resolver=(
+                container.mission_required_delivery_channel_resolver
+            ),
+        )
         if view is None:
             console.print("No active task contract for this session.")
             return 0
@@ -56,11 +62,7 @@ def run_contract_command(
         return 0
 
     if args.command == "list":
-        statuses = (
-            [TaskContractStatus(item) for item in args.status]
-            if args.status
-            else None
-        )
+        statuses = [TaskContractStatus(item) for item in args.status] if args.status else None
         items = container.list_contracts.execute(
             args.session_id or default_session_id,
             status_filter=statuses,
@@ -91,12 +93,15 @@ def show_active_task_contract(
 ) -> bool:
     """Print the active contract for the current interactive session."""
 
-    return run_contract_command(
-        [],
-        console=console,
-        workspace_dir=workspace_dir,
-        default_session_id=session_id,
-    ) == 0
+    return (
+        run_contract_command(
+            [],
+            console=console,
+            workspace_dir=workspace_dir,
+            default_session_id=session_id,
+        )
+        == 0
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -125,11 +130,32 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _get_active_view(bundle: TaskContractBundle | None) -> TaskContractViewDTO | None:
+def _get_active_view(
+    bundle: TaskContractBundle | None,
+    *,
+    mission_required_artifact_resolver: object | None = None,
+    mission_required_delivery_channel_resolver: object | None = None,
+) -> TaskContractViewDTO | None:
     if bundle is None:
         return None
+    resolve_for_bundle = getattr(mission_required_artifact_resolver, "resolve_for_bundle", None)
+    mission_artifact_resolution = (
+        resolve_for_bundle(bundle) if callable(resolve_for_bundle) else None
+    )
+    resolve_delivery_for_bundle = getattr(
+        mission_required_delivery_channel_resolver,
+        "resolve_for_bundle",
+        None,
+    )
+    mission_delivery_channel_resolution = (
+        resolve_delivery_for_bundle(bundle) if callable(resolve_delivery_for_bundle) else None
+    )
     return TaskContractViewDTO.from_bundle(
         bundle,
         include=set(_INCLUDE_ALL),
-        dod_summary=TaskContractValidator.build_dod_summary(bundle),
+        dod_summary=TaskContractValidator.build_dod_summary(
+            bundle,
+            mission_artifact_resolution=mission_artifact_resolution,
+            mission_delivery_channel_resolution=mission_delivery_channel_resolution,
+        ),
     )

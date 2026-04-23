@@ -29,6 +29,7 @@ required_checks:
 required_artifacts:
   - exec_brief
   - ds_appendix
+required_delivery_channels:
   - jira_ticket
 auto_escalate_when:
   - confidence_low

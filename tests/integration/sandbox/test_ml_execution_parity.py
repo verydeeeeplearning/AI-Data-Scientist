@@ -19,7 +19,6 @@ S16 / S22 fixtures.
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import subprocess
 import sys

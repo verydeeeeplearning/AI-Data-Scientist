@@ -3,6 +3,7 @@
     "target": "ES2020",
     "module": "CommonJS",
     "moduleResolution": "node",
+    "jsx": "react-jsx",
     "outDir": "tests/.compiled-contract",
     "rootDir": ".",
     "strict": true,
@@ -16,6 +17,12 @@
   "include": [
     "tests/contract/**/*.spec.ts",
     "src/main/task-contract-preview.ts",
+    "src/renderer/vite-env.d.ts",
+    "src/renderer/design-system/**/*.ts",
+    "src/renderer/design-system/**/*.tsx",
+    "src/renderer/components/providers/**/*.tsx",
+    "src/renderer/components/approval/**/*.ts",
+    "src/renderer/components/settings/OnboardingWizard.tsx",
     "src/renderer/components/settings/policyStudioCatalog.ts",
     "src/renderer/components/mission/missionBriefModel.ts",
     "src/renderer/components/workflow/workObjectPanelModel.ts",
@@ -24,6 +31,16 @@
     "src/renderer/types/workObject.ts",
     "src/renderer/domain/**/*.ts",
     "src/renderer/application/**/*.ts",
-    "src/renderer/infrastructure/**/*.ts"
+    "src/renderer/infrastructure/**/*.ts",
+    "src/renderer/hooks/useAccessRole.ts",
+    "src/renderer/hooks/useCanMutate.ts",
+    "src/mobile/router.tsx",
+    "src/mobile/components/**/*.tsx",
+    "src/mobile/pages/**/*.tsx",
+    "src/mobile/sw/cacheStrategy.ts",
+    "src/mobile/sw/pushPayload.ts",
+    "src/mobile/push/**/*.ts",
+    "src/mobile/approvals/**/*.ts",
+    "src/mobile/outbox/**/*.ts"
   ]
 }

@@ -1,3 +1,12 @@
+"""Static import-contract test.
+
+Runs scripts/check_import_contracts.py and asserts it exits clean.
+
+Carve-out: application → ds_agent.runtime is PERMITTED and will NOT
+  cause this test to fail.  See scripts/check_import_contracts.py for
+  the full rationale and list of allowed files.
+"""
+
 from __future__ import annotations
 
 import subprocess

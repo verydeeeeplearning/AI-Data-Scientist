@@ -7,6 +7,7 @@ sklearn) live inside the bundle — the host venv does not need them.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import signal
@@ -127,10 +128,8 @@ class BackendManager:
         except subprocess.TimeoutExpired:
             # Force
             self._kill(handle.process, force=True)
-            try:
+            with contextlib.suppress(subprocess.TimeoutExpired):
                 handle.process.wait(timeout=self._kill_timeout)
-            except subprocess.TimeoutExpired:
-                pass
         return {
             "pid": handle.pid,
             "exit_code": handle.process.returncode,
@@ -150,12 +149,8 @@ class BackendManager:
                     check=False,
                 )
             except FileNotFoundError:
-                try:
+                with contextlib.suppress(Exception):
                     proc.terminate()
-                except Exception:
-                    pass
         else:
-            try:
+            with contextlib.suppress(Exception):
                 proc.send_signal(signal.SIGKILL if force else signal.SIGTERM)
-            except Exception:
-                pass

@@ -6,8 +6,6 @@ confidence decay, duplicate detection, and CRUD operations.
 
 import time
 
-import pytest
-
 from ds_agent.domain.entities.memory import MemoryEntry, MemoryType
 
 # ---------------------------------------------------------------------------

@@ -7,6 +7,9 @@
 
 import { useCallback, useEffect } from 'react';
 import { useWs } from './WsProvider';
+import { uploadFileWithPreview } from '../application/workspace/uploadFile';
+import type { UploadedFileResult } from '../domain/workspace/uploadedFile';
+import { uploadWorkspaceFile } from '../infrastructure/workspace/uploadApi';
 import type { ConnectionStatus } from './useWebSocket';
 import { useAgentStore } from '../stores/agentStore';
 import { useChatStore } from '../stores/chatStore';
@@ -131,35 +134,23 @@ export function useAgent() {
   // Upload file (FE-03: client-side size validation before base64 conversion)
   const MAX_UPLOAD_SIZE = 100 * 1024 * 1024; // 100MB — matches server limit
 
-  const uploadFile = useCallback(async (file: File): Promise<string | null> => {
+  const uploadFile = useCallback(async (file: File): Promise<UploadedFileResult> => {
     if (file.size > MAX_UPLOAD_SIZE) {
       throw new Error(`File exceeds the 100 MB upload limit (${file.size} bytes).`);
     }
 
-    const buffer = await file.arrayBuffer();
-    // 4.18 fix: Chunked encoding avoids O(n²) string concatenation from reduce().
-    // The reduce pattern creates a new string every iteration — O(n²) memory for
-    // a 100MB file peaks at 300MB+. Chunking keeps peak usage bounded.
-    const bytes = new Uint8Array(buffer);
-    const chunkSize = 8192;
-    let binary = '';
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-    }
-    const base64 = btoa(binary);
     try {
-      const result = await rpc('files.upload', { name: file.name, data: base64 });
+      const result = await uploadFileWithPreview(file, uploadWorkspaceFile);
       await refreshFiles();
-      const uploadedPath = typeof result.path === 'string' ? result.path : null;
-      if (!uploadedPath) {
+      if (!result.workspacePath) {
         throw new Error('Backend did not return an uploaded path.');
       }
-      return uploadedPath;
+      return result;
     } catch (err) {
       console.error('[useAgent] upload failed:', err);
       throw err instanceof Error ? err : new Error(String(err));
     }
-  }, [rpc, refreshFiles]);
+  }, [refreshFiles]);
 
   return {
     status: status as ConnectionStatus,

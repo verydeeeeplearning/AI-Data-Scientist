@@ -50,13 +50,22 @@ Learning tools affected: `list_learning_inbox`, `review_learning_item`, `get_lea
 
 ### 2.2 Off observed
 
-Flag = `false` → `list_learning_inbox()`, `get_learning_item(item_id="LI-x")`, `list_promotions()`, `list_deprecations()` all return:
+> **⚠ CORRECTED 2026-04-22 (Gap 5A-1 resolution)** — Original observation below was recorded against an earlier code state. As of Gap 5A-1 resolution, the official policy is **Read-only-visible**: read-only tools remain accessible when flag is OFF; only mutation tools return DISABLED.
 
-```json
-{"ok": false, "error": {"code": "DISABLED", "message": "Self-improve governance is not enabled."}}
-```
+Flag = `false` observed behavior (current, Read-only-visible policy):
 
-Confirmed across all 4 tested read-side tools.
+| Tool | Flag OFF behavior |
+|------|-------------------|
+| `list_learning_inbox` | `{"ok": true, ...}` — accessible (read-only) |
+| `get_learning_item` | `{"ok": true, ...}` — accessible (read-only) |
+| `list_promotions` | `{"ok": true, ...}` — accessible (read-only) |
+| `list_deprecations` | `{"ok": true, ...}` — accessible (read-only) |
+| `get_gc_report` | `{"ok": true, ...}` — accessible (read-only) |
+| `get_learning_governance_status` | `{"ok": true, "review_enabled": false, ...}` — accessible |
+| `review_learning_item` | `{"ok": false, "error": {"code": "DISABLED", ...}}` — mutation blocked |
+| `rollback_promotion` | `{"ok": false, "error": {"code": "DISABLED", ...}}` — mutation blocked |
+| `run_gc_loop` | `{"ok": false, "error": {"code": "DISABLED", ...}}` — mutation blocked |
+| `finalize_learning_candidate_promotion` | `{"ok": false, "error": {"code": "DISABLED", ...}}` — mutation blocked |
 
 ### 2.3 Prompt-builder gate
 
@@ -68,14 +77,20 @@ These require an `item_id` to exist in the store. The DISABLED guard short-circu
 
 ### 2.5 Summary
 
+> **Updated 2026-04-22 (Gap 5A-1)**: Read-only-visible policy adopted. Read-only tools accessible regardless of flag; mutation tools blocked when flag OFF.
+
 | Tool | Off behavior | Structural gate |
 |------|--------------|:---------------:|
-| list_learning_inbox | DISABLED | body only |
-| review_learning_item | DISABLED | body only |
-| get_learning_item | DISABLED | body only |
-| list_promotions | DISABLED | body only |
-| list_deprecations | DISABLED | body only |
-| rollback_promotion | DISABLED | body only |
+| list_learning_inbox | **accessible (ok: true)** | body (require_mutation=False) |
+| get_learning_item | **accessible (ok: true)** | body (require_mutation=False) |
+| list_promotions | **accessible (ok: true)** | body (require_mutation=False) |
+| list_deprecations | **accessible (ok: true)** | body (require_mutation=False) |
+| get_gc_report | **accessible (ok: true)** | none (no store needed) |
+| get_learning_governance_status | **accessible (review_enabled: false)** | body (require_mutation=False) |
+| review_learning_item | DISABLED | body (require_mutation=True) |
+| rollback_promotion | DISABLED | body (require_mutation=True) |
+| run_gc_loop | DISABLED | body (require_mutation=True) |
+| finalize_learning_candidate_promotion | DISABLED | body (require_mutation=True) |
 | prompt `# Learning Governance` block | **omitted** | **prompt-level** |
 
 ---
@@ -85,7 +100,7 @@ These require an `item_id` to exist in the store. The DISABLED guard short-circu
 | Flag | Off behavior | On behavior | Verdict |
 |------|--------------|-------------|---------|
 | `DS_AGENT_PORTFOLIO_ENABLED` | all 5 portfolio tools return `DISABLED`; no state mutation | normal CRUD / transition paths | PASS (behavioral gate) |
-| `DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1` | 6 learning tools return `DISABLED`; prompt Learning Governance section omitted | tools and prompt section active | PASS (behavioral + prompt gate) |
+| `DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1` | read-only tools accessible; mutation tools (review/rollback/gc_loop/finalize) return `DISABLED`; prompt Learning Governance section omitted | tools (require_mutation gate) + prompt gate | PASS — Read-only-visible policy (Gap 5A-1) |
 | `DS_AGENT_MAX_ACTIVE_SLOTS` (numeric) | default 3 | observed 2 when set | works as documented |
 
 ---

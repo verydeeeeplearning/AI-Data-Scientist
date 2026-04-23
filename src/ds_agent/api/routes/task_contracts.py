@@ -5,14 +5,19 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, model_validator
 
+from ds_agent.api.dependencies import (
+    require_resource_access,
+    require_session_mutation,
+)
 from ds_agent.application.dtos.task_contract import (
     BuildDeliveryPackDTO,
     DispatchDeliveryDTO,
     ListDeliveryLogDTO,
     RenderDeliveryArtifactDTO,
+    TaskContractDraftDTO,
     TaskContractUpdateDTO,
     TaskContractViewDTO,
     VerifyAssumptionDTO,
@@ -36,6 +41,7 @@ from ds_agent.infrastructure.verifier_container import (
     build_verifier_container,
 )
 from ds_agent.runtime.provider_factory import create_provider_router
+from ds_agent.runtime.session_registry import RuntimeSessionRegistry
 
 if TYPE_CHECKING:
     from ds_agent.api.ws_handler import AppState
@@ -57,6 +63,7 @@ class TaskContractUpdateRequest(BaseModel):
     patch: dict[str, Any] = Field(default_factory=dict)
     transition_to: TaskContractStatus | None = Field(default=None, alias="transitionTo")
     reason: str | None = None
+    run_id: str | None = Field(default=None, alias="runId")
 
 
 class TaskContractCloseRequest(BaseModel):
@@ -127,10 +134,41 @@ async def get_active_task_contract(
 ) -> dict[str, dict[str, Any] | None]:
     """Return the most recent non-terminal contract for a session."""
 
-    bundle = _container_for_request(request).store.get_active_bundle(session_id)
+    container = _container_for_request(request)
+    bundle = container.store.get_active_bundle(session_id)
     if bundle is None:
         return {"contract": None}
-    return {"contract": _view_from_bundle(bundle, include).model_dump(mode="json")}
+    return {
+        "contract": _view_from_bundle(
+            bundle,
+            include,
+            mission_required_artifact_resolver=container.mission_required_artifact_resolver,
+            mission_required_delivery_channel_resolver=(
+                container.mission_required_delivery_channel_resolver
+            ),
+        ).model_dump(mode="json")
+    }
+
+
+@router.post(
+    "",
+    dependencies=[Depends(require_session_mutation("task_contract", "mutate"))],
+)
+async def create_task_contract(
+    request: Request,
+    body: TaskContractDraftDTO,
+) -> dict[str, Any]:
+    """Create a draft task contract for the current session."""
+
+    container = _container_for_request(request)
+    try:
+        result = container.create.execute(body)
+    except Exception as exc:  # pragma: no cover - exercised through helper
+        _raise_contract_http_error(exc)
+
+    state: AppState = request.app.state.app_state
+    state.broadcast_mission_context_update(body.session_id)
+    return {"result": result}
 
 
 @router.get("/{task_id}")
@@ -144,12 +182,23 @@ async def get_task_contract(
     container = _container_for_request(request)
     try:
         view = container.get.execute(task_id, include=include or _DEFAULT_INCLUDE)
-    except TaskContractNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - exercised through helper
+        _raise_contract_http_error(exc)
     return {"contract": view.model_dump(mode="json")}
 
 
-@router.post("/{task_id}/update")
+@router.post(
+    "/{task_id}/update",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="task_contract",
+                action="mutate",
+                resource_id_extractor=lambda req: req.path_params.get("task_id", ""),
+            )
+        )
+    ],
+)
 async def update_task_contract(
     task_id: str,
     request: Request,
@@ -159,6 +208,12 @@ async def update_task_contract(
 
     container = _container_for_request(request)
     try:
+        review_run_id = _resolve_review_run_id(
+            request,
+            task_id,
+            explicit_run_id=body.run_id,
+            container=container,
+        )
         result = container.update.execute(
             TaskContractUpdateDTO.model_validate(
                 {
@@ -167,15 +222,28 @@ async def update_task_contract(
                     "patch": body.patch,
                     "transition_to": body.transition_to,
                     "reason": body.reason,
+                    "run_id": review_run_id,
                 }
             )
         )
     except Exception as exc:  # pragma: no cover - exercised through helper
         _raise_contract_http_error(exc)
+    _broadcast_mission_for_task(request, task_id, body.patch)
     return {"result": result}
 
 
-@router.post("/{task_id}/close")
+@router.post(
+    "/{task_id}/close",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="task_contract",
+                action="mutate",
+                resource_id_extractor=lambda req: req.path_params.get("task_id", ""),
+            )
+        )
+    ],
+)
 async def close_task_contract(
     task_id: str,
     request: Request,
@@ -195,7 +263,18 @@ async def close_task_contract(
     return {"result": result}
 
 
-@router.post("/{task_id}/assumptions/{entry_id}/verify")
+@router.post(
+    "/{task_id}/assumptions/{entry_id}/verify",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="task_contract",
+                action="mutate",
+                resource_id_extractor=lambda req: req.path_params.get("task_id", ""),
+            )
+        )
+    ],
+)
 async def verify_assumption(
     task_id: str,
     entry_id: str,
@@ -221,7 +300,18 @@ async def verify_assumption(
     return {"result": result}
 
 
-@router.post("/{task_id}/delivery-pack/build")
+@router.post(
+    "/{task_id}/delivery-pack/build",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="task_contract",
+                action="mutate",
+                resource_id_extractor=lambda req: req.path_params.get("task_id", ""),
+            )
+        )
+    ],
+)
 async def build_delivery_pack(
     task_id: str,
     request: Request,
@@ -251,7 +341,18 @@ async def build_delivery_pack(
     return {"result": result}
 
 
-@router.post("/{task_id}/delivery-artifacts/{artifact_id}/render")
+@router.post(
+    "/{task_id}/delivery-artifacts/{artifact_id}/render",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="task_contract",
+                action="export",
+                resource_id_extractor=lambda req: req.path_params.get("task_id", ""),
+            )
+        )
+    ],
+)
 async def render_delivery_artifact(
     task_id: str,
     artifact_id: str,
@@ -287,7 +388,18 @@ async def render_delivery_artifact(
     return {"result": result}
 
 
-@router.post("/{task_id}/delivery/dispatch")
+@router.post(
+    "/{task_id}/delivery/dispatch",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="task_contract",
+                action="share",
+                resource_id_extractor=lambda req: req.path_params.get("task_id", ""),
+            )
+        )
+    ],
+)
 async def dispatch_delivery(
     task_id: str,
     request: Request,
@@ -413,19 +525,117 @@ def _verifier_container_for_request(request: Request) -> VerifierContainer:
 def _view_from_bundle(
     bundle: TaskContractBundle,
     include: list[str] | None,
+    *,
+    mission_required_artifact_resolver: object | None = None,
+    mission_required_delivery_channel_resolver: object | None = None,
 ) -> TaskContractViewDTO:
+    resolve_for_bundle = getattr(mission_required_artifact_resolver, "resolve_for_bundle", None)
+    mission_artifact_resolution = (
+        resolve_for_bundle(bundle) if callable(resolve_for_bundle) else None
+    )
+    resolve_delivery_for_bundle = getattr(
+        mission_required_delivery_channel_resolver,
+        "resolve_for_bundle",
+        None,
+    )
+    mission_delivery_channel_resolution = (
+        resolve_delivery_for_bundle(bundle) if callable(resolve_delivery_for_bundle) else None
+    )
     return TaskContractViewDTO.from_bundle(
         bundle,
         include=set(include or _DEFAULT_INCLUDE),
-        dod_summary=TaskContractValidator.build_dod_summary(bundle),
+        dod_summary=TaskContractValidator.build_dod_summary(
+            bundle,
+            mission_artifact_resolution=mission_artifact_resolution,
+            mission_delivery_channel_resolution=mission_delivery_channel_resolution,
+        ),
     )
+
+
+_MISSION_RELEVANT_PATCH_FIELDS = frozenset(
+    {
+        "business_goal",
+        "allowed_data_sources",
+        "required_deliverables",
+        "definition_of_done",
+        "audience",
+        "authority",
+        "budget",
+        "autonomy",
+        "mission",
+    }
+)
+
+_PATCH_TO_MISSION_DELTA_FIELDS: dict[str, str] = {
+    "allowed_data_sources": "dataSources",
+    "required_deliverables": "deliverables",
+    "authority": "constraints",
+}
+
+
+def _build_mission_delta(patch: dict[str, Any]) -> dict[str, object]:
+    delta: dict[str, object] = {}
+    for source_key, target_key in _PATCH_TO_MISSION_DELTA_FIELDS.items():
+        if source_key in patch:
+            delta[target_key] = True
+    return delta
+
+
+def _broadcast_mission_for_task(
+    request: Request,
+    task_id: str,
+    patch: dict[str, Any] | None,
+) -> None:
+    if patch is None:
+        return
+    if not (set(patch.keys()) & _MISSION_RELEVANT_PATCH_FIELDS):
+        return
+    state: AppState = request.app.state.app_state
+    container = _container_for_request(request)
+    bundle = container.store.get_bundle(task_id)
+    session_id = bundle.contract.session_id if bundle is not None else None
+    if not session_id:
+        return
+    delta = _build_mission_delta(patch)
+    state.broadcast_mission_context_update(session_id, delta=delta or None)
+
+
+def _resolve_review_run_id(
+    request: Request,
+    task_id: str,
+    *,
+    explicit_run_id: str | None,
+    container: TaskContractContainer,
+) -> str | None:
+    normalized_explicit = (explicit_run_id or "").strip()
+    if normalized_explicit:
+        return normalized_explicit
+
+    bundle = container.store.get_bundle(task_id)
+    if bundle is None:
+        return None
+
+    session_id = bundle.contract.session_id.strip()
+    if not session_id:
+        return None
+
+    state: AppState = request.app.state.app_state
+    registry = RuntimeSessionRegistry(str(state.config.agent.workspace_dir))
+    session = registry.get(session_id)
+    if session is None or session.last_run_id is None:
+        return None
+
+    normalized_last_run = session.last_run_id.strip()
+    return normalized_last_run or None
 
 
 def _raise_contract_http_error(exc: Exception) -> None:
     if isinstance(exc, TaskContractNotFoundError):
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail=exc.to_api_detail()) from exc
     if isinstance(exc, VersionConflictError):
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    if isinstance(exc, (TaskContractError, ValueError)):
+        raise HTTPException(status_code=409, detail=exc.to_api_detail()) from exc
+    if isinstance(exc, TaskContractError):
+        raise HTTPException(status_code=400, detail=exc.to_api_detail()) from exc
+    if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc

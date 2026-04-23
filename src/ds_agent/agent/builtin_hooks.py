@@ -25,6 +25,7 @@ from ds_agent.application.services.review_artifact_capture import (
     extract_review_artifact_captures,
     review_artifact_capture_instructions,
 )
+from ds_agent.domain.entities.review_verdict import ReviewVerdict
 from ds_agent.domain.value_objects.authority_mode import AuthorityMode
 
 if TYPE_CHECKING:
@@ -70,12 +71,14 @@ class PermissionHook(ToolHook):
         audience = None
         mission = None
         mission_pack = None
+        latest_review_verdict = None
         if self._task_contract_store is not None and context.session_id:
             bundle = self._task_contract_store.get_active_bundle(context.session_id)
             if bundle is not None:
                 authority = bundle.contract.authority
                 audience = bundle.contract.audience
                 mission = bundle.contract.mission
+                latest_review_verdict = _latest_review_verdict(bundle.review_verdicts)
                 if mission and self._mission_loader is not None:
                     mission_pack = self._mission_loader.try_load(mission)
         if overlay_authority is not None:
@@ -89,6 +92,7 @@ class PermissionHook(ToolHook):
             audience_persona=audience,
             mission=mission,
             mission_pack=mission_pack,
+            latest_review_verdict=latest_review_verdict,
             certification_store=self._certification_store,
             action_matrix=(
                 self._policy_store.build_action_matrix() if self._policy_store is not None else None
@@ -420,6 +424,12 @@ def _overlay_authority(value: str | None) -> AuthorityMode | None:
     if resolved in {AuthorityMode.INCIDENT, AuthorityMode.FREEZE}:
         return resolved
     return None
+
+
+def _latest_review_verdict(review_verdicts: list[ReviewVerdict]) -> ReviewVerdict | None:
+    if not review_verdicts:
+        return None
+    return max(review_verdicts, key=lambda verdict: verdict.created_at)
 
 
 def _parse_experiment_metrics(result: str) -> dict[str, float]:

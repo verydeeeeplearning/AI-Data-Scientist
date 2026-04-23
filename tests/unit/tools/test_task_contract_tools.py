@@ -240,3 +240,70 @@ async def test_update_task_contract_returns_version_conflict(task_contract_tool_
     )
     assert result["ok"] is False
     assert result["error"]["code"] == "VERSION_CONFLICT"
+
+
+@pytest.mark.asyncio
+async def test_update_task_contract_returns_review_gate_metadata(task_contract_tool_module) -> None:
+    created = json.loads(
+        await ToolRegistry.dispatch(
+            "create_task_contract",
+            {
+                "session_id": "session-1",
+                "contract_type": "churn_analysis",
+                "business_goal": "Reduce churn",
+                "goal_brief": {
+                    "business_question": "Why churn?",
+                    "ds_problem_statement": "Binary classification",
+                    "comparison_baseline": "last quarter",
+                    "decision_to_make": "prioritize actions",
+                    "expected_effort": "M",
+                },
+                "required_deliverables": [
+                    {"type": "exec_brief", "audience": "executive", "format": "pptx"}
+                ],
+            },
+        )
+    )
+
+    agreed = json.loads(
+        await ToolRegistry.dispatch(
+            "update_task_contract",
+            {
+                "task_id": created["task_id"],
+                "expected_version": 1,
+                "patch": {},
+                "transition_to": "agreed",
+            },
+        )
+    )
+    assert agreed["ok"] is True
+
+    in_progress = json.loads(
+        await ToolRegistry.dispatch(
+            "update_task_contract",
+            {
+                "task_id": created["task_id"],
+                "expected_version": 2,
+                "patch": {},
+                "transition_to": "in_progress",
+            },
+        )
+    )
+    assert in_progress["ok"] is True
+
+    result = json.loads(
+        await ToolRegistry.dispatch(
+            "update_task_contract",
+            {
+                "task_id": created["task_id"],
+                "expected_version": 3,
+                "patch": {},
+                "transition_to": "review",
+            },
+        )
+    )
+
+    assert result["ok"] is False
+    assert result["error"]["code"] == "INVALID_TRANSITION"
+    assert result["error"]["metadata"]["kind"] == "verifier_review_gate"
+    assert result["error"]["metadata"]["failure"] == "missing_review_verdict"

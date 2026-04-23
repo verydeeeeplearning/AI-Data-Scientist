@@ -10,6 +10,9 @@ import type {
 } from './types/workObject';
 import type {
   AssumptionVerificationResultView,
+  TaskContractCreatePayload,
+  TaskContractCreateResultView,
+  TaskContractIpcErrorResult,
   DeliveryBuildResultView,
   DeliveryDispatchResultView,
   DeliveryLogQueryResultView,
@@ -164,21 +167,25 @@ interface ElectronAPI {
       limit?: number;
     }) => Promise<
       | { ok: true; contracts: TaskContractListItem[] }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     active: (params: {
       sessionId: string;
       include?: string[];
     }) => Promise<
       | { ok: true; contract: TaskContractView | null }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     get: (params: {
       taskId: string;
       include?: string[];
     }) => Promise<
       | { ok: true; contract: TaskContractView }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
+    >;
+    create: (params: TaskContractCreatePayload) => Promise<
+      | { ok: true; result: TaskContractCreateResultView }
+      | TaskContractIpcErrorResult
     >;
     update: (params: {
       taskId: string;
@@ -188,7 +195,7 @@ interface ElectronAPI {
       reason?: string;
     }) => Promise<
       | { ok: true; result: { task_id: string; status: string; new_version: number } }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     close: (params: {
       taskId: string;
@@ -204,7 +211,7 @@ interface ElectronAPI {
             dod_summary: string[];
           };
         }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     verifyAssumption: (params: {
       taskId: string;
@@ -213,7 +220,7 @@ interface ElectronAPI {
       verificationNote?: string;
     }) => Promise<
       | { ok: true; result: AssumptionVerificationResultView }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     buildDeliveryPack: (params: {
       taskId: string;
@@ -227,7 +234,7 @@ interface ElectronAPI {
       tenant?: string;
     }) => Promise<
       | { ok: true; result: DeliveryBuildResultView }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     renderArtifact: (params: {
       taskId: string;
@@ -239,7 +246,7 @@ interface ElectronAPI {
       model?: string;
     }) => Promise<
       | { ok: true; result: DeliveryRenderResultView }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     previewRenderedArtifact: (params: {
       renderedUri: string;
@@ -256,7 +263,7 @@ interface ElectronAPI {
       approveManualReview?: boolean;
     }) => Promise<
       | { ok: true; result: DeliveryDispatchResultView }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     listDeliveryLog: (params: {
       taskId: string;
@@ -266,7 +273,7 @@ interface ElectronAPI {
       limit?: number;
     }) => Promise<
       | { ok: true; result: DeliveryLogQueryResultView }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     listShadowComparisons: (params: {
       taskId: string;
@@ -275,14 +282,14 @@ interface ElectronAPI {
       limit?: number;
     }) => Promise<
       | { ok: true; comparisons: ShadowComparisonView[] }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
     getShadowComparison: (params: {
       taskId: string;
       comparisonId: string;
     }) => Promise<
       | { ok: true; comparison: ShadowComparisonView }
-      | { ok: false; error: string }
+      | TaskContractIpcErrorResult
     >;
   };
   updater: {
@@ -307,6 +314,39 @@ interface ElectronAPI {
         | 'error',
       handler: (payload: Record<string, unknown>) => void
     ) => () => void;
+  };
+  deepLink: {
+    onDeepLink: (handler: (uri: string) => void) => () => void;
+  };
+  webPush?: {
+    getPublicKey: () => Promise<{
+      ok: boolean;
+      publicKey?: string;
+      reason?: string;
+    }>;
+    getSubject: () => Promise<{
+      ok: boolean;
+      subject?: string | null;
+      source?: 'config' | 'env' | null;
+      reason?: string;
+    }>;
+    setSubject: (payload: {
+      subject: string;
+    }) => Promise<{
+      ok: boolean;
+      subject?: string | null;
+      source?: 'config' | 'env' | null;
+      error?: string;
+    }>;
+    registerSubscription: (payload: {
+      endpoint: string;
+      p256dhKey: string;
+      authKey: string;
+    }) => Promise<{ ok: boolean; error?: string }>;
+    unregisterSubscription: (payload: { endpoint: string }) => Promise<{
+      ok: boolean;
+      error?: string;
+    }>;
   };
 }
 

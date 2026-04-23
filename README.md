@@ -108,6 +108,7 @@ DS Agent> 데이터를 로드하고 프로파일링하겠습니다...
 ### Verification baseline
 | Check | Command | Result |
 |-------|---------|--------|
+| Backend baseline gate | `python scripts/check_backend_quality_gate.py` | Import contracts + architecture + DS semantic contracts |
 | Unit + smoke | `pytest tests/unit tests/smoke` | **1382 passed** |
 | Backend smoke | `pytest tests/smoke` | **5 passed** (packaged binary boots, /health, /ws) |
 | Electron typecheck | `cd electron && npm run typecheck` | Clean |
@@ -352,6 +353,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\clean_workspace.ps1 -Apply -I
 
 Current verification snapshot:
 
+- `python scripts/check_backend_quality_gate.py` → backend baseline gate (import contracts + architecture + DS semantic contracts)
 - `pytest tests/unit tests/smoke` → **1382 passed**
 - Packaged-binary smoke suite: 5/5 (backend boot, `/health`, `/api/status`, WS connect)
 - Electron E2E: 2/2 (diagnostic-window failure path + happy-path)

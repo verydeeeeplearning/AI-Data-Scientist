@@ -9,6 +9,9 @@ import type {
   DeliveryRenderResultView,
   ReviewVerdictView,
   ShadowComparisonView,
+  TaskContractCreatePayload,
+  TaskContractCreateResultView,
+  TaskContractErrorDetailView,
   TaskContractStatus,
   TaskContractView,
 } from '../types/taskContract';
@@ -264,10 +267,25 @@ export function useTaskContract() {
       reason,
     });
     if (!result.ok) {
-      throw new Error(result.error);
+      throw buildTaskContractOperationError(result.error, result.errorDetail);
     }
     await refresh();
   }, [activeContract, refresh]);
+
+  const createContract = useCallback(async (
+    payload: TaskContractCreatePayload,
+  ): Promise<TaskContractCreateResultView> => {
+    if (!window.electronAPI?.taskContract) {
+      throw new Error('Task contract IPC bridge is unavailable.');
+    }
+    const result = await window.electronAPI.taskContract.create(payload);
+    if (!result.ok) {
+      throw buildTaskContractOperationError(result.error, result.errorDetail);
+    }
+    lastViewedTaskIdRef.current = result.result.task_id;
+    await refresh();
+    return result.result;
+  }, [refresh]);
 
   const savePatch = useCallback(async (patch: Record<string, unknown>, reason: string) => {
     if (!activeContract || !window.electronAPI?.taskContract) {
@@ -280,7 +298,7 @@ export function useTaskContract() {
       reason,
     });
     if (!result.ok) {
-      throw new Error(result.error);
+      throw buildTaskContractOperationError(result.error, result.errorDetail);
     }
     await refresh();
   }, [activeContract, refresh]);
@@ -295,7 +313,7 @@ export function useTaskContract() {
       closingNote,
     });
     if (!result.ok) {
-      throw new Error(result.error);
+      throw buildTaskContractOperationError(result.error, result.errorDetail);
     }
     await refresh();
   }, [activeContract, refresh]);
@@ -315,7 +333,7 @@ export function useTaskContract() {
       verificationNote: params.verificationNote,
     });
     if (!result.ok) {
-      throw new Error(result.error);
+      throw buildTaskContractOperationError(result.error, result.errorDetail);
     }
     await refresh();
     return result.result;
@@ -340,7 +358,7 @@ export function useTaskContract() {
       ...params,
     });
     if (!result.ok) {
-      throw new Error(result.error);
+      throw buildTaskContractOperationError(result.error, result.errorDetail);
     }
     await refresh();
     return result.result;
@@ -368,7 +386,7 @@ export function useTaskContract() {
       model: params.model,
     });
     if (!result.ok) {
-      throw new Error(result.error);
+      throw buildTaskContractOperationError(result.error, result.errorDetail);
     }
     await refresh();
     return result.result;
@@ -392,7 +410,7 @@ export function useTaskContract() {
       approveManualReview: params.approveManualReview,
     });
     if (!result.ok) {
-      throw new Error(result.error);
+      throw buildTaskContractOperationError(result.error, result.errorDetail);
     }
     await refresh();
     return result.result;
@@ -413,6 +431,7 @@ export function useTaskContract() {
     refreshDeliveryLog,
     refreshShadowComparison,
     transition,
+    createContract,
     savePatch,
     closeContract,
     verifyAssumption,
@@ -443,4 +462,15 @@ function getShadowMismatchCount(verdict: ReviewVerdictView | null): number {
   return typeof verdict?.metadata?.shadow_mismatch_count === 'number'
     ? verdict.metadata.shadow_mismatch_count
     : 0;
+}
+
+function buildTaskContractOperationError(
+  message: string,
+  detail?: TaskContractErrorDetailView,
+): Error {
+  const error = new Error(message);
+  if (detail) {
+    Object.assign(error, { detail });
+  }
+  return error;
 }

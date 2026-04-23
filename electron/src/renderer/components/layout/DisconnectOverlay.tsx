@@ -53,14 +53,14 @@ export function DisconnectOverlay({ status, reason }: Props) {
     reason === 'backend_crashed'
       ? <AlertTriangle size={24} className="text-ds-error mx-auto mb-3" />
       : reason === 'network_error' || reason === 'ws_closed'
-        ? <WifiOff size={24} className="text-amber-400 mx-auto mb-3" />
+        ? <WifiOff size={24} className="text-ds-warning mx-auto mb-3" />
         : <Loader2 size={24} className="text-ds-accent animate-spin mx-auto mb-3" />;
   const reasonCode = reason === 'unknown' ? 'reconnecting' : reason;
   const toneClass =
     copy.tone === 'error'
       ? 'text-ds-error'
       : copy.tone === 'warning'
-        ? 'text-amber-400'
+        ? 'text-ds-warning'
         : 'text-ds-accent';
 
   return (

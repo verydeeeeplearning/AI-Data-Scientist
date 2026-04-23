@@ -3,12 +3,13 @@ import sys
 import tempfile
 from pathlib import Path
 
+
 def test_app_exec_mode_success():
     """Verify that 'python -m ds_agent.api.app --mode exec SCRIPT' runs the script."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
         f.write("import sys\nprint('HELLO_FROM_EXEC_MODE')\nsys.exit(0)")
         script_path = f.name
-    
+
     try:
         # Run using current python interpreter to avoid dependency issues in the test environment
         result = subprocess.run(
@@ -27,7 +28,7 @@ def test_app_exec_mode_failure():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
         f.write("import sys\nsys.exit(42)")
         script_path = f.name
-    
+
     try:
         result = subprocess.run(
             [sys.executable, "-m", "ds_agent.api.app", "--mode", "exec", script_path],

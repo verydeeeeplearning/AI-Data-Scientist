@@ -7,7 +7,6 @@ from ds_agent.domain.value_objects.connector import (
     ConnectorType,
     CostEstimate,
     QuerySpec,
-    SqlValidationResult,
     validate_sql_safety,
 )
 

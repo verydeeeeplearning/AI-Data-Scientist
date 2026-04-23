@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from ds_agent.application.ports.run_diff_support import MetricDirectionLabel
 from ds_agent.application.services.run_diff_usecases import CompareRunsUseCase, RunDiffEngine
 from ds_agent.domain.entities.experiment import ExperimentRun
+from ds_agent.domain.entities.review_artifact import build_review_artifact
 
 
 def _run(run_id: str, **overrides: object) -> ExperimentRun:
@@ -34,7 +35,8 @@ def _run(run_id: str, **overrides: object) -> ExperimentRun:
                 "f1_macro": 0.79,
                 "auc": 0.85,
                 "fp_rate": 0.12,
-            }
+            },
+            "plots": ["artifacts/roc_curve_champion.png"],
         },
         "verifier_summary": {
             "statistical": "PASS",
@@ -42,6 +44,17 @@ def _run(run_id: str, **overrides: object) -> ExperimentRun:
             "policy": "WARN",
         },
         "verifier_findings": ["policy.missing_rollback"],
+        "review_artifacts": [
+            build_review_artifact(
+                skill_name="retrain-vs-rollback",
+                summary="Keep the baseline until the rollout plan is ready.",
+                artifact={
+                    "recommendation": "hold",
+                    "rationale": "Rollback plan is incomplete.",
+                    "evidence": ["policy.missing_rollback"],
+                },
+            ).model_dump(mode="json")
+        ],
         "created_at": datetime(2026, 4, 16, tzinfo=UTC),
         "owner": "growth-ds",
         "status": "succeeded",
@@ -72,6 +85,11 @@ def test_compare_runs_computes_feature_config_metric_and_verifier_diffs() -> Non
     run_b = _run(
         "run-b",
         sequence=2,
+        hypothesis={
+            "statement": "Candidate uplift with new feature mix",
+            "rationale": "Trade additional variance for stronger recall under the updated feature set.",
+            "expected_effect": "f1_macro and recall improve together.",
+        },
         method={
             "model_family": "lightgbm",
             "hyperparameters": {
@@ -91,7 +109,8 @@ def test_compare_runs_computes_feature_config_metric_and_verifier_diffs() -> Non
                 "f1_macro": 0.83,
                 "auc": 0.88,
                 "fp_rate": 0.09,
-            }
+            },
+            "plots": ["artifacts/roc_curve_candidate.png", "artifacts/pr_curve_candidate.png"],
         },
         verifier_summary={
             "statistical": "PASS",
@@ -99,6 +118,17 @@ def test_compare_runs_computes_feature_config_metric_and_verifier_diffs() -> Non
             "policy": "PASS",
         },
         verifier_findings=["policy.rollback_plan_validated"],
+        review_artifacts=[
+            build_review_artifact(
+                skill_name="retrain-vs-rollback",
+                summary="Rollback is no longer needed; the candidate is stable enough to retrain.",
+                artifact={
+                    "recommendation": "retrain",
+                    "rationale": "Metric uplift offsets the remaining deployment risk.",
+                    "evidence": ["f1_macro=0.83", "fp_rate=0.09"],
+                },
+            ).model_dump(mode="json")
+        ],
     )
     use_case = CompareRunsUseCase(
         RunDiffEngine(
@@ -120,9 +150,29 @@ def test_compare_runs_computes_feature_config_metric_and_verifier_diffs() -> Non
     assert metric_directions["f1_macro"] == "better"
     assert metric_directions["auc"] == "better"
     assert metric_directions["fp_rate"] == "better"
+    assert {delta.metric for delta in diff.metrics if delta.highlighted} == {
+        "f1_macro",
+        "fp_rate",
+    }
+    assert any(delta.significance_note for delta in diff.metrics if delta.highlighted)
+    assert {entry.key for entry in diff.artifacts} == {
+        "plot:artifacts/pr_curve_candidate.png",
+        "plot:artifacts/roc_curve_candidate.png",
+        "plot:artifacts/roc_curve_champion.png",
+        "review:retrain-vs-rollback",
+    }
+    assert [entry.key for entry in diff.decisions] == [
+        "hypothesis",
+        "feature-strategy",
+        "model-strategy",
+        "verifier",
+        "review-artifact:retrain-vs-rollback",
+    ]
     assert diff.verifier.policy == ("WARN", "PASS")
     assert diff.verifier.new_findings == ["policy.rollback_plan_validated"]
     assert diff.verifier.resolved_findings == ["policy.missing_rollback"]
+    assert "## Artifact Diff" in diff.summary_markdown
+    assert "## Decision Trace" in diff.summary_markdown
     assert "Run Diff: run-b vs run-a" in diff.summary_markdown
 
 

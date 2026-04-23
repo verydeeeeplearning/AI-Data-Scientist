@@ -10,10 +10,18 @@ from fastapi.testclient import TestClient
 
 from ds_agent.api.app import create_app
 from ds_agent.api.ws_handler import AppState
-from ds_agent.application.dtos.task_contract import AssumptionInputDTO, TaskContractDraftDTO
+from ds_agent.application.dtos.task_contract import (
+    AssumptionInputDTO,
+    DeliveryPackInputDTO,
+    ReviewVerdictInputDTO,
+    TaskContractDraftDTO,
+    TaskContractUpdateDTO,
+)
 from ds_agent.config.schema import AgentConfig, DSAgentConfig
 from ds_agent.domain.entities.messages import LLMResponse, Usage
 from ds_agent.domain.entities.provider_models import ModelInfo
+from ds_agent.domain.entities.task_contract import TaskContractStatus
+from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
 from ds_agent.infrastructure.task_contract_container import build_task_contract_container
 from ds_agent.tools.verifier_tool import run_verifier
 
@@ -57,6 +65,7 @@ def _create_contract_with_deliverables(
     *,
     session_id: str = "ws-session-1",
     required_deliverables: list[dict[str, str]],
+    mission: str | None = None,
 ) -> str:
     container = build_task_contract_container(workspace_dir)
     result = container.create.execute(
@@ -72,6 +81,7 @@ def _create_contract_with_deliverables(
                 "expected_effort": "M",
             },
             required_deliverables=required_deliverables,
+            mission=mission,
         )
     )
     return str(result["task_id"])
@@ -114,6 +124,32 @@ def _verifier_artifacts() -> dict[str, object]:
     }
 
 
+def _mission_required_check_metadata(
+    *,
+    mission_name: str,
+    required_checks: tuple[str, ...],
+    mapped_required_checks: dict[str, tuple[str, ...]],
+    required_check_results: dict[str, str],
+    unmapped_required_checks: tuple[str, ...] = (),
+) -> dict[str, object]:
+    return {
+        "mission_name": mission_name,
+        "mission_pack_loaded": True,
+        "mission_required_checks": list(required_checks),
+        "mission_required_check_map": {
+            required_check: list(mapped_check_ids)
+            for required_check, mapped_check_ids in mapped_required_checks.items()
+        },
+        "mission_unmapped_required_checks": list(unmapped_required_checks),
+        "mission_required_check_results": dict(required_check_results),
+        "mission_required_check_failures": [
+            required_check
+            for required_check, status in required_check_results.items()
+            if status in {"fail", "error", "missing"}
+        ],
+    }
+
+
 def test_list_task_contracts_route_returns_existing_items(tmp_path) -> None:
     client = _client(tmp_path)
     workspace_dir = str(client.app.state.app_state.config.agent.workspace_dir)
@@ -138,6 +174,56 @@ def test_get_active_task_contract_route_filters_by_session(tmp_path) -> None:
 
     assert response.status_code == 200
     assert response.json()["contract"]["contract"]["task_id"] == task_id
+
+
+def test_create_task_contract_route_creates_new_draft(tmp_path) -> None:
+    client = _client(tmp_path)
+
+    response = client.post(
+        "/api/task-contracts",
+        json={
+            "session_id": "renderer-session",
+            "contract_type": "prediction",
+            "business_goal": "Reduce churn in the premium segment.",
+            "goal_brief": {
+                "business_question": "Why is premium churn increasing?",
+                "ds_problem_statement": "Frame a churn prediction workflow.",
+                "comparison_baseline": "Current weekly churn dashboard.",
+                "decision_to_make": "Decide whether to prioritize a retention model.",
+                "expected_effort": "M",
+            },
+            "required_deliverables": [
+                {
+                    "type": "ds_appendix",
+                    "audience": "ds_peer",
+                    "format": "markdown",
+                },
+                {
+                    "type": "notebook",
+                    "audience": "ml_engineer",
+                    "format": "ipynb",
+                },
+            ],
+            "authority": "supervised",
+            "audience": "peer_ds",
+            "created_by": "user",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["result"]
+    assert payload["status"] == "draft"
+
+    active_response = client.get(
+        "/api/task-contracts/active",
+        params={"sessionId": "renderer-session"},
+    )
+    assert active_response.status_code == 200
+    contract = active_response.json()["contract"]
+    assert contract is not None
+    assert contract["contract"]["task_id"] == payload["task_id"]
+    assert contract["contract"]["business_goal"] == "Reduce churn in the premium segment."
+    assert contract["contract"]["status"] == "draft"
 
 
 def test_get_active_task_contract_route_surfaces_verifier_metadata(tmp_path) -> None:
@@ -184,6 +270,83 @@ def test_get_active_task_contract_route_surfaces_verifier_metadata(tmp_path) -> 
     assert isinstance(verdict["metadata"]["shadow_match_rate"], float)
     assert isinstance(verdict["metadata"]["shadow_mismatch_count"], int)
     assert narrative_layer["metadata"]["judge_mode"] == "heuristic_only"
+
+
+def test_get_active_task_contract_route_surfaces_mission_artifact_summary(tmp_path) -> None:
+    client = _client(tmp_path)
+    workspace_dir = str(client.app.state.app_state.config.agent.workspace_dir)
+    _create_contract_with_deliverables(
+        workspace_dir,
+        session_id="renderer-session",
+        mission="data_analysis",
+        required_deliverables=[
+            {"type": "exec_brief", "audience": "executive", "format": "pptx"},
+        ],
+    )
+
+    response = client.get(
+        "/api/task-contracts/active",
+        params={"sessionId": "renderer-session"},
+    )
+
+    assert response.status_code == 200
+    contract = response.json()["contract"]
+    assert (
+        "Mission artifacts [data_analysis]: required=exec_brief, ds_appendix"
+        in contract["dod_summary"]
+    )
+    assert "Mission artifacts gate: contract_missing=ds_appendix" in contract["dod_summary"]
+
+
+def test_get_active_task_contract_route_surfaces_mission_delivery_channel_summary(
+    tmp_path,
+) -> None:
+    client = _client(tmp_path)
+    workspace_dir = str(client.app.state.app_state.config.agent.workspace_dir)
+    task_id = _create_contract_with_deliverables(
+        workspace_dir,
+        session_id="weekly-kpi-session",
+        mission="weekly-kpi-triage",
+        required_deliverables=[
+            {"type": "exec_brief", "audience": "executive", "format": "pptx"},
+            {"type": "ds_appendix", "audience": "ds_peer", "format": "markdown"},
+        ],
+    )
+    container = build_task_contract_container(workspace_dir)
+    container.record_delivery_pack.execute(
+        DeliveryPackInputDTO(
+            task_id=task_id,
+            items=[
+                {
+                    "deliverable_type": "exec_brief",
+                    "audience": "executive",
+                    "format": "pptx",
+                    "artifact_path": "reports/exec.pptx",
+                    "delivered": True,
+                },
+                {
+                    "deliverable_type": "ds_appendix",
+                    "audience": "ds_peer",
+                    "format": "markdown",
+                    "artifact_path": "reports/appendix.md",
+                    "delivered": True,
+                },
+            ],
+        )
+    )
+
+    response = client.get(
+        "/api/task-contracts/active",
+        params={"sessionId": "weekly-kpi-session"},
+    )
+
+    assert response.status_code == 200
+    contract = response.json()["contract"]
+    assert (
+        "Mission delivery channels [weekly-kpi-triage]: required=jira_ticket"
+        in contract["dod_summary"]
+    )
+    assert "Mission delivery channels gate: delivery_missing=jira_ticket" in contract["dod_summary"]
 
 
 def test_shadow_comparison_routes_return_persisted_records(tmp_path) -> None:
@@ -259,6 +422,160 @@ def test_update_task_contract_route_returns_conflict_for_stale_version(tmp_path)
     assert response.status_code == 409
 
 
+def test_update_task_contract_route_returns_structured_mission_gate_detail(tmp_path) -> None:
+    client = _client(tmp_path)
+    workspace_dir = str(client.app.state.app_state.config.agent.workspace_dir)
+    task_id = _create_contract_with_deliverables(
+        workspace_dir,
+        mission="data_analysis",
+        required_deliverables=[
+            {"type": "exec_brief", "audience": "executive", "format": "pptx"},
+        ],
+    )
+    container = build_task_contract_container(workspace_dir)
+    container.update.execute(
+        TaskContractUpdateDTO(
+            task_id=task_id,
+            expected_version=1,
+            patch={},
+            transition_to=TaskContractStatus.AGREED,
+        )
+    )
+    container.update.execute(
+        TaskContractUpdateDTO(
+            task_id=task_id,
+            expected_version=2,
+            patch={},
+            transition_to=TaskContractStatus.IN_PROGRESS,
+        )
+    )
+    container.record_review_verdict.execute(
+        ReviewVerdictInputDTO(
+            task_id=task_id,
+            category="orchestrator",
+            result="pass",
+            reviewer="verifier_orchestrator",
+            summary="Ready for review gate validation.",
+            run_id="run-1",
+            metadata={
+                "source": "auto_verifier",
+                "auto_verifier_mode": "shadow",
+            },
+        )
+    )
+
+    response = client.post(
+        f"/api/task-contracts/{task_id}/update",
+        json={
+            "expectedVersion": 4,
+            "patch": {},
+            "transitionTo": "review",
+            "reason": "operator moved contract to review",
+        },
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["message"] == (
+        "Mission required artifacts are missing from required_deliverables: ds_appendix"
+    )
+    assert detail["error_code"] == "INVALID_TRANSITION"
+    assert detail["metadata"] == {
+        "kind": "mission_artifact_gate",
+        "transition_target": "review",
+        "failure": "missing_contract_artifacts",
+        "mission_name": "data_analysis",
+        "mission_loaded": True,
+        "required_artifacts": ["exec_brief", "ds_appendix"],
+        "mapped_required_artifacts": {
+            "exec_brief": ["exec_brief"],
+            "ds_appendix": ["ds_appendix"],
+        },
+        "unmapped_required_artifacts": [],
+        "missing_contract_artifacts": ["ds_appendix"],
+        "missing_delivery_artifacts": ["exec_brief", "ds_appendix"],
+    }
+
+
+def test_update_task_contract_route_uses_session_last_run_for_review_freshness(tmp_path) -> None:
+    client = _client(tmp_path)
+    workspace_dir = str(client.app.state.app_state.config.agent.workspace_dir)
+    task_id = _create_contract(workspace_dir)
+    container = build_task_contract_container(workspace_dir)
+    container.update.execute(
+        TaskContractUpdateDTO(
+            task_id=task_id,
+            expected_version=1,
+            patch={},
+            transition_to=TaskContractStatus.AGREED,
+        )
+    )
+    container.update.execute(
+        TaskContractUpdateDTO(
+            task_id=task_id,
+            expected_version=2,
+            patch={},
+            transition_to=TaskContractStatus.IN_PROGRESS,
+        )
+    )
+    container.record_review_verdict.execute(
+        ReviewVerdictInputDTO(
+            task_id=task_id,
+            verdict_id="RV-2026001",
+            category="orchestrator",
+            result="pass",
+            reviewer="verifier_orchestrator",
+            summary="Auto verifier passed for a previous run.",
+            run_id="run-1",
+            metadata={
+                "source": "auto_verifier",
+                "auto_verifier_mode": "shadow",
+            },
+        )
+    )
+    client.app.state.app_state._runtime_sessions.bind_run("ws-session-1", "run-2", "ws")
+
+    response = client.post(
+        f"/api/task-contracts/{task_id}/update",
+        json={
+            "expectedVersion": 4,
+            "patch": {},
+            "transitionTo": "review",
+            "reason": "operator moved contract to review",
+        },
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["message"] == (
+        "Latest auto verifier verdict must match the active run before moving to review"
+    )
+    assert detail["error_code"] == "INVALID_TRANSITION"
+    assert detail["metadata"] == {
+        "kind": "verifier_review_gate",
+        "transition_target": "review",
+        "failure": "stale_review_verdict",
+        "review_verdict_count": 1,
+        "orchestrator_verdict_count": 1,
+        "expected_run_id": "run-2",
+        "latest_verdict_id": "RV-2026001",
+        "latest_verdict_category": "orchestrator",
+        "latest_verdict_reviewer": "verifier_orchestrator",
+        "latest_verdict_run_id": "run-1",
+        "latest_verdict_source": "auto_verifier",
+    }
+
+    learning_store = SqliteLearningStore.for_workspace(workspace_dir)
+    items = learning_store.list_items(limit=10)
+    assert len(items) == 1
+    assert items[0].title == "Harness warning: review_gate_stale_verdict"
+    assert items[0].metadata["warningType"] == "review_gate_stale_verdict"
+    assert items[0].metadata["failureSourceKind"] == "task_contract_gate"
+    assert items[0].metadata["failureSignalType"] == "stale_review_verdict"
+    assert items[0].metadata["failureSourceRef"] == task_id
+    assert items[0].metadata["surface"] == "task_contract_gate"
+
+
 def test_verify_assumption_route_marks_entry_verified(tmp_path) -> None:
     client = _client(tmp_path)
     workspace_dir = str(client.app.state.app_state.config.agent.workspace_dir)
@@ -288,6 +605,115 @@ def test_verify_assumption_route_marks_entry_verified(tmp_path) -> None:
     assert bundle is not None
     assert bundle.assumption_log is not None
     assert bundle.assumption_log.entries[0].verified is True
+
+
+def test_update_task_contract_route_rejects_failed_mission_required_checks(tmp_path) -> None:
+    client = _client(tmp_path)
+    workspace_dir = str(client.app.state.app_state.config.agent.workspace_dir)
+    task_id = _create_contract_with_deliverables(
+        workspace_dir,
+        mission="data_analysis",
+        required_deliverables=[
+            {"type": "exec_brief", "audience": "executive", "format": "pptx"},
+            {"type": "ds_appendix", "audience": "ds_peer", "format": "markdown"},
+        ],
+    )
+    container = build_task_contract_container(workspace_dir)
+    container.update.execute(
+        TaskContractUpdateDTO(
+            task_id=task_id,
+            expected_version=1,
+            patch={},
+            transition_to=TaskContractStatus.AGREED,
+        )
+    )
+    container.update.execute(
+        TaskContractUpdateDTO(
+            task_id=task_id,
+            expected_version=2,
+            patch={},
+            transition_to=TaskContractStatus.IN_PROGRESS,
+        )
+    )
+    container.record_review_verdict.execute(
+        ReviewVerdictInputDTO(
+            task_id=task_id,
+            category="orchestrator",
+            result="pass",
+            reviewer="verifier_orchestrator",
+            summary="Baseline comparison failed for the active mission.",
+            run_id="run-1",
+            metadata={
+                "source": "auto_verifier",
+                "auto_verifier_mode": "shadow",
+                **_mission_required_check_metadata(
+                    mission_name="data_analysis",
+                    required_checks=(
+                        "schema_drift",
+                        "metric_definition_confirmed",
+                        "subgroup_stability",
+                        "baseline_compare",
+                    ),
+                    mapped_required_checks={
+                        "schema_drift": ("schema_contract_validation",),
+                        "metric_definition_confirmed": ("metric_definition_confirmed",),
+                        "subgroup_stability": ("subgroup_stability",),
+                        "baseline_compare": ("baseline_comparison",),
+                    },
+                    required_check_results={
+                        "schema_drift": "pass",
+                        "metric_definition_confirmed": "pass",
+                        "subgroup_stability": "pass",
+                        "baseline_compare": "fail",
+                    },
+                ),
+            },
+        )
+    )
+
+    response = client.post(
+        f"/api/task-contracts/{task_id}/update",
+        json={
+            "expectedVersion": 4,
+            "patch": {},
+            "transitionTo": "review",
+            "reason": "operator moved contract to review",
+        },
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["message"] == (
+        "Mission required checks must pass before moving to review: baseline_compare"
+    )
+    assert detail["error_code"] == "INVALID_TRANSITION"
+    assert detail["metadata"] == {
+        "kind": "mission_check_gate",
+        "transition_target": "review",
+        "failure": "failed_required_checks",
+        "mission_name": "data_analysis",
+        "mission_loaded": True,
+        "required_checks": [
+            "schema_drift",
+            "metric_definition_confirmed",
+            "subgroup_stability",
+            "baseline_compare",
+        ],
+        "mapped_required_checks": {
+            "schema_drift": ["schema_contract_validation"],
+            "metric_definition_confirmed": ["metric_definition_confirmed"],
+            "subgroup_stability": ["subgroup_stability"],
+            "baseline_compare": ["baseline_comparison"],
+        },
+        "unmapped_required_checks": [],
+        "required_check_results": {
+            "schema_drift": "pass",
+            "metric_definition_confirmed": "pass",
+            "subgroup_stability": "pass",
+            "baseline_compare": "fail",
+        },
+        "required_check_failures": ["baseline_compare"],
+    }
 
 
 def test_build_delivery_pack_route_persists_pack(tmp_path) -> None:

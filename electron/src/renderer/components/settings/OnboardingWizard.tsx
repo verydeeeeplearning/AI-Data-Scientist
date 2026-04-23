@@ -1,6 +1,8 @@
+/// <reference path="../../vite-env.d.ts" />
+
 /**
  * Product onboarding wizard:
- * welcome -> use case -> AI connection -> ready.
+ * Wave 2 staged flow -> use case -> data -> deliverables -> mode -> model -> confirm.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -9,23 +11,34 @@ import {
   Bot,
   Check,
   ChevronRight,
+  Database,
   FileText,
-  Globe,
-  Key,
   LineChart,
   Loader2,
   LogIn,
-  Monitor,
   Presentation,
   Search,
+  Upload,
 } from 'lucide-react';
+import { recommendModel } from '../../application/llm/recommendModel';
+import type { OnboardingUseCaseId as SharedOnboardingUseCaseId } from '../../../shared/useCaseMapping';
+import {
+  NOOP_ONBOARDING_TELEMETRY,
+  type OnboardingTelemetryPort,
+} from '../../application/onboarding/onboardingTelemetry';
+import { ONBOARDING_PRIMARY_STEP_ORDER } from '../../application/onboarding/onboardingState';
 import type { ModelEntry, ModelGroup } from '../../hooks/useModels';
 import { fetchAuthSnapshot } from '../../hooks/useProviderAuth';
 import { configureRendererObservability } from '../../observability';
+import { useAgentStore } from '../../stores/agentStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useChatStore } from '../../stores/chatStore';
 import { useConfigStore } from '../../stores/configStore';
-import { describeModelAccess } from '../../utils/modelAuth';
+import { useI18n, type Locale } from '../../stores/i18nStore';
+import { describeModelAccess, type ModelAccessSummary } from '../../utils/modelAuth';
 import { normalizeQualityPreset, type QualityPreset } from '../../utils/qualityPreset';
+import { CapabilityBadge } from './CapabilityBadge';
+import { LocaleSelector } from './LocaleSelector';
 
 type RpcFn = (method: string, params?: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
@@ -40,17 +53,23 @@ interface Props {
   onComplete: (result: OnboardingResult) => void;
   rpc: RpcFn;
   groups: ModelGroup[];
+  telemetry?: OnboardingTelemetryPort;
 }
 
-type Step = 'welcome' | 'use_case' | 'connect' | 'apikey' | 'oauth' | 'done';
+export type OnboardingPrimaryStepId =
+  | 'use_case'
+  | 'data'
+  | 'deliverables'
+  | 'mode'
+  | 'model'
+  | 'confirm';
+export type OnboardingDataChoiceId = 'upload' | 'sample' | 'database_deferred';
+export type OnboardingDeliverableId = 'chart_summary' | 'report' | 'notebook' | 'presentation';
+export type OnboardingAutonomyMode = 'fast' | 'balanced' | 'controlled';
+
+type Step = OnboardingPrimaryStepId;
 type ObservabilityChoice = 'none' | 'crash_only' | 'crash_and_telemetry';
-type UseCaseId =
-  | 'data_analysis'
-  | 'reporting'
-  | 'prediction'
-  | 'dashboard'
-  | 'sql_exploration'
-  | 'general';
+type UseCaseId = SharedOnboardingUseCaseId;
 
 interface UseCaseCard {
   id: UseCaseId;
@@ -61,12 +80,44 @@ interface UseCaseCard {
   icon: typeof Bot;
 }
 
-const PRIMARY_STEPS: Array<{ id: 'welcome' | 'use_case' | 'connect' | 'done'; label: string }> = [
-  { id: 'welcome', label: 'Start' },
-  { id: 'use_case', label: 'Goal' },
-  { id: 'connect', label: 'Connect' },
-  { id: 'done', label: 'Ready' },
-];
+interface CardOption<T extends string> {
+  id: T;
+  title: string;
+  description: string;
+  detail: string;
+  icon: typeof Bot;
+  disabled?: boolean;
+}
+
+interface OnboardingUseCaseDefaults {
+  deliverables: OnboardingDeliverableId[];
+  mode: OnboardingAutonomyMode;
+}
+
+export interface OnboardingFinalizeRequest {
+  sessionId?: string;
+  useCaseId: UseCaseId;
+  starterPrompt: string;
+  responses: {
+    step1_useCase: UseCaseId;
+    step2_data: {
+      type: OnboardingDataChoiceId;
+      sampleId?: string;
+    };
+    step3_deliverables: OnboardingDeliverableId[];
+    step4_mode: OnboardingAutonomyMode;
+    step5_model: string;
+    step6_confirmed: true;
+  };
+}
+
+interface OnboardingFinalizeResponse {
+  sessionId: string;
+  createdSession: boolean;
+  goalSeeded: boolean;
+  taskId?: string | null;
+  mission?: Record<string, unknown>;
+}
 
 const NEEDS_API_KEY = new Set([
   'anthropic',
@@ -79,137 +130,332 @@ const NEEDS_API_KEY = new Set([
   'moonshot',
 ]);
 
-const GROUP_ICONS: Record<string, typeof Globe> = {
-  oauth: Globe,
-  free_api_key: Key,
-  api_key: Key,
-  local: Monitor,
-};
-
-const GROUP_TITLES: Record<string, string> = {
-  oauth: 'Sign in',
-  free_api_key: 'Use a free key',
-  api_key: 'Use an account key',
-  local: 'Run on this computer',
-};
-
 const ONBOARDING_STORAGE_KEY = 'ds-agent-onboarded-v2';
 const LEGACY_ONBOARDING_STORAGE_KEY = 'ds-agent-onboarded';
 
-const USE_CASES: UseCaseCard[] = [
-  {
-    id: 'data_analysis',
-    title: 'Explore uploaded data',
-    description: 'Start with CSV or Excel files, inspect quality, and surface the most useful patterns.',
-    starterPrompt:
-      'Summarize my dataset, highlight quality issues, and tell me which patterns are worth checking first.',
-    systemContext:
-      'The user mainly wants fast exploratory analysis of CSV or Excel data. Prefer plain language, quick wins, and concrete next steps over heavy theory.',
-    icon: Search,
-  },
-  {
-    id: 'reporting',
-    title: 'Write a report',
-    description: 'Turn analysis into a concise memo, business summary, or stakeholder update.',
-    starterPrompt:
-      'Turn the key findings into a short business report with the main takeaways, risks, and recommended actions.',
-    systemContext:
-      'The user is focused on communicating results. Favor concise summaries, decision-ready structure, and clear recommendations.',
-    icon: FileText,
-  },
-  {
-    id: 'prediction',
-    title: 'Build a prediction',
-    description: 'Train a baseline model, compare options, and explain what drives performance.',
-    starterPrompt:
-      'Help me set up a predictive modeling plan, build a strong baseline, and explain the main drivers of performance.',
-    systemContext:
-      'The user is interested in predictive modeling. Establish simple baselines first, explain tradeoffs clearly, and keep methodology rigorous but approachable.',
-    icon: LineChart,
-  },
-  {
-    id: 'dashboard',
-    title: 'Plan charts or dashboards',
-    description: 'Find the right visual story, metrics, and layout for a recurring reporting view.',
-    starterPrompt:
-      'Recommend the right charts, headline metrics, and dashboard structure for this analysis.',
-    systemContext:
-      'The user wants visual communication support. Emphasize chart selection, metric framing, and dashboard-friendly outputs.',
-    icon: Presentation,
-  },
-  {
-    id: 'sql_exploration',
-    title: 'Explore warehouse data',
-    description: 'Work from database tables, ask better questions, and validate findings carefully.',
-    starterPrompt:
-      'Help me inspect the available tables, form the right questions, and validate the first useful SQL analysis steps.',
-    systemContext:
-      'The user is likely exploring warehouse data. Favor schema discovery, careful validation, and readable explanations of joins, filters, and caveats.',
-    icon: BarChart3,
-  },
-  {
-    id: 'general',
-    title: 'General help',
-    description: 'Keep the setup flexible and start with a broad assistant that adapts as the work becomes clearer.',
-    starterPrompt:
-      'Help me figure out the best next step for this data task and guide me through the most sensible workflow.',
-    systemContext:
-      'The user has a broad or still-forming goal. Start by clarifying the task, suggest a sensible first step, and adapt from there.',
-    icon: Bot,
-  },
+export const ONBOARDING_PRIMARY_STEPS: ReadonlyArray<{
+  id: OnboardingPrimaryStepId;
+  label: string;
+}> = [
+  { id: 'use_case', label: 'Use Case' },
+  { id: 'data', label: 'Data' },
+  { id: 'deliverables', label: 'Deliverables' },
+  { id: 'mode', label: 'Mode' },
+  { id: 'model', label: 'Model' },
+  { id: 'confirm', label: 'Confirm' },
 ];
 
-const OBSERVABILITY_CHOICES: Array<{
-  id: ObservabilityChoice;
-  title: string;
-  description: string;
-}> = [
-  {
-    id: 'none',
-    title: 'Keep both off',
-    description: 'Do not send crash reports or performance telemetry.',
-  },
-  {
-    id: 'crash_only',
-    title: 'Share crash reports only',
-    description: 'Send redacted exceptions so repeated failures can be fixed faster.',
-  },
-  {
-    id: 'crash_and_telemetry',
-    title: 'Share crash reports and telemetry',
-    description: 'Also share low-rate traces for startup, RPC, and UI performance.',
-  },
-];
+function buildUseCases(
+  t: (key: string, vars?: Record<string, string | number | null | undefined>) => string,
+): UseCaseCard[] {
+  return [
+    {
+      id: 'data_analysis',
+      title: t('onboarding.use_case.option.data_analysis.title'),
+      description: t('onboarding.use_case.option.data_analysis.description'),
+      starterPrompt: t('onboarding.use_case.option.data_analysis.starter_prompt'),
+      systemContext: t('onboarding.use_case.option.data_analysis.system_context'),
+      icon: Search,
+    },
+    {
+      id: 'reporting',
+      title: t('onboarding.use_case.option.reporting.title'),
+      description: t('onboarding.use_case.option.reporting.description'),
+      starterPrompt: t('onboarding.use_case.option.reporting.starter_prompt'),
+      systemContext: t('onboarding.use_case.option.reporting.system_context'),
+      icon: FileText,
+    },
+    {
+      id: 'prediction',
+      title: t('onboarding.use_case.option.prediction.title'),
+      description: t('onboarding.use_case.option.prediction.description'),
+      starterPrompt: t('onboarding.use_case.option.prediction.starter_prompt'),
+      systemContext: t('onboarding.use_case.option.prediction.system_context'),
+      icon: LineChart,
+    },
+    {
+      id: 'dashboard',
+      title: t('onboarding.use_case.option.dashboard.title'),
+      description: t('onboarding.use_case.option.dashboard.description'),
+      starterPrompt: t('onboarding.use_case.option.dashboard.starter_prompt'),
+      systemContext: t('onboarding.use_case.option.dashboard.system_context'),
+      icon: Presentation,
+    },
+    {
+      id: 'sql_exploration',
+      title: t('onboarding.use_case.option.sql_exploration.title'),
+      description: t('onboarding.use_case.option.sql_exploration.description'),
+      starterPrompt: t('onboarding.use_case.option.sql_exploration.starter_prompt'),
+      systemContext: t('onboarding.use_case.option.sql_exploration.system_context'),
+      icon: BarChart3,
+    },
+    {
+      id: 'weekly_kpi_triage',
+      title: t('onboarding.use_case.option.weekly_kpi_triage.title'),
+      description: t('onboarding.use_case.option.weekly_kpi_triage.description'),
+      starterPrompt: t('onboarding.use_case.option.weekly_kpi_triage.starter_prompt'),
+      systemContext: t('onboarding.use_case.option.weekly_kpi_triage.system_context'),
+      icon: BarChart3,
+    },
+    {
+      id: 'ab_test_analysis',
+      title: t('onboarding.use_case.option.ab_test_analysis.title'),
+      description: t('onboarding.use_case.option.ab_test_analysis.description'),
+      starterPrompt: t('onboarding.use_case.option.ab_test_analysis.starter_prompt'),
+      systemContext: t('onboarding.use_case.option.ab_test_analysis.system_context'),
+      icon: LineChart,
+    },
+    {
+      id: 'general',
+      title: t('onboarding.use_case.option.general.title'),
+      description: t('onboarding.use_case.option.general.description'),
+      starterPrompt: t('onboarding.use_case.option.general.starter_prompt'),
+      systemContext: t('onboarding.use_case.option.general.system_context'),
+      icon: Bot,
+    },
+  ];
+}
+
+function buildObservabilityChoices(
+  t: (key: string, vars?: Record<string, string | number | null | undefined>) => string,
+): Array<{ id: ObservabilityChoice; title: string; description: string }> {
+  return [
+    {
+      id: 'none',
+      title: t('onboarding.privacy.option.none.title'),
+      description: t('onboarding.privacy.option.none.description'),
+    },
+    {
+      id: 'crash_only',
+      title: t('onboarding.privacy.option.crash_only.title'),
+      description: t('onboarding.privacy.option.crash_only.description'),
+    },
+    {
+      id: 'crash_and_telemetry',
+      title: t('onboarding.privacy.option.crash_and_telemetry.title'),
+      description: t('onboarding.privacy.option.crash_and_telemetry.description'),
+    },
+  ];
+}
+
+function buildDataChoices(sampleApiAvailable: boolean): CardOption<OnboardingDataChoiceId>[] {
+  return [
+    {
+      id: 'upload',
+      title: 'Bring my own file',
+      description: 'Start the mission now and upload your dataset in the workspace.',
+      detail: 'Keeps the first handoff lightweight while preserving the current file-upload path.',
+      icon: Upload,
+    },
+    {
+      id: 'sample',
+      title: 'Load a sample',
+      description: sampleApiAvailable
+        ? 'Seed the workspace with a sample dataset that matches this use case.'
+        : 'Sample data is unavailable in this runtime.',
+      detail: sampleApiAvailable
+        ? 'Best for a fast first result and a guided starter prompt.'
+        : 'Desktop sample assets are required for this option.',
+      icon: BarChart3,
+      disabled: !sampleApiAvailable,
+    },
+    {
+      id: 'database_deferred',
+      title: 'Connect data later',
+      description: 'Define the mission first, then wire up a database or connector after launch.',
+      detail: 'Aligned with PLAN_05 deferred database connection scope.',
+      icon: Database,
+    },
+  ];
+}
+
+function buildDeliverableChoices(): CardOption<OnboardingDeliverableId>[] {
+  return [
+    {
+      id: 'chart_summary',
+      title: 'Chart summary',
+      description: 'A compact visual readout with the key trends and drivers.',
+      detail: 'Good for EDA, dashboard framing, and quick reviews.',
+      icon: BarChart3,
+    },
+    {
+      id: 'report',
+      title: 'Report',
+      description: 'A narrative analysis with findings, evidence, and recommended actions.',
+      detail: 'Best when you need a decision-ready written deliverable.',
+      icon: FileText,
+    },
+    {
+      id: 'notebook',
+      title: 'Notebook',
+      description: 'A reproducible technical artifact with code, analysis, and outputs.',
+      detail: 'Fits modeling, experimentation, and deployment preparation.',
+      icon: LineChart,
+    },
+    {
+      id: 'presentation',
+      title: 'Presentation',
+      description: 'A stakeholder-facing summary oriented around slides and talk tracks.',
+      detail: 'Useful for reporting, leadership reviews, and dashboard narratives.',
+      icon: Presentation,
+    },
+  ];
+}
+
+function buildAutonomyChoices(): CardOption<OnboardingAutonomyMode>[] {
+  return [
+    {
+      id: 'fast',
+      title: 'Fast',
+      description: 'Move quickly with lighter checks and quicker model recommendations.',
+      detail: 'Maps to the current auto execution mode.',
+      icon: ChevronRight,
+    },
+    {
+      id: 'balanced',
+      title: 'Balanced',
+      description: 'Default pace for most data-science work with practical guardrails.',
+      detail: 'Maps to the current supervised execution mode.',
+      icon: Bot,
+    },
+    {
+      id: 'controlled',
+      title: 'Controlled',
+      description: 'Favor careful handoffs, deeper review, and stronger model quality.',
+      detail: 'Maps to the current step-by-step execution mode.',
+      icon: Check,
+    },
+  ];
+}
+
+export function deriveUseCaseDefaults(useCaseId: UseCaseId): OnboardingUseCaseDefaults {
+  switch (useCaseId) {
+    case 'data_analysis':
+      return { deliverables: ['chart_summary'], mode: 'balanced' };
+    case 'reporting':
+      return { deliverables: ['report', 'presentation'], mode: 'controlled' };
+    case 'prediction':
+      return { deliverables: ['report', 'notebook'], mode: 'balanced' };
+    case 'dashboard':
+      return { deliverables: ['chart_summary', 'presentation'], mode: 'balanced' };
+    case 'sql_exploration':
+      return { deliverables: ['report'], mode: 'fast' };
+    case 'weekly_kpi_triage':
+      return { deliverables: ['report', 'presentation'], mode: 'fast' };
+    case 'ab_test_analysis':
+      return { deliverables: ['report', 'presentation'], mode: 'controlled' };
+    case 'general':
+    default:
+      return { deliverables: ['report'], mode: 'balanced' };
+  }
+}
+
+export function mapAutonomyModeToExecutionMode(
+  mode: OnboardingAutonomyMode,
+): 'auto' | 'supervised' | 'step-by-step' {
+  if (mode === 'fast') {
+    return 'auto';
+  }
+  if (mode === 'controlled') {
+    return 'step-by-step';
+  }
+  return 'supervised';
+}
+
+export function mapExecutionModeToAutonomyMode(value: unknown): OnboardingAutonomyMode {
+  if (value === 'auto') {
+    return 'fast';
+  }
+  if (value === 'step-by-step') {
+    return 'controlled';
+  }
+  return 'balanced';
+}
+
+export function mapAutonomyModeToQualityPreset(mode: OnboardingAutonomyMode): QualityPreset {
+  if (mode === 'fast') {
+    return 'fast';
+  }
+  if (mode === 'controlled') {
+    return 'best_quality';
+  }
+  return 'balanced';
+}
+
+export function buildOnboardingFinalizePayload(args: {
+  sessionId?: string | null;
+  useCaseId: UseCaseId;
+  starterPrompt: string;
+  dataChoiceId: OnboardingDataChoiceId;
+  deliverables: readonly OnboardingDeliverableId[];
+  autonomyMode: OnboardingAutonomyMode;
+  modelId: string;
+}): OnboardingFinalizeRequest {
+  return {
+    ...(args.sessionId ? { sessionId: args.sessionId } : {}),
+    useCaseId: args.useCaseId,
+    starterPrompt: args.starterPrompt,
+    responses: {
+      step1_useCase: args.useCaseId,
+      step2_data: {
+        type: args.dataChoiceId,
+        ...(args.dataChoiceId === 'sample' ? { sampleId: `builtin:${args.useCaseId}` } : {}),
+      },
+      step3_deliverables: [...args.deliverables],
+      step4_mode: args.autonomyMode,
+      step5_model: args.modelId,
+      step6_confirmed: true,
+    },
+  };
+}
+
+export function canContinueFromModelSelection(args: {
+  model: Pick<ModelEntry, 'provider'> | null;
+  access: Pick<ModelAccessSummary, 'ready' | 'authType'> | null;
+  apiKey: string;
+  vaultAvailable: boolean;
+}): boolean {
+  if (!args.model || !args.access) {
+    return false;
+  }
+  if (args.access.ready) {
+    return true;
+  }
+  if (args.access.authType === 'oauth') {
+    return false;
+  }
+  if (NEEDS_API_KEY.has(args.model.provider)) {
+    return args.apiKey.trim().length > 0 && args.vaultAvailable;
+  }
+  return true;
+}
 
 function badgeClasses(ready: boolean): string {
   return ready ? 'bg-ds-success/15 text-ds-success' : 'bg-amber-500/15 text-amber-300';
 }
 
-function majorStep(step: Step): 'welcome' | 'use_case' | 'connect' | 'done' {
-  if (step === 'apikey' || step === 'oauth') {
-    return 'connect';
-  }
-  return step;
-}
-
-function findUseCase(useCaseId: string | null | undefined): UseCaseCard | null {
+function findUseCase(useCases: UseCaseCard[], useCaseId: string | null | undefined): UseCaseCard | null {
   if (!useCaseId) {
     return null;
   }
-  return USE_CASES.find((entry) => entry.id === useCaseId) ?? null;
+  return useCases.find((entry) => entry.id === useCaseId) ?? null;
 }
 
-function getConnectionHint(model: ModelEntry, ready: boolean): string {
+function getConnectionHint(
+  model: ModelEntry,
+  ready: boolean,
+  t: (key: string, vars?: Record<string, string | number | null | undefined>) => string,
+): string {
   if (ready) {
-    return 'Ready to use right away.';
+    return t('onboarding.connect.hint.ready');
   }
   if (model.authType === 'oauth') {
-    return 'Sign in once in your browser to continue.';
+    return t('onboarding.connect.hint.oauth');
   }
   if (model.authType === 'local') {
-    return 'Runs on this computer without a cloud account.';
+    return t('onboarding.connect.hint.local');
   }
-  return 'Add your key once, then start analyzing.';
+  return t('onboarding.connect.hint.api_key');
 }
 
 function getKeyPlaceholder(provider: string): string {
@@ -239,7 +485,7 @@ function hasCompletedOnboardingBefore(): boolean {
 
 function observabilityChoiceFromSettings(
   errorReportingEnabled: boolean,
-  telemetryEnabled: boolean
+  telemetryEnabled: boolean,
 ): ObservabilityChoice {
   if (!errorReportingEnabled) {
     return 'none';
@@ -260,13 +506,161 @@ function observabilitySettingsFromChoice(choice: ObservabilityChoice): {
   return { errorReportingEnabled: false, telemetryEnabled: false };
 }
 
-export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
+function getBackendBaseUrl(search = window.location.search): string {
+  const params = new URLSearchParams(search);
+  const rawPort = params.get('port');
+  const port = rawPort ? Number.parseInt(rawPort, 10) : 18790;
+  return `http://127.0.0.1:${Number.isFinite(port) ? port : 18790}`;
+}
+
+function extractApiErrorMessage(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== 'object') {
+    return fallback;
+  }
+  const detail = (payload as { detail?: unknown }).detail;
+  if (typeof detail === 'string' && detail.trim().length > 0) {
+    return detail;
+  }
+  return fallback;
+}
+
+async function finalizeOnboardingHandoff(
+  payload: OnboardingFinalizeRequest,
+  search = window.location.search,
+): Promise<OnboardingFinalizeResponse> {
+  const response = await fetch(`${getBackendBaseUrl(search)}/api/onboarding/finalize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let body: unknown = null;
+    try {
+      body = await response.json();
+    } catch {
+      // Ignore non-JSON error bodies.
+    }
+    throw new Error(
+      extractApiErrorMessage(body, `Onboarding finalize failed with status ${response.status}`),
+    );
+  }
+
+  return (await response.json()) as OnboardingFinalizeResponse;
+}
+
+function formatDataChoiceTitle(choiceId: OnboardingDataChoiceId): string {
+  if (choiceId === 'sample') {
+    return 'Sample data';
+  }
+  if (choiceId === 'database_deferred') {
+    return 'Connect later';
+  }
+  return 'Bring my own file';
+}
+
+function formatDeliverableTitle(choiceId: OnboardingDeliverableId): string {
+  if (choiceId === 'chart_summary') {
+    return 'Chart summary';
+  }
+  if (choiceId === 'report') {
+    return 'Report';
+  }
+  if (choiceId === 'notebook') {
+    return 'Notebook';
+  }
+  return 'Presentation';
+}
+
+function formatAutonomyModeTitle(choiceId: OnboardingAutonomyMode): string {
+  if (choiceId === 'fast') {
+    return 'Fast';
+  }
+  if (choiceId === 'controlled') {
+    return 'Controlled';
+  }
+  return 'Balanced';
+}
+
+function SummaryCard({
+  selectedUseCase,
+  selectedDataChoiceId,
+  selectedDeliverables,
+  selectedAutonomyMode,
+  selectedModel,
+  selectedModelAccess,
+}: {
+  selectedUseCase: UseCaseCard | null;
+  selectedDataChoiceId: OnboardingDataChoiceId;
+  selectedDeliverables: OnboardingDeliverableId[];
+  selectedAutonomyMode: OnboardingAutonomyMode;
+  selectedModel: ModelEntry | null;
+  selectedModelAccess: ModelAccessSummary | null;
+}) {
+  return (
+    <div className="rounded-2xl border border-ds-border bg-ds-bg p-5">
+      <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Mission Draft</div>
+      <div className="mt-4 space-y-4">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Use case</div>
+          <div className="mt-1 text-sm font-medium text-ds-text">
+            {selectedUseCase?.title ?? 'Choose one goal to anchor the mission.'}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Data plan</div>
+          <div className="mt-1 text-sm text-ds-text">{formatDataChoiceTitle(selectedDataChoiceId)}</div>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Deliverables</div>
+          <div className="mt-1 text-sm text-ds-text">
+            {selectedDeliverables.length > 0
+              ? selectedDeliverables.map((entry) => formatDeliverableTitle(entry)).join(', ')
+              : 'Pick at least one output.'}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Mode</div>
+          <div className="mt-1 text-sm text-ds-text">{formatAutonomyModeTitle(selectedAutonomyMode)}</div>
+          <div className="mt-1 text-[11px] leading-5 text-ds-muted">
+            Runtime: {mapAutonomyModeToExecutionMode(selectedAutonomyMode)} / Model preference:{' '}
+            {mapAutonomyModeToQualityPreset(selectedAutonomyMode)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Model</div>
+          <div className="mt-1 text-sm text-ds-text">
+            {selectedModel?.displayName ?? 'Choose the model and connection path.'}
+          </div>
+          {selectedModelAccess && (
+            <div className="mt-1 text-[11px] leading-5 text-ds-muted">
+              {selectedModelAccess.providerLabel} / {selectedModelAccess.shortLabel}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONBOARDING_TELEMETRY }: Props) {
   const providerStatuses = useAuthStore((s) => s.providerStatuses);
   const oauthStatuses = useAuthStore((s) => s.oauthStatuses);
   const setAuthSnapshot = useAuthStore((s) => s.setSnapshot);
   const setPendingStarterPrompt = useConfigStore((s) => s.setPendingStarterPrompt);
-  const [step, setStep] = useState<Step>('welcome');
-  const [selectedUseCase, setSelectedUseCase] = useState<UseCaseCard | null>(null);
+  const setMode = useAgentStore((s) => s.setMode);
+  const currentSessionId = useChatStore((s) => s.sessionId);
+  const setSessionId = useChatStore((s) => s.setSessionId);
+  const { locale, setLocale, t } = useI18n();
+  const sampleApiAvailable = Boolean(window.electronAPI?.loadSampleForUseCase);
+
+  const [step, setStep] = useState<Step>('use_case');
+  const [selectedUseCaseId, setSelectedUseCaseId] = useState<UseCaseId | null>(null);
+  const [selectedDataChoiceId, setSelectedDataChoiceId] = useState<OnboardingDataChoiceId>(
+    sampleApiAvailable ? 'sample' : 'upload',
+  );
+  const [selectedDeliverables, setSelectedDeliverables] = useState<OnboardingDeliverableId[]>([]);
+  const [selectedAutonomyMode, setSelectedAutonomyMode] = useState<OnboardingAutonomyMode>('balanced');
   const [selectedModel, setSelectedModel] = useState<ModelEntry | null>(null);
   const [observabilityChoice, setObservabilityChoice] = useState<ObservabilityChoice | null>(null);
   const [apiKey, setApiKey] = useState('');
@@ -277,10 +671,85 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
   const [finishError, setFinishError] = useState('');
   const [vaultAvailable, setVaultAvailable] = useState(true);
   const [sentryConfigured, setSentryConfigured] = useState(false);
+  const [finalizedSessionId, setFinalizedSessionId] = useState<string | null>(null);
 
   const allModels = useMemo(() => groups.flatMap((group) => group.models), [groups]);
-  const activePrimaryStep = majorStep(step);
+  const useCases = useMemo(() => buildUseCases(t), [locale, t]);
+  const dataChoices = useMemo(() => buildDataChoices(sampleApiAvailable), [sampleApiAvailable]);
+  const deliverableChoices = useMemo(() => buildDeliverableChoices(), []);
+  const autonomyChoices = useMemo(() => buildAutonomyChoices(), []);
+  const observabilityChoices = useMemo(() => buildObservabilityChoices(t), [locale, t]);
+  const selectedUseCase = useMemo(
+    () => findUseCase(useCases, selectedUseCaseId),
+    [selectedUseCaseId, useCases],
+  );
+  const selectedModelAccess = useMemo(
+    () =>
+      selectedModel
+        ? describeModelAccess({
+            modelId: selectedModel.id,
+            modelEntry: selectedModel,
+            providerStatuses,
+            oauthStatuses,
+          })
+        : null,
+    [oauthStatuses, providerStatuses, selectedModel],
+  );
   const completedOnboardingBefore = useMemo(() => hasCompletedOnboardingBefore(), []);
+  const readyModelIds = useMemo(
+    () =>
+      new Set(
+        allModels
+          .filter((entry) =>
+            describeModelAccess({
+              modelId: entry.id,
+              modelEntry: entry,
+              providerStatuses,
+              oauthStatuses,
+            }).ready,
+          )
+          .map((entry) => entry.id),
+      ),
+    [allModels, oauthStatuses, providerStatuses],
+  );
+  const recommendedModel = useMemo(
+    () =>
+      recommendModel(allModels, {
+        locale,
+        taskType: selectedUseCaseId,
+        qualityPreset: mapAutonomyModeToQualityPreset(selectedAutonomyMode),
+        readyModelIds,
+      }),
+    [allModels, locale, readyModelIds, selectedAutonomyMode, selectedUseCaseId],
+  );
+  const recommendedReason =
+    recommendedModel?.reasons.map((reason) => t(`llm.recommend.reason.${reason}`)).join(' / ') ?? '';
+  const canContinueFromModel = useMemo(
+    () =>
+      canContinueFromModelSelection({
+        model: selectedModel,
+        access: selectedModelAccess,
+        apiKey,
+        vaultAvailable: !window.electronAPI?.getSecretVaultStatus || vaultAvailable,
+      }),
+    [apiKey, selectedModel, selectedModelAccess, vaultAvailable],
+  );
+
+  useEffect(() => {
+    telemetry({
+      type: 'onboarding.started',
+      alreadyCompletedBefore: completedOnboardingBefore,
+    });
+    // Telemetry "started" should fire exactly once per wizard mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const stepIndex = ONBOARDING_PRIMARY_STEP_ORDER.indexOf(step);
+    if (stepIndex >= 0) {
+      telemetry({ type: 'onboarding.step_entered', step, stepIndex });
+    }
+  }, [step, telemetry]);
 
   useEffect(() => {
     if (!window.electronAPI?.getSecretVaultStatus) {
@@ -292,13 +761,13 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
       .then((status) => {
         setVaultAvailable(status.available);
         if (!status.available) {
-          setApiKeyError(status.error ?? 'Desktop secure storage is unavailable.');
+          setApiKeyError(status.error ?? t('onboarding.api_key.vault_unavailable'));
         }
       })
       .catch((error) => {
         console.warn('[OnboardingWizard] vault status lookup failed:', error);
       });
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -328,11 +797,26 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
             ? (configRecord.observability as Record<string, unknown>)
             : null;
 
-        if (!selectedUseCase) {
+        const language = agent?.language;
+        if (language === 'ko' || language === 'en' || language === 'ja') {
+          if (language !== locale) {
+            setLocale(language);
+          }
+        }
+
+        const configuredMode = mapExecutionModeToAutonomyMode(agent?.mode);
+        if (selectedUseCaseId === null) {
+          setSelectedAutonomyMode(configuredMode);
+        }
+
+        if (!selectedUseCaseId) {
           const useCaseHint = typeof agent?.use_case_hint === 'string' ? agent.use_case_hint : null;
-          const preselectedUseCase = findUseCase(useCaseHint);
+          const preselectedUseCase = findUseCase(useCases, useCaseHint);
           if (preselectedUseCase) {
-            setSelectedUseCase(preselectedUseCase);
+            const defaults = deriveUseCaseDefaults(preselectedUseCase.id);
+            setSelectedUseCaseId(preselectedUseCase.id);
+            setSelectedDeliverables(defaults.deliverables);
+            setSelectedAutonomyMode(configuredMode ?? defaults.mode);
           }
         }
 
@@ -376,34 +860,41 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [allModels, completedOnboardingBefore, rpc, selectedModel, selectedUseCase]);
+  }, [allModels, completedOnboardingBefore, locale, rpc, selectedModel, selectedUseCaseId, setLocale, useCases]);
+
+  const handleLocaleChange = async (next: Locale) => {
+    setLocale(next);
+    try {
+      await rpc('config.set', { path: 'agent.language', value: next });
+    } catch (error) {
+      console.warn('[OnboardingWizard] failed to sync agent.language:', error);
+    }
+  };
+
+  const handleUseCaseSelect = (useCaseId: UseCaseId) => {
+    const defaults = deriveUseCaseDefaults(useCaseId);
+    setSelectedUseCaseId(useCaseId);
+    setSelectedDeliverables(defaults.deliverables);
+    setSelectedAutonomyMode(defaults.mode);
+    setFinishError('');
+    telemetry({ type: 'onboarding.use_case_selected', useCaseId });
+  };
 
   const handleModelSelect = (model: ModelEntry) => {
-    setFinishError('');
     setSelectedModel(model);
-    const access = describeModelAccess({
-      modelId: model.id,
-      modelEntry: model,
-      providerStatuses,
-      oauthStatuses,
-    });
+    setApiKey('');
+    setApiKeyError('');
+    setOauthError('');
+    setFinishError('');
+  };
 
-    if (access.ready) {
-      setStep('done');
-      return;
-    }
-
-    if (NEEDS_API_KEY.has(model.provider)) {
-      setStep('apikey');
-      return;
-    }
-
-    if (access.authType === 'oauth') {
-      setStep('oauth');
-      return;
-    }
-
-    setStep('done');
+  const toggleDeliverable = (deliverableId: OnboardingDeliverableId) => {
+    setFinishError('');
+    setSelectedDeliverables((current) =>
+      current.includes(deliverableId)
+        ? current.filter((entry) => entry !== deliverableId)
+        : [...current, deliverableId],
+    );
   };
 
   const handleOAuthLogin = async () => {
@@ -416,7 +907,7 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
 
     try {
       await rpc('oauth.startLogin', { provider: selectedModel.provider });
-      for (let i = 0; i < 300; i += 1) {
+      for (let index = 0; index < 300; index += 1) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         const statusResult = await rpc('oauth.status');
         const providerStatus =
@@ -425,11 +916,10 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
           ];
         if (providerStatus?.authenticated) {
           setAuthSnapshot(await fetchAuthSnapshot(rpc));
-          setStep('done');
           return;
         }
       }
-      setOauthError('Login timed out. Please try again.');
+      setOauthError(t('onboarding.oauth.timeout'));
     } catch (error) {
       setOauthError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -437,37 +927,46 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
     }
   };
 
-  const handleApiKeySubmit = () => {
-    if (!apiKey.trim()) {
-      return;
-    }
-    setApiKeyError('');
-    setFinishError('');
-    setStep('done');
-  };
-
-  const sampleApiAvailable = Boolean(window.electronAPI?.loadSampleForUseCase);
-
-  const handleFinish = async (options: { withSample?: boolean } = {}) => {
-    const withSample = options.withSample === true;
+  const handleFinish = async () => {
     if (!selectedModel || !selectedUseCase || observabilityChoice === null) {
-      setFinishError('Choose a privacy setting before you continue.');
+      setFinishError(t('onboarding.error.choose_privacy'));
+      return;
+    }
+    if (selectedDeliverables.length === 0) {
+      setFinishError('Choose at least one deliverable before starting the mission.');
       return;
     }
 
+    const qualityPreset = mapAutonomyModeToQualityPreset(selectedAutonomyMode);
+    const executionMode = mapAutonomyModeToExecutionMode(selectedAutonomyMode);
     const observabilitySettings = observabilitySettingsFromChoice(observabilityChoice);
+    const handoffSessionId = finalizedSessionId ?? currentSessionId;
+    const shouldLoadSample = selectedDataChoiceId === 'sample' && sampleApiAvailable;
+
     setLoading(true);
     setApiKeyError('');
     setFinishError('');
-    let onboardingResult: OnboardingResult | null = null;
     let starterPromptForChat = selectedUseCase.starterPrompt;
+    const finalizeStartedAt = Date.now();
+    telemetry({
+      type: 'onboarding.finalize_started',
+      useCaseId: selectedUseCase.id,
+      dataChoiceId: selectedDataChoiceId,
+      deliverables: selectedDeliverables,
+      autonomyMode: selectedAutonomyMode,
+      modelId: selectedModel.id,
+    });
 
     try {
-      if (apiKey.trim() && NEEDS_API_KEY.has(selectedModel.provider)) {
+      if (
+        apiKey.trim()
+        && NEEDS_API_KEY.has(selectedModel.provider)
+        && selectedModelAccess?.ready !== true
+      ) {
         if (window.electronAPI?.setApiKey) {
           const result = await window.electronAPI.setApiKey(selectedModel.provider, apiKey.trim());
           if (!result.ok) {
-            throw new Error(result.error ?? 'Failed to save API key.');
+            throw new Error(result.error ?? t('onboarding.error.api_key_save_failed'));
           }
         } else {
           await rpc('config.setApiKey', { provider: selectedModel.provider, key: apiKey.trim() });
@@ -477,6 +976,8 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
 
       await Promise.all([
         rpc('config.set', { path: 'provider.default_model', value: selectedModel.id }),
+        rpc('config.set', { path: 'provider.quality_preset', value: qualityPreset }),
+        rpc('config.set', { path: 'agent.mode', value: executionMode }),
         rpc('config.set', { path: 'agent.use_case_hint', value: selectedUseCase.id }),
         rpc('config.set', {
           path: 'agent.use_case_context',
@@ -503,15 +1004,13 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
         });
       }
 
-      // Phase 3: load a use-case-specific sample CSV and upload it into the
-      // agent's workspace so the very first analysis has data to act on.
-      if (withSample) {
+      if (shouldLoadSample) {
         if (!window.electronAPI?.loadSampleForUseCase) {
-          throw new Error('Sample datasets are only available in the desktop app.');
+          throw new Error(t('onboarding.error.sample_desktop_only'));
         }
         const sampleResult = await window.electronAPI.loadSampleForUseCase(selectedUseCase.id);
         if (!sampleResult.ok) {
-          throw new Error(sampleResult.error || 'Failed to load sample dataset.');
+          throw new Error(sampleResult.error || t('onboarding.error.sample_load_failed'));
         }
         const uploaded = await rpc('files.upload', {
           name: sampleResult.sample.filename,
@@ -519,57 +1018,94 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
         });
         const uploadedPath =
           typeof uploaded.path === 'string' ? uploaded.path : sampleResult.sample.filename;
-        // Anchor the starter prompt to the file we just uploaded so the agent
-        // doesn't have to guess what dataset the user means.
-        starterPromptForChat = `Use the file ${sampleResult.sample.filename} that was just uploaded (${uploadedPath}). ${selectedUseCase.starterPrompt}`;
+        starterPromptForChat = t('onboarding.sample.prompt_anchor', {
+          filename: sampleResult.sample.filename,
+          path: uploadedPath,
+          prompt: selectedUseCase.starterPrompt,
+        });
       }
 
-      const status = await rpc('status.get');
-      onboardingResult = {
-        model: selectedModel.id,
-        qualityPreset: normalizeQualityPreset(status.qualityPreset),
+      const finalizePayload = buildOnboardingFinalizePayload({
+        sessionId: handoffSessionId,
         useCaseId: selectedUseCase.id,
         starterPrompt: starterPromptForChat,
-      };
+        dataChoiceId: selectedDataChoiceId,
+        deliverables: selectedDeliverables,
+        autonomyMode: selectedAutonomyMode,
+        modelId: selectedModel.id,
+      });
+      const finalizeResult = await finalizeOnboardingHandoff(finalizePayload);
+      if (!finalizeResult.sessionId || finalizeResult.sessionId.trim().length === 0) {
+        throw new Error('Onboarding finalize did not return a session id.');
+      }
+
+      setFinalizedSessionId(finalizeResult.sessionId);
+      setSessionId(finalizeResult.sessionId);
+      setMode(executionMode);
+
+      try {
+        localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+        localStorage.setItem(LEGACY_ONBOARDING_STORAGE_KEY, 'true');
+      } catch {
+        // Ignore storage failures. The config write already succeeded.
+      }
+
+      setPendingStarterPrompt(starterPromptForChat);
+      telemetry({
+        type: 'onboarding.finalize_succeeded',
+        useCaseId: selectedUseCase.id,
+        modelId: selectedModel.id,
+        durationMs: Date.now() - finalizeStartedAt,
+      });
+      onComplete({
+        model: selectedModel.id,
+        qualityPreset: normalizeQualityPreset(qualityPreset),
+        useCaseId: selectedUseCase.id,
+        starterPrompt: starterPromptForChat,
+      });
     } catch (error) {
-      setFinishError(error instanceof Error ? error.message : String(error));
+      const reason = error instanceof Error ? error.message : String(error);
+      setFinishError(reason);
       setLoading(false);
-      return;
-    }
-
-    try {
-      localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-      localStorage.setItem(LEGACY_ONBOARDING_STORAGE_KEY, 'true');
-    } catch {
-      // Ignore storage failures. The config write already succeeded.
-    }
-
-    // Hand the chat input a starter prompt so the first analysis is one click away.
-    setPendingStarterPrompt(starterPromptForChat);
-
-    if (onboardingResult) {
-      onComplete(onboardingResult);
+      telemetry({
+        type: 'onboarding.finalize_failed',
+        useCaseId: selectedUseCase?.id ?? null,
+        modelId: selectedModel?.id ?? null,
+        reason,
+        durationMs: Date.now() - finalizeStartedAt,
+      });
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ds-bg px-4 py-8">
-      <div className="w-full max-w-5xl">
+      <div className="w-full max-w-6xl">
         <div className="mb-8 text-center">
           <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-ds-accent/20">
             <Bot size={32} className="text-ds-accent" />
           </div>
-          <h1 className="text-3xl font-bold text-ds-text">DS Agent</h1>
-          <p className="mt-2 text-sm text-ds-muted">
-            Set your goal first. The agent will adapt its tone and outputs around that context.
+          <h1 className="text-3xl font-bold text-ds-text">{t('onboarding.title')}</h1>
+          <p className="mt-2 text-sm text-ds-muted">{t('onboarding.appSubtitle')}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-ds-muted">
+            Wave 2 onboarding: use case / data / deliverables / mode / model / mission start
           </p>
+          <div className="mx-auto mt-5 max-w-xl rounded-2xl border border-ds-border bg-ds-surface p-4 text-left">
+            <LocaleSelector
+              value={locale}
+              onChange={handleLocaleChange}
+              labelKey="onboarding.locale.label"
+              descriptionKey="onboarding.locale.description"
+            />
+          </div>
         </div>
 
-        <div className="mb-6 grid gap-2 md:grid-cols-4">
-          {PRIMARY_STEPS.map((entry, index) => {
-            const activeIndex = PRIMARY_STEPS.findIndex((stepEntry) => stepEntry.id === activePrimaryStep);
+        <div className="mb-6 grid gap-2 md:grid-cols-6">
+          {ONBOARDING_PRIMARY_STEPS.map((entry, index) => {
+            const activeIndex = ONBOARDING_PRIMARY_STEPS.findIndex(
+              (stepEntry) => stepEntry.id === step,
+            );
             const complete = index < activeIndex;
-            const active = entry.id === activePrimaryStep;
+            const active = entry.id === step;
 
             return (
               <div
@@ -581,7 +1117,7 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
                 }`}
               >
                 <div className="text-[10px] uppercase tracking-[0.2em] text-ds-muted">
-                  Step {index + 1}
+                  {t('onboarding.steps.label', { step: index + 1 })}
                 </div>
                 <div className="mt-1 text-sm font-medium text-ds-text">{entry.label}</div>
               </div>
@@ -589,84 +1125,28 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
           })}
         </div>
 
-        {step === 'welcome' && (
-          <div className="rounded-2xl border border-ds-border bg-ds-surface p-8">
-            <div className="grid gap-8 lg:grid-cols-[1.3fr_1fr]">
-              <div>
-                <div className="text-xs uppercase tracking-[0.25em] text-ds-muted">First run</div>
-                <h2 className="mt-3 text-2xl font-semibold text-ds-text">
-                  Start with the kind of work you want to do.
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-ds-muted">
-                  This setup does not lock the agent into a fixed workflow. It gives the agent better
-                  context so it can explain results in the right tone, surface the right outputs, and
-                  start from the most useful framing.
-                </p>
-                <button
-                  onClick={() => setStep('use_case')}
-                  className="
-                    mt-6 inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3
-                    text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover
-                  "
-                >
-                  Continue
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-
-              <div className="rounded-2xl border border-ds-border/60 bg-ds-bg p-5">
-                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">What changes</div>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <div className="text-sm font-medium text-ds-text">Clearer language</div>
-                    <p className="mt-1 text-xs leading-5 text-ds-muted">
-                      Exploration, reporting, and modeling each get different wording and emphasis.
-                    </p>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-ds-text">Better default outputs</div>
-                    <p className="mt-1 text-xs leading-5 text-ds-muted">
-                      The agent leans toward the report, chart, summary, or modeling artifacts that fit
-                      your job to be done.
-                    </p>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-ds-text">Still fully autonomous</div>
-                    <p className="mt-1 text-xs leading-5 text-ds-muted">
-                      The setup influences context only. It does not hard-code a path through the
-                      workflow.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {step === 'use_case' && (
           <div className="rounded-2xl border border-ds-border bg-ds-surface p-8">
             <div className="mb-6">
-              <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Goal</div>
-              <h2 className="mt-2 text-2xl font-semibold text-ds-text">
-                What do you want the agent to help with most often?
-              </h2>
+              <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">
+                {t('onboarding.use_case.eyebrow')}
+              </div>
+              <h2 className="mt-2 text-2xl font-semibold text-ds-text">{t('onboarding.use_case.title')}</h2>
               <p className="mt-2 text-sm text-ds-muted">
-                Pick the closest fit. You can change this later from Settings.
+                {t('onboarding.use_case.description')}
               </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {USE_CASES.map((useCase) => {
+              {useCases.map((useCase) => {
                 const Icon = useCase.icon;
                 const selected = selectedUseCase?.id === useCase.id;
 
                 return (
                   <button
                     key={useCase.id}
-                    onClick={() => {
-                      setSelectedUseCase(useCase);
-                      setStep('connect');
-                    }}
+                    type="button"
+                    onClick={() => handleUseCaseSelect(useCase.id)}
                     className={`rounded-2xl border p-5 text-left transition-colors ${
                       selected
                         ? 'border-ds-accent/60 bg-ds-accent/10'
@@ -683,7 +1163,7 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
                     <p className="mt-2 text-sm leading-6 text-ds-muted">{useCase.description}</p>
                     <div className="mt-4 rounded-xl border border-ds-border/60 bg-ds-surface p-3">
                       <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
-                        Starter prompt
+                        {t('onboarding.use_case.starter_prompt')}
                       </div>
                       <p className="mt-2 text-xs leading-5 text-ds-muted">{useCase.starterPrompt}</p>
                     </div>
@@ -691,71 +1171,302 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
                 );
               })}
             </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setStep('data')}
+                disabled={!selectedUseCase}
+                className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Continue
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         )}
 
-        {step === 'connect' && selectedUseCase && (
+        {step === 'data' && (
           <div className="rounded-2xl border border-ds-border bg-ds-surface p-8">
-            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.4fr]">
-              <div className="rounded-2xl border border-ds-border bg-ds-bg p-5">
-                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Selected goal</div>
-                <div className="mt-3 text-xl font-semibold text-ds-text">{selectedUseCase.title}</div>
-                <p className="mt-2 text-sm leading-6 text-ds-muted">{selectedUseCase.description}</p>
+            <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 2</div>
+                <h2 className="mt-2 text-2xl font-semibold text-ds-text">How will you start with data?</h2>
+                <p className="mt-2 text-sm leading-6 text-ds-muted">
+                  PLAN_05 targets three first-run paths here: bring your own file, load a sample, or
+                  defer database setup until the mission is already framed.
+                </p>
 
-                <div className="mt-5 rounded-xl border border-ds-border/60 bg-ds-surface p-4">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
-                    Starter prompt
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-ds-muted">
-                    {selectedUseCase.starterPrompt}
-                  </p>
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  {dataChoices.map((choice) => {
+                    const Icon = choice.icon;
+                    const selected = selectedDataChoiceId === choice.id;
+
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        disabled={choice.disabled}
+                        onClick={() => {
+                          setFinishError('');
+                          setSelectedDataChoiceId(choice.id);
+                        }}
+                        className={`rounded-2xl border p-5 text-left transition-colors ${
+                          selected
+                            ? 'border-ds-accent/60 bg-ds-accent/10'
+                            : 'border-ds-border bg-ds-bg hover:border-ds-accent/40 hover:bg-ds-accent/5'
+                        } ${choice.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                      >
+                        <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-ds-surface text-ds-accent">
+                          <Icon size={18} />
+                        </div>
+                        <div className="mt-4 text-base font-medium text-ds-text">{choice.title}</div>
+                        <p className="mt-2 text-sm leading-6 text-ds-muted">{choice.description}</p>
+                        <p className="mt-3 text-xs leading-5 text-ds-muted/80">{choice.detail}</p>
+                      </button>
+                    );
+                  })}
                 </div>
-
-                <button
-                  onClick={() => setStep('use_case')}
-                  className="mt-5 text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
-                >
-                  Back to goal selection
-                </button>
               </div>
+
+              <SummaryCard
+                selectedUseCase={selectedUseCase}
+                selectedDataChoiceId={selectedDataChoiceId}
+                selectedDeliverables={selectedDeliverables}
+                selectedAutonomyMode={selectedAutonomyMode}
+                selectedModel={selectedModel}
+                selectedModelAccess={selectedModelAccess}
+              />
+            </div>
+
+            <div className="mt-6 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setStep('use_case')}
+                className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
+              >
+                Back to use case
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep('deliverables')}
+                className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover"
+              >
+                Continue
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'deliverables' && (
+          <div className="rounded-2xl border border-ds-border bg-ds-surface p-8">
+            <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 3</div>
+                <h2 className="mt-2 text-2xl font-semibold text-ds-text">Which outputs matter first?</h2>
+                <p className="mt-2 text-sm leading-6 text-ds-muted">
+                  Select the deliverables that should shape the mission. You can choose more than one.
+                </p>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  {deliverableChoices.map((choice) => {
+                    const Icon = choice.icon;
+                    const selected = selectedDeliverables.includes(choice.id);
+
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        onClick={() => toggleDeliverable(choice.id)}
+                        className={`rounded-2xl border p-5 text-left transition-colors ${
+                          selected
+                            ? 'border-ds-accent/60 bg-ds-accent/10'
+                            : 'border-ds-border bg-ds-bg hover:border-ds-accent/40 hover:bg-ds-accent/5'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-ds-surface text-ds-accent">
+                            <Icon size={18} />
+                          </div>
+                          {selected && (
+                            <span className="rounded-full bg-ds-success/15 px-2 py-0.5 text-[10px] font-medium text-ds-success">
+                              Selected
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-4 text-base font-medium text-ds-text">{choice.title}</div>
+                        <p className="mt-2 text-sm leading-6 text-ds-muted">{choice.description}</p>
+                        <p className="mt-3 text-xs leading-5 text-ds-muted/80">{choice.detail}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <SummaryCard
+                selectedUseCase={selectedUseCase}
+                selectedDataChoiceId={selectedDataChoiceId}
+                selectedDeliverables={selectedDeliverables}
+                selectedAutonomyMode={selectedAutonomyMode}
+                selectedModel={selectedModel}
+                selectedModelAccess={selectedModelAccess}
+              />
+            </div>
+
+            <div className="mt-6 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setStep('data')}
+                className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
+              >
+                Back to data
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep('mode')}
+                disabled={selectedDeliverables.length === 0}
+                className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Continue
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'mode' && (
+          <div className="rounded-2xl border border-ds-border bg-ds-surface p-8">
+            <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 4</div>
+                <h2 className="mt-2 text-2xl font-semibold text-ds-text">How much autonomy should the agent use?</h2>
+                <p className="mt-2 text-sm leading-6 text-ds-muted">
+                  This step keeps the new Fast / Balanced / Controlled language aligned with the current
+                  runtime modes and model-quality presets.
+                </p>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  {autonomyChoices.map((choice) => {
+                    const Icon = choice.icon;
+                    const selected = selectedAutonomyMode === choice.id;
+
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        onClick={() => {
+                          setFinishError('');
+                          setSelectedAutonomyMode(choice.id);
+                        }}
+                        className={`rounded-2xl border p-5 text-left transition-colors ${
+                          selected
+                            ? 'border-ds-accent/60 bg-ds-accent/10'
+                            : 'border-ds-border bg-ds-bg hover:border-ds-accent/40 hover:bg-ds-accent/5'
+                        }`}
+                      >
+                        <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-ds-surface text-ds-accent">
+                          <Icon size={18} />
+                        </div>
+                        <div className="mt-4 text-base font-medium text-ds-text">{choice.title}</div>
+                        <p className="mt-2 text-sm leading-6 text-ds-muted">{choice.description}</p>
+                        <p className="mt-3 text-xs leading-5 text-ds-muted/80">{choice.detail}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <SummaryCard
+                selectedUseCase={selectedUseCase}
+                selectedDataChoiceId={selectedDataChoiceId}
+                selectedDeliverables={selectedDeliverables}
+                selectedAutonomyMode={selectedAutonomyMode}
+                selectedModel={selectedModel}
+                selectedModelAccess={selectedModelAccess}
+              />
+            </div>
+
+            <div className="mt-6 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setStep('deliverables')}
+                className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
+              >
+                Back to deliverables
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep('model')}
+                className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover"
+              >
+                Continue
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'model' && selectedUseCase && (
+          <div className="rounded-2xl border border-ds-border bg-ds-surface p-8">
+            <div className="grid gap-8 lg:grid-cols-[0.95fr_1.45fr]">
+              <SummaryCard
+                selectedUseCase={selectedUseCase}
+                selectedDataChoiceId={selectedDataChoiceId}
+                selectedDeliverables={selectedDeliverables}
+                selectedAutonomyMode={selectedAutonomyMode}
+                selectedModel={selectedModel}
+                selectedModelAccess={selectedModelAccess}
+              />
 
               <div>
                 <div className="mb-6">
-                  <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Connect</div>
-                  <h2 className="mt-2 text-2xl font-semibold text-ds-text">
-                    Choose how you want to connect AI.
-                  </h2>
+                  <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 5</div>
+                  <h2 className="mt-2 text-2xl font-semibold text-ds-text">Choose the model and connection path</h2>
                   <p className="mt-2 text-sm text-ds-muted">
-                    You can change this later. The agent will keep the goal context you just chose.
+                    Capability-first groups stay intact. Authentication remains inline here so the Wave 2
+                    flow does not break the current provider path.
                   </p>
                 </div>
 
                 <div className="space-y-4">
-                  {groups.map((group) => {
-                    const Icon = GROUP_ICONS[group.authType] ?? Key;
-                    return (
-                      <div
-                        key={group.authType}
-                        className="overflow-hidden rounded-2xl border border-ds-border bg-ds-bg"
-                      >
-                        <div className="flex items-center gap-2 border-b border-ds-border px-4 py-3">
-                          <Icon size={14} className="text-ds-muted" />
-                          <span className="text-xs font-medium uppercase tracking-[0.18em] text-ds-muted">
-                            {GROUP_TITLES[group.authType] ?? group.title}
-                          </span>
+                  {groups.map((group) => (
+                    <div
+                      key={group.id}
+                      role="group"
+                      aria-label={t(group.titleKey)}
+                      className="overflow-hidden rounded-2xl border border-ds-border bg-ds-bg"
+                    >
+                      <div className="border-b border-ds-border px-4 py-3">
+                        <div className="text-xs font-medium uppercase tracking-[0.18em] text-ds-muted">
+                          {t(group.titleKey)}
                         </div>
+                        <div className="mt-1 text-xs leading-5 text-ds-muted">
+                          {t(group.descriptionKey)}
+                        </div>
+                      </div>
 
-                        {group.models.map((entry) => {
+                      {group.models.length === 0 ? (
+                        <div className="px-4 py-4 text-sm text-ds-muted">
+                          <div className="font-medium text-ds-text">{t(group.emptyTitleKey)}</div>
+                          <div className="mt-1 text-xs leading-5 text-ds-muted">
+                            {t(group.emptyDescriptionKey)}
+                          </div>
+                        </div>
+                      ) : (
+                        group.models.map((entry) => {
                           const access = describeModelAccess({
                             modelId: entry.id,
                             modelEntry: entry,
                             providerStatuses,
                             oauthStatuses,
                           });
+                          const isRecommended = recommendedModel?.model.id === entry.id;
 
                           return (
                             <button
                               key={entry.id}
+                              type="button"
                               onClick={() => handleModelSelect(entry)}
                               className={`
                                 flex w-full items-start justify-between gap-4 border-b border-ds-border/40
@@ -765,20 +1476,40 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
                               `}
                             >
                               <div className="min-w-0">
-                                <div className="text-sm font-medium text-ds-text">
-                                  {entry.displayName}
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="text-sm font-medium text-ds-text">
+                                    {entry.displayName}
+                                  </div>
+                                  {isRecommended && (
+                                    <span className="rounded-full bg-ds-accent/10 px-2 py-0.5 text-[10px] font-medium text-ds-accent">
+                                      {t('llm.recommend.badge')}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="mt-1 text-xs leading-5 text-ds-muted">
-                                  {getConnectionHint(entry, access.ready)}
+                                  {getConnectionHint(entry, access.ready, t)}
                                 </div>
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  {entry.badges.map((badge) => (
+                                    <CapabilityBadge key={`${entry.id}-${badge}`} badge={badge} />
+                                  ))}
+                                </div>
+                                {isRecommended && recommendedReason && (
+                                  <div className="mt-2 text-[11px] leading-5 text-ds-accent">
+                                    {recommendedReason}
+                                  </div>
+                                )}
                                 <div className="mt-2 text-[11px] leading-5 text-ds-muted/80">
+                                  {access.providerLabel} / {access.authTypeLabel}
+                                </div>
+                                <div className="mt-1 text-[11px] leading-5 text-ds-muted/80">
                                   {access.detail}
                                 </div>
                               </div>
                               <div className="flex shrink-0 flex-col items-end gap-2">
                                 <span
                                   className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeClasses(
-                                    access.ready
+                                    access.ready,
                                   )}`}
                                 >
                                   {access.shortLabel}
@@ -787,244 +1518,241 @@ export function OnboardingWizard({ onComplete, rpc, groups }: Props) {
                               </div>
                             </button>
                           );
-                        })}
-                      </div>
-                    );
-                  })}
+                        })
+                      )}
+                    </div>
+                  ))}
 
                   {groups.length === 0 && (
                     <div className="rounded-2xl border border-ds-border bg-ds-bg p-8 text-center">
                       <Loader2 size={20} className="mx-auto mb-3 animate-spin text-ds-accent" />
-                      <p className="text-sm text-ds-muted">Loading connection options...</p>
+                      <p className="text-sm text-ds-muted">{t('onboarding.connect.loading')}</p>
                     </div>
                   )}
                 </div>
+
+                {selectedModel && selectedModelAccess && (
+                  <div className="mt-6 rounded-2xl border border-ds-border bg-ds-bg p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-medium text-ds-text">{selectedModel.displayName}</div>
+                        <p className="mt-1 text-xs leading-5 text-ds-muted">{selectedModelAccess.detail}</p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeClasses(
+                          selectedModelAccess.ready,
+                        )}`}
+                      >
+                        {selectedModelAccess.shortLabel}
+                      </span>
+                    </div>
+
+                    {selectedModelAccess.authType === 'oauth' && !selectedModelAccess.ready && (
+                      <div className="mt-5">
+                        {oauthWaiting ? (
+                          <div className="rounded-xl border border-ds-border bg-ds-surface px-4 py-5 text-center">
+                            <Loader2 size={20} className="mx-auto mb-3 animate-spin text-ds-accent" />
+                            <p className="text-sm text-ds-muted">{t('onboarding.oauth.waiting')}</p>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void handleOAuthLogin()}
+                            className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover"
+                          >
+                            <LogIn size={16} />
+                            {t('onboarding.oauth.start')}
+                          </button>
+                        )}
+                        {oauthError && <p className="mt-4 text-xs text-red-400">{oauthError}</p>}
+                      </div>
+                    )}
+
+                    {selectedModelAccess.authType !== 'oauth' && !selectedModelAccess.ready && NEEDS_API_KEY.has(selectedModel.provider) && (
+                      <div className="mt-5">
+                        {!vaultAvailable && window.electronAPI?.getSecretVaultStatus && (
+                          <p className="mb-3 text-xs text-red-400">
+                            {apiKeyError || t('onboarding.api_key.vault_unavailable')}
+                          </p>
+                        )}
+
+                        <label className="block text-[10px] uppercase tracking-[0.18em] text-ds-muted">
+                          API key
+                        </label>
+                        <input
+                          type="password"
+                          value={apiKey}
+                          onChange={(event) => setApiKey(event.target.value)}
+                          placeholder={getKeyPlaceholder(selectedModel.provider)}
+                          className="mt-3 w-full rounded-xl border border-ds-border bg-ds-surface px-4 py-3 text-sm text-ds-text placeholder:text-ds-muted/50 focus:border-ds-accent focus:outline-none"
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' && canContinueFromModel) {
+                              setStep('confirm');
+                            }
+                          }}
+                        />
+                        <p className="mt-3 text-xs leading-5 text-ds-muted">
+                          The key is stored during the final handoff so the current provider connection
+                          flow stays unchanged.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-6 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setStep('mode')}
+                    className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
+                  >
+                    Back to mode
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep('confirm')}
+                    disabled={!canContinueFromModel}
+                    className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Continue
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {step === 'oauth' && selectedModel && (
-          <div className="mx-auto max-w-xl rounded-2xl border border-ds-border bg-ds-surface p-8 text-center">
-            <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Connect</div>
-            <h2 className="mt-2 text-2xl font-semibold text-ds-text">
-              Sign in to continue with {selectedModel.displayName}.
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-ds-muted">
-              This opens a browser-based sign-in flow. When it completes, the desktop app will return
-              here automatically.
-            </p>
-
-            {oauthWaiting ? (
-              <div className="py-8">
-                <Loader2 size={24} className="mx-auto mb-3 animate-spin text-ds-accent" />
-                <p className="text-sm text-ds-muted">Waiting for sign-in to complete...</p>
-              </div>
-            ) : (
-              <button
-                onClick={() => void handleOAuthLogin()}
-                className="
-                  mt-6 inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3
-                  text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover
-                "
-              >
-                <LogIn size={16} />
-                Start sign-in
-              </button>
-            )}
-
-            {oauthError && <p className="mt-4 text-xs text-red-400">{oauthError}</p>}
-
-            <button
-              onClick={() => {
-                setOauthError('');
-                setStep('connect');
-              }}
-              className="mt-5 text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
-            >
-              Back
-            </button>
-          </div>
-        )}
-
-        {step === 'apikey' && selectedModel && (
-          <div className="mx-auto max-w-xl rounded-2xl border border-ds-border bg-ds-surface p-8">
-            <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Connect</div>
-            <h2 className="mt-2 text-2xl font-semibold text-ds-text">
-              Add your key for {selectedModel.displayName}.
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-ds-muted">
-              The desktop app stores this locally and only uses it for requests to the selected AI
-              provider.
-            </p>
-
-            {!vaultAvailable && window.electronAPI?.getSecretVaultStatus && (
-              <p className="mt-4 text-xs text-red-400">
-                {apiKeyError || 'Desktop secure storage is unavailable.'}
-              </p>
-            )}
-
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              placeholder={getKeyPlaceholder(selectedModel.provider)}
-              className="
-                mt-5 w-full rounded-xl border border-ds-border bg-ds-bg px-4 py-3
-                text-sm text-ds-text placeholder:text-ds-muted/50
-                focus:border-ds-accent focus:outline-none
-              "
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  handleApiKeySubmit();
-                }
-              }}
-              autoFocus
-            />
-
-            <div className="mt-5 flex items-center justify-between">
-              <button
-                onClick={() => {
-                  setApiKey('');
-                  setApiKeyError('');
-                  setStep('connect');
-                }}
-                className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleApiKeySubmit}
-                disabled={!apiKey.trim() || (window.electronAPI?.getSecretVaultStatus && !vaultAvailable)}
-                className="
-                  rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white
-                  transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40
-                "
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'done' && selectedModel && selectedUseCase && (
-          <div className="mx-auto max-w-3xl rounded-2xl border border-ds-border bg-ds-surface p-8 text-center">
+        {step === 'confirm' && selectedModel && selectedUseCase && (
+          <div className="mx-auto max-w-4xl rounded-2xl border border-ds-border bg-ds-surface p-8">
             <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-ds-success/20">
               <Check size={24} className="text-ds-success" />
             </div>
-            <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Ready</div>
-            <h2 className="mt-2 text-2xl font-semibold text-ds-text">Your default setup is ready.</h2>
+            <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 6</div>
+            <h2 className="mt-2 text-2xl font-semibold text-ds-text">Confirm the mission handoff</h2>
             <p className="mt-3 text-sm leading-6 text-ds-muted">
-              The agent will start with <span className="font-medium text-ds-text">{selectedUseCase.title}</span>
-              {' '}as its user-context hint and use <span className="font-medium text-ds-text">{selectedModel.displayName}</span>
-              {' '}as the default AI connection.
+              This final step bootstraps the backend session, preserves the current provider connection
+              path, and stages the first prompt so Mission can take over immediately.
             </p>
 
-            <div className="mt-6 rounded-2xl border border-ds-border bg-ds-bg p-5 text-left">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
-                Suggested first prompt
-              </div>
-              <p className="mt-2 text-sm leading-6 text-ds-text">{selectedUseCase.starterPrompt}</p>
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-ds-border bg-ds-bg p-5 text-left">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Privacy</div>
-              <div className="mt-2 text-base font-medium text-ds-text">
-                Choose whether to share redacted diagnostics.
-              </div>
-              <p className="mt-2 text-sm leading-6 text-ds-muted">
-                Crash reports and performance telemetry stay off until you opt in. API keys, OAuth
-                tokens, and backend handshake secrets are redacted before anything is sent.
-              </p>
-              {!sentryConfigured && (
-                <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
-                  Remote crash reporting is not configured for this build yet. Your preference will
-                  still be saved and applied automatically once a Sentry DSN is configured.
+            <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="rounded-2xl border border-ds-border bg-ds-bg p-5">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Mission card</div>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <div className="text-sm font-medium text-ds-text">{selectedUseCase.title}</div>
+                    <p className="mt-1 text-xs leading-5 text-ds-muted">{selectedUseCase.description}</p>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Data</div>
+                    <p className="mt-1 text-sm text-ds-text">{formatDataChoiceTitle(selectedDataChoiceId)}</p>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Deliverables</div>
+                    <p className="mt-1 text-sm text-ds-text">
+                      {selectedDeliverables.map((entry) => formatDeliverableTitle(entry)).join(', ')}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Autonomy</div>
+                    <p className="mt-1 text-sm text-ds-text">
+                      {formatAutonomyModeTitle(selectedAutonomyMode)} / {mapAutonomyModeToExecutionMode(selectedAutonomyMode)}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Model</div>
+                    <p className="mt-1 text-sm text-ds-text">{selectedModel.displayName}</p>
+                    {selectedModelAccess && (
+                      <p className="mt-1 text-[11px] leading-5 text-ds-muted">
+                        {selectedModelAccess.providerLabel} / {selectedModelAccess.shortLabel}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
+                      {t('onboarding.done.suggested_prompt')}
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-ds-text">{selectedUseCase.starterPrompt}</p>
+                  </div>
                 </div>
-              )}
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {OBSERVABILITY_CHOICES.map((choice) => {
-                  const selected = observabilityChoice === choice.id;
-                  return (
-                    <button
-                      key={choice.id}
-                      type="button"
-                      onClick={() => {
-                        setFinishError('');
-                        setObservabilityChoice(choice.id);
-                      }}
-                      className={`rounded-2xl border p-4 text-left transition-colors ${
-                        selected
-                          ? 'border-ds-accent/60 bg-ds-accent/10'
-                          : 'border-ds-border bg-ds-surface hover:border-ds-accent/40 hover:bg-ds-accent/5'
-                      }`}
-                    >
-                      <div className="text-sm font-medium text-ds-text">{choice.title}</div>
-                      <p className="mt-2 text-xs leading-5 text-ds-muted">{choice.description}</p>
-                    </button>
-                  );
-                })}
+              </div>
+
+              <div className="rounded-2xl border border-ds-border bg-ds-bg p-5 text-left">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
+                  {t('onboarding.privacy.eyebrow')}
+                </div>
+                <div className="mt-2 text-base font-medium text-ds-text">{t('onboarding.privacy.title')}</div>
+                <p className="mt-2 text-sm leading-6 text-ds-muted">{t('onboarding.privacy.description')}</p>
+                {!sentryConfigured && (
+                  <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+                    {t('onboarding.privacy.not_configured')}
+                  </div>
+                )}
+                <div className="mt-4 grid gap-3">
+                  {observabilityChoices.map((choice) => {
+                    const selected = observabilityChoice === choice.id;
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        onClick={() => {
+                          setFinishError('');
+                          setObservabilityChoice(choice.id);
+                        }}
+                        className={`rounded-2xl border p-4 text-left transition-colors ${
+                          selected
+                            ? 'border-ds-accent/60 bg-ds-accent/10'
+                            : 'border-ds-border bg-ds-surface hover:border-ds-accent/40 hover:bg-ds-accent/5'
+                        }`}
+                      >
+                        <div className="text-sm font-medium text-ds-text">{choice.title}</div>
+                        <p className="mt-2 text-xs leading-5 text-ds-muted">{choice.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {sampleApiAvailable && (
+            {selectedDataChoiceId === 'sample' && sampleApiAvailable && (
               <div className="mt-4 rounded-2xl border border-ds-accent/30 bg-ds-accent/5 p-5 text-left">
                 <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
-                  No data yet?
+                  {t('onboarding.sample.eyebrow')}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-ds-text">
-                  We can drop a small sample dataset into your workspace so you can see the agent
-                  in action without uploading anything first.
-                </p>
+                <p className="mt-2 text-sm leading-6 text-ds-text">{t('onboarding.sample.description')}</p>
               </div>
             )}
 
             {finishError && <p className="mt-4 text-xs text-red-400">{finishError}</p>}
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              {sampleApiAvailable && (
-                <button
-                  onClick={() => void handleFinish({ withSample: true })}
-                  disabled={loading || observabilityChoice === null}
-                  className="
-                    inline-flex items-center justify-center gap-2 rounded-xl bg-ds-accent px-6 py-3
-                    text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover
-                    disabled:opacity-50
-                  "
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Preparing sample...
-                    </>
-                  ) : (
-                    'Try with sample data'
-                  )}
-                </button>
-              )}
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <button
+                type="button"
+                onClick={() => setStep('model')}
+                className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
+              >
+                Back to model
+              </button>
+              <button
+                type="button"
                 onClick={() => void handleFinish()}
                 disabled={loading || observabilityChoice === null}
-                className={`
-                  inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3
-                  text-sm font-medium transition-colors disabled:opacity-50
-                  ${
-                    sampleApiAvailable
-                      ? 'border border-ds-border bg-ds-bg text-ds-text hover:border-ds-accent/50'
-                      : 'bg-ds-accent text-white hover:bg-ds-accent-hover'
-                  }
-                `}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-ds-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {sampleApiAvailable ? "I'll bring my own data" : 'Start DS Agent'}
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    {selectedDataChoiceId === 'sample' && sampleApiAvailable
+                      ? t('onboarding.sample.preparing')
+                      : t('onboarding.done.start')}
+                  </>
+                ) : (
+                  selectedDataChoiceId === 'sample' && sampleApiAvailable
+                    ? t('onboarding.sample.try')
+                    : t('onboarding.done.start')
+                )}
               </button>
             </div>
-
-            <button
-              onClick={() => setStep('connect')}
-              className="mt-4 block w-full text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
-            >
-              Change AI connection
-            </button>
           </div>
         )}
       </div>

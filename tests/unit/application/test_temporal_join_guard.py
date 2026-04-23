@@ -27,7 +27,7 @@ class TestTemporalJoinGuardSQL:
         FROM users u
         JOIN events e ON u.id = e.user_id
         """
-        result = await hook.post_tool_use(
+        await hook.post_tool_use(
             "execute_code", {"code": code}, "ok", False, ctx
         )
 
@@ -49,7 +49,7 @@ class TestTemporalJoinGuardSQL:
         JOIN events e ON u.id = e.user_id
             AND e.created_at < u.label_date
         """
-        result = await hook.post_tool_use(
+        await hook.post_tool_use(
             "execute_code", {"code": code}, "ok", False, ctx
         )
 
@@ -83,7 +83,7 @@ class TestTemporalJoinGuardPandas:
         ctx = _ctx()
 
         code = "result = pd.merge(users_df, orders_df, on='user_id')"
-        result = await hook.post_tool_use(
+        await hook.post_tool_use(
             "execute_code", {"code": code}, "ok", False, ctx
         )
 
@@ -102,7 +102,7 @@ class TestTemporalJoinGuardPandas:
         orders_filtered = orders_df[orders_df['created_at'] < label_date]
         result = pd.merge(users_df, orders_filtered, on='user_id')
         """
-        result = await hook.post_tool_use(
+        await hook.post_tool_use(
             "execute_code", {"code": code}, "ok", False, ctx
         )
 

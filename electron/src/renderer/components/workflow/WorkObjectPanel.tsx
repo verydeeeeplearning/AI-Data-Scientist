@@ -123,6 +123,7 @@ export function WorkObjectPanel() {
           <select
             value={phaseFilter}
             onChange={(event) => setPhaseFilter(event.target.value as WorkObjectPhase | 'all')}
+            aria-label="Filter work objects by phase"
             data-testid="work-object-phase-filter"
             className="rounded-xl border border-ds-border bg-ds-surface px-3 py-2 text-xs text-ds-text"
           >

@@ -22,6 +22,63 @@ from ds_agent.infrastructure.verifiers.common import (
 
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 _NUMBER_RE = re.compile(r"[-+]?\d+(?:\.\d+)?%?")
+_METRIC_DEFINITION_TERMS = (
+    "definition",
+    "defined as",
+    "measured as",
+    "calculated as",
+    "formula",
+    "numerator",
+    "denominator",
+    "metric spec",
+    "source of truth",
+)
+_QUERY_GRAIN_TERMS = (
+    "grain",
+    "granularity",
+    "group by",
+    "date_trunc",
+    "daily",
+    "weekly",
+    "monthly",
+    "quarterly",
+    "yearly",
+    "per day",
+    "per week",
+    "per month",
+    "per user",
+    "per customer",
+    "per account",
+)
+_BUSINESS_QUESTION_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "be",
+        "by",
+        "for",
+        "from",
+        "how",
+        "in",
+        "into",
+        "is",
+        "of",
+        "on",
+        "or",
+        "our",
+        "should",
+        "that",
+        "the",
+        "this",
+        "to",
+        "we",
+        "what",
+        "which",
+        "with",
+    }
+)
 _STRONG_TERMS = (
     "always",
     "never",
@@ -289,6 +346,267 @@ class MetricCitationAccuracyCheck:
         return False
 
 
+class MetricDefinitionConfirmedCheck:
+    """Require an explicit metric definition signal for metric-heavy narratives."""
+
+    name = "metric_definition_confirmed"
+    version = "1"
+
+    def run(self, ctx: VerifierContext) -> CheckResult:
+        start = perf_counter()
+        explicit = artifact(ctx, "metric_definition_confirmed", "definition_confirmed")
+        if explicit is not None:
+            confirmed = bool(explicit)
+            return CheckResult(
+                check_id=self.name,
+                status="pass" if confirmed else "fail",
+                score=1.0 if confirmed else 0.0,
+                evidence={"explicit_confirmation": confirmed},
+                message=(
+                    "metric definition confirmation is recorded"
+                    if confirmed
+                    else "metric definition confirmation is explicitly missing"
+                ),
+                remediation_hint=(
+                    None
+                    if confirmed
+                    else "Document the metric definition before moving to review."
+                ),
+                duration_ms=elapsed_ms(start),
+            )
+
+        structured_definition = artifact(
+            ctx,
+            "metric_definition",
+            "metric_spec",
+            "semantic_metric",
+            "kpi_definition",
+        )
+        if structured_definition is not None:
+            return CheckResult(
+                check_id=self.name,
+                status="pass",
+                score=1.0,
+                evidence={"definition_source": type(structured_definition).__name__},
+                message="metric definition artifact is available",
+                duration_ms=elapsed_ms(start),
+            )
+
+        combined_text = _combined_text(ctx)
+        if not combined_text.strip():
+            return CheckResult(
+                check_id=self.name,
+                status="skipped",
+                score=1.0,
+                evidence={},
+                message="metric definition evidence is unavailable",
+                duration_ms=elapsed_ms(start),
+            )
+
+        metric_like_terms = sum(
+            term in combined_text
+            for term in ("metric", "kpi", "conversion", "retention", "revenue")
+        )
+        matched_terms = [term for term in _METRIC_DEFINITION_TERMS if term in combined_text]
+        evidence = {
+            "matched_terms": matched_terms,
+            "metric_like_terms": metric_like_terms,
+        }
+        if matched_terms:
+            status: CheckStatus = "pass"
+            score = 1.0
+            message = "metric definition signals are present"
+        elif metric_like_terms > 0:
+            status = "fail"
+            score = 0.0
+            message = "metric-heavy narrative lacks an explicit metric definition"
+        else:
+            status = "skipped"
+            score = 1.0
+            message = "no metric-definition evidence was required from the narrative"
+        return CheckResult(
+            check_id=self.name,
+            status=status,
+            score=score,
+            evidence=evidence,
+            message=message,
+            remediation_hint=(
+                "State how the metric is defined, including calculation or source of truth."
+                if status == "fail"
+                else None
+            ),
+            duration_ms=elapsed_ms(start),
+        )
+
+
+class BusinessQuestionConfirmedCheck:
+    """Require the narrative to stay anchored to the contract's business question."""
+
+    name = "business_question_confirmed"
+    version = "1"
+
+    def run(self, ctx: VerifierContext) -> CheckResult:
+        start = perf_counter()
+        explicit = artifact(ctx, "business_question_confirmed")
+        if explicit is not None:
+            confirmed = bool(explicit)
+            return CheckResult(
+                check_id=self.name,
+                status="pass" if confirmed else "fail",
+                score=1.0 if confirmed else 0.0,
+                evidence={"explicit_confirmation": confirmed},
+                message=(
+                    "business question confirmation is recorded"
+                    if confirmed
+                    else "business question confirmation is explicitly missing"
+                ),
+                remediation_hint=(
+                    None
+                    if confirmed
+                    else "State the business question and connect the readout back to it."
+                ),
+                duration_ms=elapsed_ms(start),
+            )
+
+        business_question = str(
+            artifact(ctx, "business_question", default=ctx.task_contract.business_goal) or ""
+        ).strip()
+        combined_text = _combined_text(ctx)
+        if not business_question or not combined_text:
+            return CheckResult(
+                check_id=self.name,
+                status="skipped",
+                score=1.0,
+                evidence={},
+                message="business question evidence is unavailable",
+                duration_ms=elapsed_ms(start),
+            )
+
+        question_text = business_question.lower()
+        question_tokens = [
+            token
+            for token in re.findall(r"[a-z]{4,}", question_text)
+            if token not in _BUSINESS_QUESTION_STOPWORDS
+        ]
+        matched_tokens = [token for token in question_tokens if token in combined_text]
+        evidence = {
+            "business_question": business_question,
+            "matched_tokens": matched_tokens,
+            "question_token_count": len(question_tokens),
+        }
+        if question_text in combined_text:
+            status: CheckStatus = "pass"
+            score = 1.0
+            message = "business question is explicitly reflected in the narrative"
+        elif len(matched_tokens) >= max(1, min(2, len(question_tokens))):
+            status = "pass"
+            score = 1.0
+            message = "narrative remains anchored to the business question"
+        else:
+            status = "fail"
+            score = 0.0
+            message = "narrative does not clearly reconnect to the business question"
+        return CheckResult(
+            check_id=self.name,
+            status=status,
+            score=score,
+            evidence=evidence,
+            message=message,
+            remediation_hint=(
+                "Restate the business question and explain how the findings answer it."
+                if status == "fail"
+                else None
+            ),
+            duration_ms=elapsed_ms(start),
+        )
+
+
+class QueryGrainConfirmedCheck:
+    """Require an explicit grain/granularity signal for query-driven narratives."""
+
+    name = "query_grain_confirmed"
+    version = "1"
+
+    def run(self, ctx: VerifierContext) -> CheckResult:
+        start = perf_counter()
+        explicit = artifact(ctx, "query_grain_confirmed")
+        if explicit is not None:
+            confirmed = bool(explicit)
+            return CheckResult(
+                check_id=self.name,
+                status="pass" if confirmed else "fail",
+                score=1.0 if confirmed else 0.0,
+                evidence={"explicit_confirmation": confirmed},
+                message=(
+                    "query grain confirmation is recorded"
+                    if confirmed
+                    else "query grain confirmation is explicitly missing"
+                ),
+                remediation_hint=(
+                    None
+                    if confirmed
+                    else "Document the query grain before moving to review."
+                ),
+                duration_ms=elapsed_ms(start),
+            )
+
+        explicit_grain = artifact(ctx, "query_grain", "required_grain", "grain", "sql_grain")
+        if isinstance(explicit_grain, str) and explicit_grain.strip():
+            return CheckResult(
+                check_id=self.name,
+                status="pass",
+                score=1.0,
+                evidence={"query_grain": explicit_grain.strip()},
+                message="query grain is explicitly captured",
+                duration_ms=elapsed_ms(start),
+            )
+
+        combined_text = _combined_text(ctx)
+        if not combined_text.strip():
+            return CheckResult(
+                check_id=self.name,
+                status="skipped",
+                score=1.0,
+                evidence={},
+                message="query grain evidence is unavailable",
+                duration_ms=elapsed_ms(start),
+            )
+
+        matched_terms = [term for term in _QUERY_GRAIN_TERMS if term in combined_text]
+        query_like_terms = sum(
+            term in combined_text for term in ("sql", "query", "grouped", "cohort", "aggregation")
+        )
+        evidence = {
+            "matched_terms": matched_terms,
+            "query_like_terms": query_like_terms,
+        }
+        if matched_terms:
+            status: CheckStatus = "pass"
+            score = 1.0
+            message = "query grain signals are present"
+        elif query_like_terms > 0 or ctx.task_contract.type == "sql_exploration":
+            status = "fail"
+            score = 0.0
+            message = "query-driven narrative does not confirm the reporting grain"
+        else:
+            status = "skipped"
+            score = 1.0
+            message = "no query-grain evidence was required from the narrative"
+        return CheckResult(
+            check_id=self.name,
+            status=status,
+            score=score,
+            evidence=evidence,
+            message=message,
+            remediation_hint=(
+                "State the exact reporting grain, grouping, or time bucket used by the query."
+                if status == "fail"
+                else None
+            ),
+            duration_ms=elapsed_ms(start),
+        )
+
+
 class RecommendationFeasibilityCheck:
     """Ensure recommendations remain within known constraints."""
 
@@ -356,6 +674,9 @@ class NarrativeVerifier(NarrativeVerifierPort):
                 OverstatementHedgeCheck(),
                 CausalLanguageAppropriatenessCheck(),
                 MetricCitationAccuracyCheck(),
+                MetricDefinitionConfirmedCheck(),
+                BusinessQuestionConfirmedCheck(),
+                QueryGrainConfirmedCheck(),
                 RecommendationFeasibilityCheck(),
             ]
         )
@@ -397,3 +718,9 @@ class NarrativeVerifier(NarrativeVerifierPort):
         merged = [judge_by_id.pop(check.check_id, check) for check in heuristic_results]
         merged.extend(judge_by_id.values())
         return merged
+
+
+def _combined_text(ctx: VerifierContext) -> str:
+    narrative = str(artifact(ctx, "narrative", default="") or "").lower()
+    evidence = " ".join(ref.excerpt or "" for ref in ctx.evidence_refs).lower()
+    return f"{narrative}\n{evidence}".strip()

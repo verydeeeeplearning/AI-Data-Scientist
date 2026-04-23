@@ -42,7 +42,7 @@ import yaml  # type: ignore[import-untyped]
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from scripts.parity_harness.scenarios import ALL_SCENARIOS, Scenario  # noqa: E402
+from scripts.parity_harness.scenarios import ALL_SCENARIOS, Scenario
 
 CASSETTE_DIR = REPO / "tests" / "fixtures" / "llm_cassettes"
 CASSETTE_DIR.mkdir(parents=True, exist_ok=True)
@@ -53,7 +53,7 @@ MAX_COMPLETION_TOKENS = 256  # keep replies short; this sprint validates transpo
 TEMPERATURE = 0.0  # deterministic (still recorded, so replay is by definition byte-identical)
 
 
-def _make_vcr() -> "vcr.VCR":
+def _make_vcr() -> vcr.VCR:
     """Build a VCR instance with strict secret filtering."""
     return vcr.VCR(
         cassette_library_dir=str(CASSETTE_DIR),
@@ -131,7 +131,7 @@ def _check_env() -> str:
     return key
 
 
-async def _record_one(task: RecordingTask, my_vcr: "vcr.VCR") -> dict:
+async def _record_one(task: RecordingTask, my_vcr: vcr.VCR) -> dict:
     """Record one cassette.  Returns a small summary dict (no secrets)."""
     # lazy import inside the function so the SDK object is constructed AFTER
     # VCR.py has had a chance to patch the HTTP stack.

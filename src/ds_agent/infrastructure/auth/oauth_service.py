@@ -154,7 +154,8 @@ class OAuthService:
         data = await asyncio.to_thread(self._http_post, GOOGLE_TOKEN_URL, body)
 
         if "error" in data:
-            raise RuntimeError(f"Token exchange failed: {data.get('error_description', data['error'])}")
+            description = data.get("error_description", data["error"])
+            raise RuntimeError(f"Token exchange failed: {description}")
 
         access_token = data["access_token"]
         refresh_token = data.get("refresh_token", "")
@@ -208,7 +209,8 @@ class OAuthService:
         data = await asyncio.to_thread(self._http_post, GOOGLE_TOKEN_URL, body)
 
         if "error" in data:
-            raise RuntimeError(f"Token refresh failed: {data.get('error_description', data['error'])}")
+            description = data.get("error_description", data["error"])
+            raise RuntimeError(f"Token refresh failed: {description}")
 
         new_access = data["access_token"]
         expires_in = data.get("expires_in", 3600)
@@ -253,12 +255,12 @@ class OAuthService:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             raise RuntimeError(
                 "Codex CLI not found. Install it first:\n"
                 "  npm install -g @openai/codex\n"
                 "Then try again."
-            )
+            ) from exc
 
         # Poll for auth.json (up to 5 minutes)
         for _ in range(300):
@@ -277,7 +279,14 @@ class OAuthService:
 
         Expected format (from OpenClaw codex-cli-auth.ts)::
 
-            {"auth_mode": "chatgpt", "tokens": {"access_token": "...", "refresh_token": "...", "account_id": "..."}}
+            {
+              "auth_mode": "chatgpt",
+              "tokens": {
+                "access_token": "...",
+                "refresh_token": "...",
+                "account_id": "..."
+              }
+            }
         """
         auth_path = path or CODEX_AUTH_FILE
         if not auth_path.exists():

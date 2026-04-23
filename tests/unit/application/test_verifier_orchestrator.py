@@ -7,30 +7,37 @@ from datetime import UTC, datetime
 import pytest
 
 from ds_agent.agent.confidence_scorer import ConfidenceScorer
+from ds_agent.application.services.mission_required_checks import MissionRequiredCheckResolver
 from ds_agent.application.services.verifier_orchestrator import VerifierOrchestrator
 from ds_agent.domain.dtos.verifier_context import VerifierConfig, VerifierContext
+from ds_agent.domain.entities.mission_pack import MissionPack
 from ds_agent.domain.entities.review_verdict import CheckResult, LayerResult, ReviewVerdict
 from ds_agent.domain.entities.shadow_comparison import ShadowComparisonRecord
 from ds_agent.domain.entities.task_contract import TaskContract
 
 
-def _task_contract() -> TaskContract:
+def _task_contract(mission: str | None = None) -> TaskContract:
     now = datetime(2026, 4, 16, tzinfo=UTC)
     return TaskContract(
         task_id="TC-2026-001",
         session_id="session-1",
         type="churn_analysis",
         business_goal="Reduce churn",
+        mission=mission,
         required_deliverables=[{"type": "exec_brief", "audience": "executive", "format": "pptx"}],
         created_at=now,
         updated_at=now,
     )
 
 
-def _ctx(config: VerifierConfig | None = None) -> VerifierContext:
+def _ctx(
+    config: VerifierConfig | None = None,
+    *,
+    mission: str | None = None,
+) -> VerifierContext:
     return VerifierContext(
         run_id="run-1",
-        task_contract=_task_contract(),
+        task_contract=_task_contract(mission=mission),
         artifacts={},
         config=config or VerifierConfig(),
     )
@@ -115,6 +122,14 @@ class StaticShadowComparator:
             items=[],
             metadata={"source": "test"},
         )
+
+
+class StaticMissionLoader:
+    def __init__(self, packs: dict[str, MissionPack] | None = None) -> None:
+        self._packs = packs or {}
+
+    def try_load(self, name: str) -> MissionPack | None:
+        return self._packs.get(name)
 
 
 def _layer(layer: str, status: str, score: float, message: str) -> LayerResult:
@@ -233,3 +248,116 @@ async def test_orchestrator_promotes_narrative_judge_metadata_to_verdict() -> No
 
     assert verdict.metadata["judge_mode"] == "llm"
     assert verdict.metadata["judge_check_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_records_mission_required_check_metadata() -> None:
+    repo = InMemoryRepo()
+    mission_loader = StaticMissionLoader(
+        {
+            "prediction": MissionPack.model_validate(
+                {
+                    "name": "prediction",
+                    "version": 1,
+                    "summary": "Prediction mission.",
+                    "boundary": {
+                        "allowed_data_domains": ["customer"],
+                    },
+                    "required_checks": [
+                        "schema_drift",
+                        "baseline_compare",
+                        "metric_definition_confirmed",
+                    ],
+                    "required_artifacts": ["model_card"],
+                    "success_criteria": ["baseline_beaten"],
+                }
+            )
+        }
+    )
+    orchestrator = VerifierOrchestrator(
+        statistical=StaticVerifier(
+            LayerResult(
+                layer="statistical",
+                checks=[
+                    CheckResult(
+                        check_id="baseline_comparison",
+                        status="pass",
+                        score=1.0,
+                        evidence={},
+                        message="baseline exceeded",
+                        duration_ms=1,
+                    )
+                ],
+            )
+        ),
+        data=StaticVerifier(
+            LayerResult(
+                layer="data",
+                checks=[
+                    CheckResult(
+                        check_id="schema_contract_validation",
+                        status="pass",
+                        score=1.0,
+                        evidence={},
+                        message="schema is stable",
+                        duration_ms=1,
+                    )
+                ],
+            )
+        ),
+        policy=StaticVerifier(_layer("policy", "pass", 1.0, "safe")),
+        narrative=StaticVerifier(_layer("narrative", "pass", 1.0, "aligned")),
+        repo=repo,
+        scorer=ConfidenceScorer(),
+        clock=FixedClock(),
+        mission_required_check_resolver=MissionRequiredCheckResolver(mission_loader),
+    )
+
+    verdict = await orchestrator.run(_ctx(mission="prediction"))
+
+    assert verdict.metadata["mission_name"] == "prediction"
+    assert verdict.metadata["mission_pack_loaded"] is True
+    assert verdict.metadata["mission_required_checks"] == [
+        "schema_drift",
+        "baseline_compare",
+        "metric_definition_confirmed",
+    ]
+    assert verdict.metadata["mission_required_check_map"] == {
+        "schema_drift": ["schema_contract_validation"],
+        "baseline_compare": ["baseline_comparison"],
+        "metric_definition_confirmed": ["metric_definition_confirmed"],
+    }
+    assert verdict.metadata["mission_required_check_ids"] == [
+        "schema_contract_validation",
+        "baseline_comparison",
+        "metric_definition_confirmed",
+    ]
+    assert verdict.metadata["mission_required_check_results"] == {
+        "schema_drift": "pass",
+        "baseline_compare": "pass",
+        "metric_definition_confirmed": "missing",
+    }
+    assert verdict.metadata["mission_unmapped_required_checks"] == []
+    assert verdict.metadata["mission_required_check_failures"] == [
+        "metric_definition_confirmed"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_marks_missing_mission_pack_in_metadata() -> None:
+    repo = InMemoryRepo()
+    orchestrator = VerifierOrchestrator(
+        statistical=StaticVerifier(_layer("statistical", "pass", 1.0, "stable")),
+        data=StaticVerifier(_layer("data", "pass", 1.0, "clean")),
+        policy=StaticVerifier(_layer("policy", "pass", 1.0, "safe")),
+        narrative=StaticVerifier(_layer("narrative", "pass", 1.0, "aligned")),
+        repo=repo,
+        scorer=ConfidenceScorer(),
+        clock=FixedClock(),
+        mission_required_check_resolver=MissionRequiredCheckResolver(StaticMissionLoader()),
+    )
+
+    verdict = await orchestrator.run(_ctx(mission="missing-pack"))
+
+    assert verdict.metadata["mission_name"] == "missing-pack"
+    assert verdict.metadata["mission_pack_loaded"] is False

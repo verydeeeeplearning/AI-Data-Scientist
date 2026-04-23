@@ -30,7 +30,9 @@ def test_sqlite_verdict_repository_round_trip(tmp_path) -> None:
 
     loaded = repo.get("RV-1")
     task_verdicts = repo.list_for_task("TC-2026-001")
+    recent_verdicts = repo.list_recent(limit=1)
 
     assert loaded is not None
     assert loaded.summary == "first verdict"
     assert [verdict.verdict_id for verdict in task_verdicts] == ["RV-2", "RV-1"]
+    assert [verdict.verdict_id for verdict in recent_verdicts] == ["RV-2"]

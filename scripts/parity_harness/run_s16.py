@@ -66,20 +66,18 @@ sys.path.insert(0, str(REPO))
 import asyncio
 
 import websockets
-
-from scripts.parity_harness.backend_control import (  # noqa: E402
+from scripts.parity_harness.backend_control import (
+    _READY_RE,
     BackendHandle,
     BackendManager,
-    _READY_RE,
 )
-from scripts.parity_harness.extract import RunResult, build_run_result  # noqa: E402
-from scripts.parity_harness.harness_telegram_v2 import (  # noqa: E402
-    FAKE_TOKEN,
+from scripts.parity_harness.extract import RunResult, build_run_result
+from scripts.parity_harness.harness_telegram_v2 import (
     TraceSink,
     _dispatch_update_through_plugin,
 )
-from scripts.parity_harness.replay_proxy import ReplayProxyServer  # noqa: E402
-from scripts.parity_harness.scenarios import ALL_SCENARIOS, Scenario  # noqa: E402
+from scripts.parity_harness.replay_proxy import ReplayProxyServer
+from scripts.parity_harness.scenarios import ALL_SCENARIOS, Scenario
 
 # --- paths --------------------------------------------------------------
 DIST_BIN = REPO / "dist" / "ds-agent-backend" / (
@@ -874,7 +872,7 @@ def main() -> int:
     # confirm no additional LLM requests occurred.
     # ------------------------------------------------------------------
     print("\n--- Electron channel (3 synthetic replay rows, backend-identical to CLI) ---")
-    for sc, cli_res in zip(ALL_SCENARIOS, cli_results):
+    for sc, cli_res in zip(ALL_SCENARIOS, cli_results, strict=False):
         el_session = f"electron-replay-{sc.scenario_id}-{_dt.datetime.utcnow().strftime('%H%M%S')}"
         el_result = RunResult(
             channel="Electron",

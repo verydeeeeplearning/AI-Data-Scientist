@@ -9,13 +9,16 @@ import { ErrorBoundary } from './components/layout/ErrorBoundary';
 import { SplashScreen } from './components/layout/SplashScreen';
 import { DisconnectOverlay } from './components/layout/DisconnectOverlay';
 import { MainPanel } from './components/layout/MainPanel';
+import { AreaMainPanel } from './components/layout/AreaMainPanel';
 import { UpdateNotification } from './components/layout/UpdateNotification';
 import { OnboardingWizard, type OnboardingResult } from './components/settings/OnboardingWizard';
 import { SandboxApprovalModal } from './components/sandbox/SandboxApprovalModal';
 import { SandboxViolationToast } from './components/sandbox/SandboxViolationToast';
 import { SettingsPanel } from './components/settings/SettingsPanel';
+import { GlobalDropOverlay } from './components/workspace/GlobalDropOverlay';
 import { WsProvider } from './hooks/WsProvider';
 import { useChat } from './hooks/useChat';
+import { useDeepLinkListener } from './hooks/useDeepLinkListener';
 import { useAgent } from './hooks/useAgent';
 import { useModels } from './hooks/useModels';
 import { usePolicy } from './hooks/usePolicy';
@@ -28,6 +31,7 @@ import { useWorkflow } from './hooks/useWorkflow';
 import { useConfigStore } from './stores/configStore';
 import { useAgentStore } from './stores/agentStore';
 import { useChatStore } from './stores/chatStore';
+import type { UploadedFileResult } from './domain/workspace/uploadedFile';
 
 function getBackendPort(): number {
   const params = new URLSearchParams(window.location.search);
@@ -63,6 +67,7 @@ function AppInner() {
   // WIRE-07: useChat and useAgent now share a single WebSocket via WsProvider
   const { sendMessage, abort, status, disconnectReason, on } = useChat();
   const { rpc, refreshFiles, changeModel, changeQualityPreset, changeMode, uploadFile } = useAgent();
+  useDeepLinkListener();
 
   // Subscribe to DS workflow events (harness warnings, quality, experiments, budget)
   useWorkflow(on, rpc, status === 'connected');
@@ -79,6 +84,7 @@ function AppInner() {
     setShowSettings,
     setFirstRun,
     resetOnboarding,
+    useIaV2,
   } = useConfigStore();
   const { mode, setMode, setModel, setQualityPreset } = useAgentStore();
   const { messages } = useChatStore();
@@ -115,7 +121,7 @@ function AppInner() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // Ctrl+, → toggle settings
-      if (e.ctrlKey && e.key === ',') {
+      if (!useIaV2 && e.ctrlKey && e.key === ',') {
         e.preventDefault();
         setShowSettings(!showSettings);
         return;
@@ -140,7 +146,7 @@ function AppInner() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showSettings, setShowSettings, mode, changeMode, setMode]);
+  }, [showSettings, setShowSettings, mode, changeMode, setMode, useIaV2]);
 
   // Splash screen — only before first connection
   if (!hasConnected && status !== 'connected') {
@@ -154,18 +160,34 @@ function AppInner() {
 
   return (
     <>
-      <MainPanel
-        onSend={sendMessage}
-        onAbort={abort}
-        onRefreshFiles={refreshFiles}
-        onChangeModel={changeModel}
-        onChangeQualityPreset={changeQualityPreset}
-        onChangeMode={changeMode}
-        onUploadFile={uploadFile}
-        onOpenSettings={() => setShowSettings(true)}
-        disabled={status !== 'connected'}
-        modelGroups={modelGroups}
-      />
+      {useIaV2 ? (
+        <AreaMainPanel
+          onSend={sendMessage}
+          onAbort={abort}
+          onRefreshFiles={refreshFiles}
+          onChangeModel={changeModel}
+          onChangeQualityPreset={changeQualityPreset}
+          onChangeMode={changeMode}
+          onUploadFile={uploadFile as (file: File) => Promise<UploadedFileResult>}
+          onRestartOnboarding={resetOnboarding}
+          disabled={status !== 'connected'}
+          modelGroups={modelGroups}
+          rpc={rpc}
+        />
+      ) : (
+        <MainPanel
+          onSend={sendMessage}
+          onAbort={abort}
+          onRefreshFiles={refreshFiles}
+          onChangeModel={changeModel}
+          onChangeQualityPreset={changeQualityPreset}
+          onChangeMode={changeMode}
+          onUploadFile={uploadFile as (file: File) => Promise<UploadedFileResult>}
+          onOpenSettings={() => setShowSettings(true)}
+          disabled={status !== 'connected'}
+          modelGroups={modelGroups}
+        />
+      )}
 
       {/* Disconnect overlay — only after initial connection, when messages exist */}
       {hasConnected && status !== 'connected' && messages.length > 0 && (
@@ -189,6 +211,8 @@ function AppInner() {
       {/* P0-01 Phase 3: sandbox approval modal + violation toast stack */}
       <SandboxApprovalModal />
       <SandboxViolationToast />
+
+      <GlobalDropOverlay onUploadFile={uploadFile as (file: File) => Promise<UploadedFileResult>} />
     </>
   );
 }

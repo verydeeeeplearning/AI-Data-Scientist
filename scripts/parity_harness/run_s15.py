@@ -25,12 +25,12 @@ from typing import Any
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from scripts.parity_harness.backend_control import BackendManager  # noqa: E402
-from scripts.parity_harness.extract import RunResult  # noqa: E402
-from scripts.parity_harness.harness_telegram_v2 import (  # noqa: E402
+from scripts.parity_harness.backend_control import BackendManager
+from scripts.parity_harness.extract import RunResult
+from scripts.parity_harness.harness_telegram_v2 import (
     run_telegram_live_scenario,
 )
-from scripts.parity_harness.scenarios import ALL_SCENARIOS  # noqa: E402
+from scripts.parity_harness.scenarios import ALL_SCENARIOS
 
 # --- paths ------------------------------------------------------------------
 DIST_BIN = REPO / "dist" / "ds-agent-backend" / (

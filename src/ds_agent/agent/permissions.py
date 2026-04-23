@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from ds_agent.domain.entities.mission_pack import MissionPack
+from ds_agent.domain.entities.review_verdict import ReviewVerdict
 from ds_agent.domain.interfaces.certification import CertificationStore
 from ds_agent.domain.value_objects.audience_persona import AudiencePersona
 from ds_agent.domain.value_objects.authority_mode import AuthorityMode
@@ -97,6 +98,7 @@ class PermissionPolicy:
     audience_persona: AudiencePersona | str | None = None
     mission: str | None = None
     mission_pack: MissionPack | None = None
+    latest_review_verdict: ReviewVerdict | None = None
     certification_store: CertificationStore | None = None
     action_matrix: ActionMatrix | None = None
 
@@ -128,6 +130,7 @@ class PermissionPolicy:
             audience=self.audience_persona,
             mission=self.mission,
             mission_pack=self.mission_pack,
+            latest_review_verdict=self.latest_review_verdict,
             legacy_mode=self.agent_mode,
         )
         if decision.blocked:
@@ -161,6 +164,15 @@ class PermissionPolicy:
                     (
                         f"{label} mode: '{tool_name}' requires approval "
                         "(incident irreversible-action guard)"
+                    ),
+                )
+            if decision.reason == "mission_auto_escalation_triggered":
+                signals = ", ".join(decision.escalation_signals) or "matched signal"
+                return (
+                    False,
+                    (
+                        f"{label} mode: '{tool_name}' requires approval "
+                        f"(mission auto-escalation: {signals})"
                     ),
                 )
             return False, f"{label} mode: '{tool_name}' requires approval"

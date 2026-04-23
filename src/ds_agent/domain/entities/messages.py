@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -42,6 +43,24 @@ class ChatMessage:
     tool_call_id: str | None = None
     name: str | None = None
     cache_control: dict[str, str] | None = None
+    message_id: str | None = None
+
+
+def new_message_id() -> str:
+    """Create a durable message identifier for transcript/backref usage."""
+
+    return f"msg-{uuid.uuid4().hex}"
+
+
+def ensure_message_ids(messages: list[ChatMessage]) -> bool:
+    """Assign message ids in-place and report whether any ids were added."""
+
+    changed = False
+    for message in messages:
+        if message.message_id is None:
+            message.message_id = new_message_id()
+            changed = True
+    return changed
 
 
 @dataclass

@@ -51,7 +51,7 @@ export function StatusBar() {
       {/* Model */}
       <span title={model}>{presetDefinition.label}</span>
 
-      <span className={modelAccess.ready ? 'text-ds-success' : 'text-amber-400'}>
+      <span className={modelAccess.ready ? 'text-ds-success' : 'text-ds-warning'}>
         {modelAccess.shortLabel}
       </span>
 

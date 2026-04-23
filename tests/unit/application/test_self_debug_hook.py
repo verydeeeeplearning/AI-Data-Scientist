@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from ds_agent.agent.hooks import HookContext, PostToolUseResult
+from ds_agent.agent.hooks import HookContext
 from ds_agent.domain.value_objects.self_debug import (
     DebugAction,
     ErrorCategory,
@@ -103,7 +103,7 @@ class TestSelfDebugHookErrorDetection:
         hook = SelfDebugHook()
         ctx = _ctx()
 
-        result = await hook.post_tool_use(
+        await hook.post_tool_use(
             "execute_code",
             {"code": "1/0"},
             _error_result("ZeroDivisionError: division by zero"),

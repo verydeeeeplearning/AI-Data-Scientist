@@ -133,6 +133,7 @@ def test_run_verifier_tool_records_into_existing_task_contract(tmp_path) -> None
             session_id="session-1",
             contract_type="churn_analysis",
             business_goal="Reduce churn",
+            mission="prediction",
             goal_brief={
                 "business_question": "Why churn?",
                 "ds_problem_statement": "Binary classification",
@@ -255,6 +256,14 @@ def test_run_verifier_tool_records_into_existing_task_contract(tmp_path) -> None
     assert bundle is not None
     assert bundle.review_verdicts
     assert bundle.review_verdicts[0].verdict_id == payload["payload"]["verdict_id"]
+    assert payload["payload"]["metadata"]["mission_name"] == "prediction"
+    assert payload["payload"]["metadata"]["mission_required_check_map"] == {
+        "schema_drift": ["schema_contract_validation"],
+        "label_leakage": ["data_leakage_detection"],
+        "temporal_leakage": ["temporal_split_robustness"],
+        "baseline_compare": ["baseline_comparison"],
+        "subgroup_stability": ["subgroup_stability"],
+    }
 
 
 def test_run_verifier_tool_records_shadow_comparison_when_hook_log_present(tmp_path) -> None:

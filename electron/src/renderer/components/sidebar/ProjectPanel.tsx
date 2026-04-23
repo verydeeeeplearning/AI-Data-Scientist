@@ -7,9 +7,9 @@ import {
   FolderKanban,
   Plus,
   RefreshCw,
-  Loader2,
   CheckCircle2,
 } from 'lucide-react';
+import { Badge, Button, Card, Input, Select } from '../../design-system/primitives';
 import { useWs } from '../../hooks/WsProvider';
 import { fetchProjects } from '../../hooks/useProjects';
 import { useProjectStore } from '../../stores/projectStore';
@@ -87,131 +87,164 @@ export function ProjectPanel() {
   }, [draftName, draftTaskType, refreshProjects, rpc, selectProject, setCreating]);
 
   return (
-    <div>
+    <section aria-labelledby="project-panel-title" aria-busy={loading || creating}>
       <div className="flex items-center justify-between px-3 py-1.5">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-ds-muted uppercase tracking-wider">
-          <FolderKanban size={12} />
-          Projects
+        <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-ds-muted">
+          <FolderKanban size={12} aria-hidden="true" />
+          <h2 id="project-panel-title" className="text-inherit">
+            Projects
+          </h2>
           {projects.length > 0 && (
-            <span className="ml-1 bg-ds-accent/20 text-ds-accent text-[10px] px-1.5 rounded-full">
+            <Badge
+              compact
+              tone="accent"
+              className="ml-1 min-w-[1.25rem] justify-center px-ds-2 py-0.5 normal-case shadow-none"
+            >
               {projects.length}
-            </span>
+            </Badge>
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => setComposerOpen((open) => !open)}
-            className="p-0.5 rounded hover:bg-ds-bg text-ds-muted hover:text-ds-text transition-colors"
+            leadingIcon={<Plus size={12} aria-hidden="true" />}
+            aria-expanded={composerOpen}
+            aria-controls="project-panel-composer"
+            aria-label={composerOpen ? 'Hide create project form' : 'Create project'}
             title="Create project"
+            className="h-7 min-h-7 w-7 rounded-ds-md px-0 shadow-none"
           >
-            <Plus size={12} />
-          </button>
-          <button
+            <span className="sr-only">Create project</span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => void refreshProjects()}
-            disabled={loading}
-            className="p-0.5 rounded hover:bg-ds-bg text-ds-muted hover:text-ds-text transition-colors"
+            loading={loading}
+            leadingIcon={<RefreshCw size={12} aria-hidden="true" />}
+            aria-label="Refresh projects"
             title="Refresh projects"
+            className="h-7 min-h-7 w-7 rounded-ds-md px-0 shadow-none"
           >
-            {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-          </button>
+            <span className="sr-only">Refresh projects</span>
+          </Button>
         </div>
       </div>
 
       {selectedProject && (
-        <div className="mx-3 mb-2 rounded-lg border border-ds-accent/30 bg-ds-accent/5 px-3 py-2">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ds-accent">
-            <CheckCircle2 size={11} />
+        <Card tone="accent" className="mx-3 mb-2 space-y-ds-2 px-ds-3 py-ds-3 shadow-none">
+          <Badge
+            compact
+            tone="accent"
+            leadingIcon={<CheckCircle2 size={10} aria-hidden="true" />}
+            className="max-w-fit px-ds-2 py-0.5 uppercase tracking-wider shadow-none"
+          >
             Selected Project
-          </div>
-          <div className="mt-1 text-xs font-medium text-ds-text truncate">
+          </Badge>
+          <div className="text-xs font-medium text-ds-text truncate">
             {selectedProject.name}
           </div>
-          <div className="mt-1 flex items-center gap-2 text-[10px] text-ds-muted">
-            <span>{selectedProject.taskType ?? 'general'}</span>
-            <span>{selectedProject.artifactCount} artifacts</span>
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-ds-muted">
+            <Badge compact tone="neutral" className="px-ds-2 py-0.5 normal-case shadow-none">
+              {selectedProject.taskType ?? 'general'}
+            </Badge>
+            <Badge compact tone="neutral" className="px-ds-2 py-0.5 normal-case shadow-none">
+              {selectedProject.artifactCount} artifacts
+            </Badge>
             <span>{formatRelative(selectedProject.updatedAt)}</span>
           </div>
-        </div>
+        </Card>
       )}
 
       {composerOpen && (
-        <div className="mx-3 mb-2 rounded-lg border border-ds-border bg-ds-bg px-3 py-3 space-y-2">
-          <input
+        <Card
+          id="project-panel-composer"
+          className="mx-3 mb-2 space-y-ds-3 border-ds-border bg-ds-bg/80 px-ds-3 py-ds-3 shadow-none"
+        >
+          <Input
             type="text"
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
             placeholder="Project name"
-            className="
-              w-full bg-ds-surface border border-ds-border rounded px-3 py-1.5
-              text-xs text-ds-text
-              focus:outline-none focus:border-ds-accent
-            "
+            autoFocus
+            className="text-xs"
+            containerClassName="min-h-9 rounded-ds-lg px-ds-3 py-ds-1.5"
             onKeyDown={(e) => e.key === 'Enter' && void handleCreate()}
           />
-          <select
+          <Select
             value={draftTaskType}
             onChange={(e) => setDraftTaskType(e.target.value)}
-            className="
-              w-full bg-ds-surface border border-ds-border rounded px-3 py-1.5
-              text-xs text-ds-text
-              focus:outline-none focus:border-ds-accent
-            "
-          >
-            {TASK_TYPE_OPTIONS.map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <button
+            options={TASK_TYPE_OPTIONS}
+            aria-label="Task type"
+            className="min-h-9 rounded-ds-lg px-ds-3 py-ds-1.5 text-xs"
+          />
+          <Button
+            type="button"
             onClick={() => void handleCreate()}
-            disabled={!draftName.trim() || creating}
-            className="
-              w-full px-3 py-1.5 rounded text-xs font-medium
-              bg-ds-accent text-white hover:bg-ds-accent-hover
-              disabled:opacity-40 transition-colors
-            "
+            variant="primary"
+            size="sm"
+            loading={creating}
+            disabled={!draftName.trim()}
+            className="w-full min-h-9 text-xs shadow-none"
           >
             {creating ? 'Creating...' : 'Create Project'}
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       <div className="px-1">
         {projects.length === 0 ? (
-          <div className="px-3 py-2 text-[11px] text-ds-muted/60">
+          <Card
+            role="status"
+            aria-live="polite"
+            className="mx-2 bg-ds-bg/40 px-ds-3 py-ds-3 text-[11px] text-ds-muted shadow-none"
+          >
             No projects yet
-          </div>
+          </Card>
         ) : (
           projects.map((project) => {
             const selected = project.projectId === selectedProjectId;
             return (
-              <button
+              <Button
+                type="button"
                 key={project.projectId}
                 onClick={() => selectProject(project.projectId)}
-                className={`
-                  w-full text-left mx-2 mb-1 rounded-lg border px-3 py-2 transition-colors
-                  ${selected
-                    ? 'border-ds-accent/50 bg-ds-accent/10'
-                    : 'border-ds-border/40 hover:border-ds-accent/30 hover:bg-ds-bg'}
-                `}
+                variant="secondary"
+                size="sm"
+                aria-pressed={selected}
+                className={[
+                  'mx-2 mb-1 flex w-[calc(100%-1rem)] min-h-0 flex-col items-stretch justify-start rounded-ds-xl px-ds-3 py-ds-2 text-left shadow-none',
+                  selected
+                    ? 'border-ds-accent/50 bg-ds-accent/10 text-ds-text hover:bg-ds-accent/10'
+                    : 'border-ds-border/40 bg-transparent text-ds-text hover:border-ds-accent/30 hover:bg-ds-bg/70',
+                ].join(' ')}
               >
-                <div className="flex items-center justify-between gap-2">
+                <span className="flex w-full items-center justify-between gap-2">
                   <span className="text-xs font-medium text-ds-text truncate">
                     {project.name}
                   </span>
-                  {selected && <CheckCircle2 size={12} className="text-ds-accent flex-shrink-0" />}
-                </div>
-                <div className="mt-1 flex items-center gap-2 text-[10px] text-ds-muted">
-                  <span>{project.taskType ?? 'general'}</span>
-                  <span>{project.artifactCount} artifacts</span>
+                  {selected && (
+                    <CheckCircle2 size={12} className="text-ds-accent flex-shrink-0" aria-hidden="true" />
+                  )}
+                </span>
+                <span className="mt-1 flex w-full flex-wrap items-center gap-1.5 text-[10px] text-ds-muted">
+                  <Badge compact tone="neutral" className="px-ds-2 py-0.5 normal-case shadow-none">
+                    {project.taskType ?? 'general'}
+                  </Badge>
+                  <Badge compact tone="neutral" className="px-ds-2 py-0.5 normal-case shadow-none">
+                    {project.artifactCount} artifacts
+                  </Badge>
                   <span>{formatRelative(project.updatedAt)}</span>
-                </div>
-              </button>
+                </span>
+              </Button>
             );
           })
         )}
       </div>
-    </div>
+    </section>
   );
 }

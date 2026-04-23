@@ -13,9 +13,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
+
+if TYPE_CHECKING:
+    from ds_agent.application.services.verifier_orchestrator import VerifierOrchestrator
+    from ds_agent.domain.entities.messages import ChatMessage
+    from ds_agent.domain.entities.task_contract import TaskContract
 
 logger = structlog.get_logger()
 
@@ -49,6 +54,10 @@ class HookContext:
     user_approved: bool = False
     environment: str = "dev"
     approval_store: Any | None = None
+    workspace_path: str | None = None
+    active_task_contract: TaskContract | None = None
+    verifier_orchestrator: VerifierOrchestrator | None = None
+    recent_messages: tuple[ChatMessage, ...] = field(default_factory=tuple)
     emit: EmitFn = _noop_emit
 
 
@@ -76,6 +85,8 @@ class FinalResponseResult:
     """Result of a final-response hook."""
 
     modified_response: str | None = None
+    requires_followup: bool = False
+    followup_reason: str | None = None
 
 
 class ToolHook:
@@ -212,6 +223,10 @@ class HookRegistry:
                 if hook_result.modified_response is not None:
                     current_response = hook_result.modified_response
                     final.modified_response = current_response
+                if hook_result.requires_followup:
+                    final.requires_followup = True
+                    if hook_result.followup_reason:
+                        final.followup_reason = hook_result.followup_reason
             except Exception as e:
                 logger.error("hook_final_response_failed", hook=hook.name, error=str(e))
         return final

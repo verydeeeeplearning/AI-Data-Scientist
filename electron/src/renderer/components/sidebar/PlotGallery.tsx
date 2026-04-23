@@ -1,22 +1,30 @@
 /**
- * Plot gallery — thumbnails of generated plots in sidebar, grouped by folder.
+ * Plot gallery thumbnails of generated plots in sidebar, grouped by folder.
  *
  * Layout:
  *   Plots (count)
- *   ├─ (workspace root)
- *   │   [thumb] [thumb]
- *   └─ eda_titanic/
- *       [thumb] [thumb] [thumb]
+ *   workspace root
+ *     [thumb] [thumb]
+ *   eda_titanic/
+ *     [thumb] [thumb] [thumb]
  *
- * Hover a thumbnail to reveal a delete button. Click to open the full-size
- * modal, which also has a delete action.
+ * Hover or focus a thumbnail to reveal a delete button. Click to open the
+ * full-size modal, which also has a delete action.
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, X, Trash2, Loader2, ChevronDown, ChevronRight, Folder } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
+import { BarChart3, ChevronDown, ChevronRight, Folder, Trash2, X } from 'lucide-react';
+import { Badge, Button, Card, cn } from '../../design-system/primitives';
+import { useWs } from '../../hooks/WsProvider';
 import { useFilesStore, type PlotEntry, type PlotGroup } from '../../stores/filesStore';
 import { useI18n } from '../../stores/i18nStore';
-import { useWs } from '../../hooks/WsProvider';
 import { getBackendBase } from '../../utils/backendUrl';
 
 // 4.14 fix: Dynamic backend URL instead of hardcoded port
@@ -33,24 +41,32 @@ export function PlotGallery() {
 
   return (
     <>
-      <div>
-        {/* Header */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-ds-muted uppercase tracking-wider">
-          <BarChart3 size={12} />
-          {t('sidebar.plots')}
+      <section aria-labelledby="plot-gallery-title">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-ds-muted">
+          <BarChart3 size={12} aria-hidden="true" />
+          <h2 id="plot-gallery-title" className="text-inherit">
+            {t('sidebar.plots')}
+          </h2>
           {plots.length > 0 && (
-            <span className="ml-1 bg-ds-accent/20 text-ds-accent text-[10px] px-1.5 rounded-full">
+            <Badge
+              compact
+              tone="accent"
+              className="ml-1 min-w-[1.25rem] justify-center px-ds-2 py-0.5 normal-case shadow-none"
+            >
               {plots.length}
-            </span>
+            </Badge>
           )}
         </div>
 
-        {/* Grouped thumbnails */}
         <div className="px-1">
           {plots.length === 0 ? (
-            <div className="px-3 py-2 text-[11px] text-ds-muted/60">
+            <Card
+              role="status"
+              aria-live="polite"
+              className="mx-2 bg-ds-bg/40 px-ds-3 py-ds-3 text-[11px] text-ds-muted shadow-none"
+            >
               {t('sidebar.noPlots')}
-            </div>
+            </Card>
           ) : (
             plotGroups.map((group) => (
               <PlotFolder
@@ -61,7 +77,7 @@ export function PlotGallery() {
             ))
           )}
         </div>
-      </div>
+      </section>
 
       {selectedPlot && (
         <PlotModal plot={selectedPlot} onClose={() => setSelectedPlot(null)} />
@@ -78,29 +94,42 @@ function PlotFolder({
   onSelect: (plot: PlotEntry) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const folderId = useId().replace(/:/g, '');
   const isRoot = group.folder === '';
+  const panelId = `plot-folder-panel-${folderId}`;
 
   return (
     <div className="mb-1">
       {!isRoot && (
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          className="w-full flex items-center gap-1 px-2 py-0.5 rounded hover:bg-ds-bg text-[11px] text-ds-muted hover:text-ds-text transition-colors"
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setExpanded((open) => !open)}
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          className="w-full min-h-8 justify-start gap-ds-1 rounded-ds-lg px-ds-2 text-[11px] text-ds-muted shadow-none"
         >
-          {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-          <Folder size={11} />
-          <span className="truncate">{group.folder}</span>
-          <span className="ml-auto text-[10px] text-ds-muted/50">
+          {expanded ? (
+            <ChevronDown size={11} aria-hidden="true" />
+          ) : (
+            <ChevronRight size={11} aria-hidden="true" />
+          )}
+          <Folder size={11} aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate text-left">{group.folder}</span>
+          <Badge compact tone="neutral" className="ml-auto px-ds-2 py-0.5 normal-case shadow-none">
             {group.entries.length}
-          </span>
-        </button>
+          </Badge>
+        </Button>
       )}
 
       {expanded && (
         <div
-          className={`grid grid-cols-2 gap-1 ${
-            isRoot ? 'px-2' : 'pl-3 pr-2 ml-2 border-l border-ds-border/40'
-          }`}
+          id={isRoot ? undefined : panelId}
+          className={cn(
+            'grid grid-cols-2 gap-1',
+            isRoot ? 'px-2' : 'ml-2 border-l border-ds-border/40 pl-3 pr-2',
+          )}
         >
           {group.entries.map((plot) => (
             <PlotThumbnail key={plot.path} plot={plot} onSelect={onSelect} />
@@ -123,8 +152,8 @@ function PlotThumbnail({
   const [busy, setBusy] = useState(false);
 
   const handleDelete = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
+    async (event: ReactMouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
       const ok = window.confirm(t('sidebar.deleteConfirm', { name: plot.name }));
       if (!ok) return;
       setBusy(true);
@@ -139,58 +168,80 @@ function PlotThumbnail({
         setBusy(false);
       }
     },
-    [rpc, plot, t],
+    [plot.name, plot.path, rpc, t],
   );
 
   return (
-    <div className="relative group">
+    <Card className="group relative overflow-hidden border-ds-border/40 bg-transparent p-0 shadow-none transition-colors hover:border-ds-accent/30 focus-within:border-ds-accent/30">
       <button
+        type="button"
         onClick={() => onSelect(plot)}
         className="
-          block w-full rounded border border-ds-border overflow-hidden
-          hover:border-ds-accent transition-colors cursor-pointer
-          bg-ds-bg
+          block w-full overflow-hidden rounded-ds-xl bg-ds-bg text-left transition-colors
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-accent/70
+          focus-visible:ring-offset-2 focus-visible:ring-offset-ds-bg
         "
         title={plot.name}
+        aria-label={`${t('sidebar.preview')}: ${plot.name}`}
       >
         <img
           src={plotSrc(plot.path)}
           alt={plot.name}
-          className="w-full h-16 object-cover"
+          className="h-16 w-full object-cover"
           loading="lazy"
         />
-        <div className="px-1 py-0.5 text-[9px] text-ds-muted truncate">
-          {plot.name}
-        </div>
+        <div className="truncate px-1 py-0.5 text-[9px] text-ds-muted">{plot.name}</div>
       </button>
 
-      {/* Delete overlay — shown on hover */}
-      <button
-        onClick={handleDelete}
-        disabled={busy}
-        className="
-          absolute top-0.5 right-0.5 p-1 rounded
-          bg-black/60 text-white/90 hover:bg-red-500/80
-          opacity-0 group-hover:opacity-100 transition-opacity
-          disabled:opacity-50
-        "
-        title={t('sidebar.delete')}
-        aria-label={t('sidebar.delete')}
-      >
-        {busy ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
-      </button>
-    </div>
+      <div className="pointer-events-none absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleDelete}
+          disabled={busy}
+          loading={busy}
+          leadingIcon={<Trash2 size={12} aria-hidden="true" />}
+          className="
+            pointer-events-auto h-7 min-h-7 w-7 rounded-ds-md bg-ds-surface-elevated/90 px-0
+            text-ds-text shadow-none backdrop-blur-sm hover:bg-ds-error/15 hover:text-ds-error
+          "
+          title={t('sidebar.delete')}
+          aria-label={t('sidebar.delete')}
+        >
+          <span className="sr-only">{t('sidebar.delete')}</span>
+        </Button>
+      </div>
+    </Card>
   );
 }
 
 function PlotModal({ plot, onClose }: { plot: PlotEntry; onClose: () => void }) {
   const { rpc } = useWs();
   const { t } = useI18n();
+  const modalId = useId().replace(/:/g, '');
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false);
+  const titleId = `plot-gallery-title-${modalId}`;
+  const descriptionId = `plot-gallery-description-${modalId}`;
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+    previouslyFocused.current = (document.activeElement as HTMLElement | null) ?? null;
+    queueMicrotask(() => {
+      dialogRef.current?.focus();
+    });
+
+    return () => {
+      previouslyFocused.current?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -210,50 +261,71 @@ function PlotModal({ plot, onClose }: { plot: PlotEntry; onClose: () => void }) 
       );
       setBusy(false);
     }
-  }, [rpc, plot, onClose, t]);
+  }, [onClose, plot.name, plot.path, rpc, t]);
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="plot-gallery-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative max-w-[90vw] max-h-[90vh] bg-ds-surface rounded-lg border border-ds-border shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        tabIndex={-1}
+        className="max-h-[90vh] w-full max-w-[90vw] outline-none"
+        onClick={(event) => event.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-ds-border gap-3">
-          <span id="plot-gallery-title" className="text-sm text-ds-text font-medium truncate flex-1">
-            {plot.path}
-          </span>
-          <button
-            onClick={handleDelete}
-            disabled={busy}
-            className="p-1 rounded hover:bg-red-500/20 text-ds-muted hover:text-red-400 transition-colors disabled:opacity-50"
-            title={t('sidebar.delete')}
-        aria-label={t('sidebar.delete')}
-          >
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-ds-bg text-ds-muted hover:text-ds-text transition-colors"
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <Card className="relative flex max-h-[90vh] flex-col overflow-hidden border-ds-border bg-ds-surface p-0 shadow-2xl">
+          <div className="flex items-center justify-between gap-3 border-b border-ds-border px-4 py-2">
+            <div className="min-w-0">
+              <div id={titleId} className="truncate text-sm font-medium text-ds-text">
+                {plot.path}
+              </div>
+              <div id={descriptionId} className="sr-only">
+                {plot.name}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleDelete}
+                disabled={busy}
+                loading={busy}
+                leadingIcon={<Trash2 size={15} aria-hidden="true" />}
+                className="h-8 min-h-8 w-8 rounded-ds-md px-0 text-ds-muted shadow-none hover:text-ds-error"
+                title={t('sidebar.delete')}
+                aria-label={t('sidebar.delete')}
+              >
+                <span className="sr-only">{t('sidebar.delete')}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                leadingIcon={<X size={16} aria-hidden="true" />}
+                className="h-8 min-h-8 w-8 rounded-ds-md px-0 text-ds-muted shadow-none hover:text-ds-text"
+                title={t('common.close')}
+                aria-label={t('common.close')}
+              >
+                <span className="sr-only">{t('common.close')}</span>
+              </Button>
+            </div>
+          </div>
 
-        {/* Image */}
-        <div className="p-4 flex items-center justify-center">
-          <img
-            src={plotSrc(plot.path)}
-            alt={plot.name}
-            className="max-w-full max-h-[80vh] object-contain"
-          />
-        </div>
+          <div className="flex items-center justify-center p-4">
+            <img
+              src={plotSrc(plot.path)}
+              alt={plot.name}
+              className="max-h-[80vh] max-w-full object-contain"
+            />
+          </div>
+        </Card>
       </div>
     </div>
   );

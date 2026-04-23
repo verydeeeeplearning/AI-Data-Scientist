@@ -5,9 +5,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+from ds_agent.api.dependencies import require_resource_access
 from ds_agent.application.dtos.work_object import (
     AdvanceWorkObjectPhaseDTO,
     CloseWorkObjectDTO,
@@ -29,6 +30,18 @@ if TYPE_CHECKING:
     from ds_agent.api.ws_handler import AppState
 
 router = APIRouter(prefix="/api/work-objects", tags=["work-objects"])
+
+
+async def _extract_task_contract_id_from_body(request: Request) -> str:
+    """Read ``taskContractId``/``task_contract_id`` from the JSON body."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    value = payload.get("taskContractId") or payload.get("task_contract_id") or ""
+    return value if isinstance(value, str) else ""
 
 
 class WorkObjectIntakeRequest(BaseModel):
@@ -77,7 +90,18 @@ async def list_work_objects(
     return {"work_objects": [item.model_dump(mode="json") for item in items]}
 
 
-@router.post("/intake")
+@router.post(
+    "/intake",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="work_object",
+                action="mutate",
+                resource_id_extractor=_extract_task_contract_id_from_body,
+            )
+        )
+    ],
+)
 async def intake_work_object(
     request: Request,
     body: WorkObjectIntakeRequest,
@@ -147,7 +171,18 @@ async def get_work_object_timeline(
     return {"events": [event.model_dump(mode="json") for event in events]}
 
 
-@router.post("/{work_object_id}/phase")
+@router.post(
+    "/{work_object_id}/phase",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="work_object",
+                action="mutate",
+                resource_id_extractor=lambda req: req.path_params.get("work_object_id", ""),
+            )
+        )
+    ],
+)
 async def advance_work_object_phase(
     work_object_id: str,
     request: Request,
@@ -170,7 +205,18 @@ async def advance_work_object_phase(
     return {"result": result}
 
 
-@router.post("/{work_object_id}/close")
+@router.post(
+    "/{work_object_id}/close",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="work_object",
+                action="mutate",
+                resource_id_extractor=lambda req: req.path_params.get("work_object_id", ""),
+            )
+        )
+    ],
+)
 async def close_work_object(
     work_object_id: str,
     request: Request,

@@ -113,9 +113,7 @@ def test_task_contract_container_renders_audit_pdf_artifact(tmp_path: Path) -> N
                 "decision_to_make": "Approve production retention",
                 "expected_effort": "S",
             },
-            required_deliverables=[
-                {"type": "audit_trail", "audience": "auditor", "format": "pdf"}
-            ],
+            required_deliverables=[{"type": "audit_trail", "audience": "auditor", "format": "pdf"}],
         )
     )
     built = container.build_delivery_pack.execute(
@@ -195,7 +193,52 @@ def test_task_contract_container_applies_theme_to_exec_brief(tmp_path: Path) -> 
     )
 
     title_run = (
-        Presentation(rendered["output_path"]).slides[0].shapes.title.text_frame.paragraphs[0].runs[0]
+        Presentation(rendered["output_path"])
+        .slides[0]
+        .shapes.title.text_frame.paragraphs[0]
+        .runs[0]
     )
     assert title_run.font.name == "Open Sans"
     assert str(title_run.font.color.rgb) == "86BC25"
+
+
+def test_task_contract_container_builds_weekly_kpi_pack_with_reachable_jira_channel(
+    tmp_path: Path,
+) -> None:
+    workspace_dir = str(tmp_path / "workspace-mission")
+    container = build_task_contract_container(workspace_dir)
+    created = container.create.execute(
+        TaskContractDraftDTO(
+            session_id="session-mission",
+            contract_type="kpi_triage",
+            business_goal="Diagnose the weekly KPI anomaly",
+            mission="weekly-kpi-triage",
+            goal_brief={
+                "business_question": "Why did the KPI move this week?",
+                "ds_problem_statement": "Triage the anomaly and propose next actions",
+                "comparison_baseline": "Previous four weeks",
+                "decision_to_make": "Assign owner and response action",
+                "expected_effort": "S",
+            },
+            required_deliverables=[
+                {"type": "exec_brief", "audience": "executive", "format": "pptx"}
+            ],
+        )
+    )
+
+    built = container.build_delivery_pack.execute(
+        BuildDeliveryPackDTO(task_id=created["task_id"], audiences=["executive"])
+    )
+
+    bundle = container.store.get_bundle(created["task_id"])
+    assert bundle is not None
+    assert bundle.delivery_pack is not None
+    assert built["audiences"] == ["executive"]
+    assert [channel.value for channel in bundle.delivery_pack.artifacts[0].delivery_channel] == [
+        "email",
+        "slack_dm",
+        "jira_ticket",
+    ]
+    assert bundle.delivery_pack.global_context["mission_required_delivery_channels"] == (
+        "jira_ticket"
+    )

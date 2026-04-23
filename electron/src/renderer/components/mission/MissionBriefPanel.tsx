@@ -1,18 +1,35 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AssumptionDrawer } from './AssumptionDrawer';
 import { ContractEditor } from './ContractEditor';
+import { CreateContractModal } from './CreateContractModal';
 import {
   buildDeliveryGlobalContext,
   formatRenderResultNotice,
   normalizeDeliveryTenant,
+  parseMissionArtifactGate,
+  parseMissionArtifactGateError,
+  parseMissionCheckGate,
+  parseMissionCheckGateError,
+  parseMissionChannelGate,
+  parseMissionChannelGateError,
   resolveProviderBackedRenderOptions,
   resolveThemeId,
+  type MissionArtifactGateStatus,
+  type MissionCheckGateStatus,
+  type MissionChannelGateStatus,
 } from './missionBriefModel';
 import { useTaskContract } from '../../hooks/useTaskContract';
+import { useChatStore } from '../../stores/chatStore';
 import { AudienceSelector, type AudienceSelectionOption } from '../workflow/AudienceSelector';
 import { ChannelInspector } from '../workflow/ChannelInspector';
 import { DeliveryPackPreview } from '../workflow/DeliveryPackPreview';
-import type { DeliveryArtifactView, TaskContractStatus, TaskContractView } from '../../types/taskContract';
+import type {
+  DeliveryArtifactView,
+  TaskContractErrorDetailView,
+  TaskContractCreatePayload,
+  TaskContractStatus,
+  TaskContractView,
+} from '../../types/taskContract';
 
 const STATUS_STYLES: Record<TaskContractStatus, string> = {
   draft: 'bg-sky-500/15 text-sky-300 border-sky-500/40',
@@ -94,6 +111,7 @@ export function MissionBriefPanel() {
     refresh,
     refreshDeliveryLog,
     transition,
+    createContract,
     savePatch,
     closeContract,
     verifyAssumption,
@@ -101,13 +119,23 @@ export function MissionBriefPanel() {
     renderArtifact,
     dispatchDelivery,
   } = useTaskContract();
+  const latestUserGoalSeed = useChatStore((state) => {
+    for (let index = state.messages.length - 1; index >= 0; index -= 1) {
+      if (state.messages[index]?.role === 'user') {
+        return state.messages[index]?.content ?? '';
+      }
+    }
+    return '';
+  });
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closeNote, setCloseNote] = useState('Delivered to stakeholders');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionErrorDetail, setActionErrorDetail] = useState<TaskContractErrorDetailView | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
@@ -121,6 +149,44 @@ export function MissionBriefPanel() {
   const openAssumptions = useMemo(
     () => activeContract?.assumption_log?.entries.filter((entry) => !entry.verified) ?? [],
     [activeContract],
+  );
+  const missionArtifactGate = useMemo(
+    () => parseMissionArtifactGate(activeContract?.dod_summary ?? []),
+    [activeContract?.dod_summary],
+  );
+  const actionMissionArtifactGate = useMemo(
+    () => parseMissionArtifactGateError(actionErrorDetail),
+    [actionErrorDetail],
+  );
+  const missionArtifactGateTone = useMemo(
+    () => (missionArtifactGate ? getMissionArtifactGateTone(missionArtifactGate) : null),
+    [missionArtifactGate],
+  );
+  const actionMissionArtifactGateTone = useMemo(
+    () => (actionMissionArtifactGate ? getMissionArtifactGateTone(actionMissionArtifactGate) : null),
+    [actionMissionArtifactGate],
+  );
+
+  // Check gate from DoD summary
+  const missionCheckGate = useMemo(
+    () => parseMissionCheckGate(activeContract?.dod_summary ?? []),
+    [activeContract?.dod_summary],
+  );
+  // Check gate from action error detail
+  const actionMissionCheckGate = useMemo(
+    () => parseMissionCheckGateError(actionErrorDetail),
+    [actionErrorDetail],
+  );
+
+  // Channel gate from DoD summary
+  const missionChannelGate = useMemo(
+    () => parseMissionChannelGate(activeContract?.dod_summary ?? []),
+    [activeContract?.dod_summary],
+  );
+  // Channel gate from action error detail
+  const actionMissionChannelGate = useMemo(
+    () => parseMissionChannelGateError(actionErrorDetail),
+    [actionErrorDetail],
   );
 
   const audienceOptions = useMemo(() => {
@@ -191,14 +257,22 @@ export function MissionBriefPanel() {
     setSelectedArtifactId(activeContract.delivery_pack.artifacts[0].artifact_id);
   }, [activeContract?.delivery_pack?.artifacts, selectedArtifactId]);
 
+  useEffect(() => {
+    if (activeContract?.contract.task_id) {
+      setCreateDialogOpen(false);
+    }
+  }, [activeContract?.contract.task_id]);
+
   const runAction = async (fn: () => Promise<void>) => {
     setBusy(true);
     setActionError(null);
+    setActionErrorDetail(null);
     setActionNotice(null);
     try {
       await fn();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
+      setActionErrorDetail(readTaskContractErrorDetail(err));
     } finally {
       setBusy(false);
     }
@@ -347,6 +421,14 @@ export function MissionBriefPanel() {
     }
   };
 
+  const handleCreateContract = async (payload: TaskContractCreatePayload) => {
+    await runAction(async () => {
+      const result = await createContract(payload);
+      setCreateDialogOpen(false);
+      setActionNotice(`Task contract ${result.task_id} drafted for this session.`);
+    });
+  };
+
   if (!sessionId) {
     return (
       <section className="mx-3 rounded-2xl border border-ds-border bg-ds-bg px-4 py-3">
@@ -380,9 +462,23 @@ export function MissionBriefPanel() {
         {loading && <p className="mt-3 text-xs text-ds-muted">Loading task contract...</p>}
 
         {!loading && !activeContract && (
-          <p className="mt-3 text-xs leading-5 text-ds-muted">
-            No active task contract for this session yet.
-          </p>
+          <div className="mt-3 rounded-2xl border border-dashed border-ds-border bg-ds-surface px-4 py-4">
+            <p className="text-sm font-medium text-ds-text">
+              No active task contract for this session yet.
+            </p>
+            <p className="mt-2 text-xs leading-5 text-ds-muted">
+              Draft a manual recovery contract for the current session, then edit the details from the mission panel.
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setCreateDialogOpen(true)}
+              data-testid="mission-brief-create-contract-cta"
+              className="mt-3 rounded-xl bg-ds-accent px-3 py-2 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Draft Contract
+            </button>
+          </div>
         )}
 
         {error && (
@@ -398,6 +494,53 @@ export function MissionBriefPanel() {
           >
             {actionError}
           </div>
+        )}
+
+        {actionMissionArtifactGate && actionMissionArtifactGateTone && (
+          <div
+            className={`mt-3 rounded-2xl border px-4 py-3 ${MISSION_ARTIFACT_GATE_STYLES[actionMissionArtifactGateTone]}`}
+            data-testid="mission-brief-action-gate-detail"
+          >
+            <p className="text-xs uppercase tracking-wide text-ds-muted">
+              Blocked Transition
+            </p>
+            <p className="mt-1 text-sm font-semibold text-ds-text">
+              {formatMissionArtifactGateHeading(actionMissionArtifactGate.transitionTarget)}
+            </p>
+            {actionMissionArtifactGate.requiredArtifacts.length > 0 && (
+              <p className="mt-2 text-xs leading-5 text-ds-text/90">
+                Required: {actionMissionArtifactGate.requiredArtifacts.join(', ')}
+              </p>
+            )}
+            <div className="mt-3 space-y-2">
+              {actionMissionArtifactGate.issues.map((issue) => (
+                <div
+                  key={`${issue.kind}-${issue.artifacts.join('-') || 'none'}`}
+                  className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current"
+                >
+                  <span className="font-medium">{issue.label}</span>
+                  {issue.artifacts.length > 0 ? `: ${issue.artifacts.join(', ')}` : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {actionMissionCheckGate
+          && (actionMissionCheckGate.failed.length > 0 || actionMissionCheckGate.unmapped.length > 0) && (
+          <MissionCheckGatePanel
+            gate={actionMissionCheckGate}
+            label="Blocked — Required Checks Failed"
+            testId="mission-brief-action-check-gate-detail"
+          />
+        )}
+
+        {actionMissionChannelGate && actionMissionChannelGate.missing.length > 0 && (
+          <MissionChannelGatePanel
+            gate={actionMissionChannelGate}
+            label="Blocked — Required Channels Not Delivered"
+            testId="mission-brief-action-channel-gate-detail"
+          />
         )}
 
         {actionNotice && (
@@ -483,6 +626,73 @@ export function MissionBriefPanel() {
                 </div>
               ))}
             </div>
+
+            {missionArtifactGate && missionArtifactGateTone && (
+              <div
+                className={`mt-4 rounded-2xl border px-4 py-3 ${MISSION_ARTIFACT_GATE_STYLES[missionArtifactGateTone]}`}
+                data-testid="mission-artifact-gate-panel"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-ds-muted">
+                      Mission Artifact Gate
+                    </p>
+                    <p
+                      className="mt-1 text-sm font-semibold text-ds-text"
+                      data-testid="mission-artifact-gate-status"
+                    >
+                      {missionArtifactGate.ready ? 'Ready' : 'Unmet'}
+                    </p>
+                  </div>
+                  {missionArtifactGate.missionName && (
+                    <span className="rounded-full border border-current/20 px-2 py-1 text-[11px] font-medium text-inherit">
+                      {missionArtifactGate.missionName}
+                    </span>
+                  )}
+                </div>
+
+                {missionArtifactGate.requiredArtifacts.length > 0 && (
+                  <p className="mt-2 text-xs leading-5 text-ds-text/90">
+                    Required: {missionArtifactGate.requiredArtifacts.join(', ')}
+                  </p>
+                )}
+
+                {missionArtifactGate.issues.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {missionArtifactGate.issues.map((issue) => (
+                      <div
+                        key={`${issue.kind}-${issue.artifacts.join('-') || 'none'}`}
+                        className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current"
+                      >
+                        <span className="font-medium">{issue.label}</span>
+                        {issue.artifacts.length > 0 ? `: ${issue.artifacts.join(', ')}` : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs leading-5 text-ds-text/90">
+                    All mapped mission artifacts are declared and delivered.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {missionCheckGate
+              && (missionCheckGate.failed.length > 0 || missionCheckGate.unmapped.length > 0) && (
+              <MissionCheckGatePanel
+                gate={missionCheckGate}
+                label="Mission Check Gate"
+                testId="mission-check-gate-panel"
+              />
+            )}
+
+            {missionChannelGate && missionChannelGate.missing.length > 0 && (
+              <MissionChannelGatePanel
+                gate={missionChannelGate}
+                label="Mission Channel Gate"
+                testId="mission-channel-gate-panel"
+              />
+            )}
 
             <div className="mt-3 flex flex-wrap gap-2">
               {activeContract.contract.status === 'draft' && (
@@ -857,6 +1067,200 @@ export function MissionBriefPanel() {
           )}
         </>
       )}
+
+      <CreateContractModal
+        open={createDialogOpen}
+        sessionId={sessionId}
+        initialBusinessGoal={latestUserGoalSeed}
+        saving={busy}
+        onClose={() => setCreateDialogOpen(false)}
+        onSubmit={handleCreateContract}
+      />
     </>
+  );
+}
+
+const MISSION_ARTIFACT_GATE_STYLES = {
+  ready: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
+  warning: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
+  danger: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
+} as const;
+
+function getMissionArtifactGateTone(
+  gate: MissionArtifactGateStatus,
+): keyof typeof MISSION_ARTIFACT_GATE_STYLES {
+  if (gate.issues.some((issue) => issue.kind === 'unavailable' || issue.kind === 'unmapped')) {
+    return 'danger';
+  }
+  if (gate.issues.length > 0) {
+    return 'warning';
+  }
+  return 'ready';
+}
+
+function formatMissionArtifactGateHeading(transitionTarget: string | null): string {
+  if (transitionTarget === 'close') {
+    return 'Close blocked by mission artifact gate.';
+  }
+  if (transitionTarget === 'review') {
+    return 'Review blocked by mission artifact gate.';
+  }
+  return 'Mission artifact gate blocked this action.';
+}
+
+function readTaskContractErrorDetail(
+  error: unknown,
+): TaskContractErrorDetailView | null {
+  if (!error || typeof error !== 'object' || !('detail' in error)) {
+    return null;
+  }
+  const detail = (error as { detail?: unknown }).detail;
+  if (!detail || typeof detail !== 'object') {
+    return null;
+  }
+  const message = (detail as { message?: unknown }).message;
+  return typeof message === 'string'
+    ? (detail as TaskContractErrorDetailView)
+    : null;
+}
+
+// ---------------------------------------------------------------------------
+// Gate panel sub-components
+// ---------------------------------------------------------------------------
+
+const MISSION_GATE_DANGER_STYLES = 'border-rose-500/40 bg-rose-500/10 text-rose-200';
+const MISSION_GATE_WARNING_STYLES = 'border-amber-500/40 bg-amber-500/10 text-amber-200';
+
+function MissionCheckGatePanel({
+  gate,
+  label,
+  testId,
+}: {
+  gate: MissionCheckGateStatus;
+  label: string;
+  testId?: string;
+}) {
+  const hasFailed = gate.failed.length > 0;
+  const hasUnmapped = gate.unmapped.length > 0;
+  const tone = hasFailed ? MISSION_GATE_DANGER_STYLES : MISSION_GATE_WARNING_STYLES;
+
+  return (
+    <div
+      className={`mt-3 rounded-2xl border px-4 py-3 ${tone}`}
+      data-testid={testId}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-ds-muted">
+            {label}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-ds-text">
+            {hasFailed ? 'Checks Failed' : 'Checks Unmapped'}
+          </p>
+        </div>
+        {gate.missionName && (
+          <span className="rounded-full border border-current/20 px-2 py-1 text-[11px] font-medium text-inherit">
+            {gate.missionName}
+          </span>
+        )}
+      </div>
+
+      {gate.requiredChecks.length > 0 && (
+        <p className="mt-2 text-xs leading-5 text-ds-text/90">
+          Required: {gate.requiredChecks.join(', ')}
+        </p>
+      )}
+
+      <div className="mt-3 space-y-2">
+        {hasFailed && (
+          <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
+            <span className="font-medium">Failed checks</span>: {gate.failed.join(', ')}
+          </div>
+        )}
+        {hasUnmapped && (
+          <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
+            <span className="font-medium">Unmapped checks</span>: {gate.unmapped.join(', ')}
+          </div>
+        )}
+      </div>
+
+      {gate.transitionTarget && (
+        <p className="mt-2 text-xs text-ds-muted">
+          Transition blocked: {gate.transitionTarget}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function MissionChannelGatePanel({
+  gate,
+  label,
+  testId,
+}: {
+  gate: MissionChannelGateStatus;
+  label: string;
+  testId?: string;
+}) {
+  const hasMissing = gate.missing.length > 0;
+  const hasUnmapped = gate.unmapped.length > 0;
+  const tone = hasMissing ? MISSION_GATE_DANGER_STYLES : MISSION_GATE_WARNING_STYLES;
+
+  return (
+    <div
+      className={`mt-3 rounded-2xl border px-4 py-3 ${tone}`}
+      data-testid={testId}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-ds-muted">
+            {label}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-ds-text">
+            {hasMissing ? 'Channels Not Delivered' : 'Channels Unmapped'}
+          </p>
+        </div>
+        {gate.missionName && (
+          <span className="rounded-full border border-current/20 px-2 py-1 text-[11px] font-medium text-inherit">
+            {gate.missionName}
+          </span>
+        )}
+      </div>
+
+      {gate.requiredChannels.length > 0 && (
+        <p className="mt-2 text-xs leading-5 text-ds-text/90">
+          Required: {gate.requiredChannels.join(', ')}
+        </p>
+      )}
+
+      <div className="mt-3 space-y-2">
+        {hasMissing && (
+          <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
+            <span className="font-medium">Missing delivery</span>: {gate.missing.join(', ')}
+          </div>
+        )}
+        {gate.satisfied.length > 0 && (
+          <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
+            <span className="font-medium">Satisfied</span>: {gate.satisfied.join(', ')}
+          </div>
+        )}
+        {hasUnmapped && (
+          <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
+            <span className="font-medium">Unmapped channels</span>: {gate.unmapped.join(', ')}
+          </div>
+        )}
+        {!gate.dispatchLogAvailable && (
+          <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
+            <span className="font-medium">Dispatch log unavailable</span> — cannot verify channel delivery.
+          </div>
+        )}
+      </div>
+
+      {gate.transitionTarget && (
+        <p className="mt-2 text-xs text-ds-muted">
+          Transition blocked: {gate.transitionTarget}
+        </p>
+      )}
+    </div>
   );
 }

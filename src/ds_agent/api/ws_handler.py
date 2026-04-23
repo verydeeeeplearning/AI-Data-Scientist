@@ -29,6 +29,7 @@ from ds_agent.api.callbacks import WsAgentCallbacks
 from ds_agent.api.error_mapping import present_invalid_params_error, present_rpc_exception
 from ds_agent.api.routes.config import ALLOWED_CONFIG_PATHS
 from ds_agent.domain.entities.approval import ApprovalStatus
+from ds_agent.domain.entities.messages import ensure_message_ids
 from ds_agent.domain.entities.runtime_state import (
     RunState,
     RuntimeSession,
@@ -46,6 +47,9 @@ from ds_agent.runtime.authority_overlay import (
     resolve_authority_overlay,
 )
 from ds_agent.runtime.channel_identity import parse_telegram_session_id
+from ds_agent.runtime.learning_governance_scheduler import (
+    build_learning_governance_status_payload,
+)
 from ds_agent.runtime.semantic_proposal_router import resolve_semantic_proposal_approval
 from ds_agent.runtime.transcript_store import get_runtime_storage_root
 
@@ -61,6 +65,39 @@ _SHARED_SKILLS_DIR = _SKILLS_ROOT / "shared"
 _CUSTOM_SKILLS_DIR = _SKILLS_ROOT / "custom"
 _DEFAULT_ORG_ACTOR = "local-user"
 _DEFAULT_REVIEW_SAMPLE_RATE = 0.20
+_SELF_IMPROVE_GOVERNANCE_FLAG = "DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1"
+_ACTIVE_CUSTOM_SKILLS_DIR_FLAG = "DS_AGENT_ACTIVE_CUSTOM_SKILLS_DIR"
+_TRUTHY_FLAG_VALUES = frozenset({"1", "true", "yes"})
+_LEARNING_MUTATION_METHODS = frozenset(
+    {"learning.review", "learning.rollback", "learning.finalizePromotion"}
+)
+_LEARNING_INBOX_METADATA_KEYS = (
+    "warningType",
+    "severity",
+    "surface",
+    "sessionId",
+    "runId",
+    "recurrenceCount",
+    "firstSeenAt",
+    "lastSeenAt",
+    "sessionIds",
+    "runIds",
+    "surfaces",
+    "sourceRef",
+    "sourceRefs",
+    "failureSourceKind",
+    "failureSignalType",
+    "failureSourceRef",
+    "failureSourceCreatedAt",
+    "mismatchKind",
+    "failureTaxonomyClass",
+    "failureTaxonomyLastGcAt",
+    "failureTaxonomyRecurrenceCount",
+    "failureTaxonomyPromotionCandidate",
+    "failureTaxonomyCandidateId",
+    "failureTaxonomyCandidateStatus",
+    "failureTaxonomyCandidatePath",
+)
 
 
 def _optional_float(value: object) -> float | None:
@@ -77,6 +114,112 @@ def _optional_bool(value: object) -> bool | None:
     if value is None:
         return None
     return bool(value)
+
+
+def _self_improve_governance_enabled() -> bool:
+    return os.environ.get(_SELF_IMPROVE_GOVERNANCE_FLAG, "").strip().lower() in _TRUTHY_FLAG_VALUES
+
+
+def _feature_flags_payload() -> dict[str, bool]:
+    return {
+        "selfImproveGovernanceV1": _self_improve_governance_enabled(),
+    }
+
+
+def _active_custom_skills_dir() -> Path:
+    override = os.environ.get(_ACTIVE_CUSTOM_SKILLS_DIR_FLAG, "").strip()
+    if not override:
+        return _CUSTOM_SKILLS_DIR
+    return Path(override).expanduser().resolve()
+
+
+def _project_learning_metadata(
+    metadata: object,
+    *,
+    include_raw_payload: bool = False,
+) -> dict[str, Any]:
+    if not isinstance(metadata, dict):
+        return {}
+    if include_raw_payload:
+        return dict(metadata)
+
+    projected: dict[str, Any] = {}
+    for key in _LEARNING_INBOX_METADATA_KEYS:
+        value = metadata.get(key)
+        if value is not None:
+            projected[key] = value
+    return projected
+
+
+def _serialize_learning_item_summary(
+    item: Any,
+    *,
+    priority_score: float,
+) -> dict[str, object]:
+    return {
+        "item_id": item.item_id,
+        "type": item.item_type.value,
+        "status": item.status.value,
+        "title": item.title,
+        "priority_score": priority_score,
+        "evidence_count": len(item.evidence),
+        "conflict_count": len(item.conflict_refs),
+        "scope": item.scope,
+        "tags": item.tags,
+        "created_at": item.created_at.isoformat(),
+        "metadata": _project_learning_metadata(item.metadata),
+    }
+
+
+def _serialize_learning_item_detail(
+    item: Any,
+    *,
+    content_limit: int = 1000,
+) -> dict[str, object]:
+    return {
+        "item_id": item.item_id,
+        "type": item.item_type.value,
+        "status": item.status.value,
+        "title": item.title,
+        "content": item.content[:content_limit],
+        "scope": item.scope,
+        "review_count": item.review_count,
+        "evidence_count": len(item.evidence),
+        "conflict_count": len(item.conflict_refs),
+        "tags": item.tags,
+        "created_at": item.created_at.isoformat(),
+        "updated_at": item.updated_at.isoformat(),
+        "metadata": _project_learning_metadata(item.metadata, include_raw_payload=True),
+    }
+
+
+def _serialize_result_cards(cards: Sequence[object] | None) -> list[dict[str, object]]:
+    payloads: list[dict[str, object]] = []
+    if cards is None:
+        return payloads
+    for card in cards:
+        model_dump = getattr(card, "model_dump", None)
+        if not callable(model_dump):
+            continue
+        payload = model_dump(by_alias=True, mode="json")
+        if isinstance(payload, dict):
+            payloads.append(payload)
+    return payloads
+
+
+def _group_result_cards_by_message(
+    cards: Sequence[object] | None,
+) -> dict[str, list[dict[str, object]]]:
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for payload in _serialize_result_cards(cards):
+        source = payload.get("source")
+        if not isinstance(source, dict):
+            continue
+        message_id = source.get("messageId")
+        if not isinstance(message_id, str) or not message_id:
+            continue
+        grouped.setdefault(message_id, []).append(payload)
+    return grouped
 
 
 def _parse_org_role(value: str):
@@ -143,6 +286,135 @@ def _normalize_connector_name(value: object) -> str:
     return normalized
 
 
+class _TranscriptStepProvider:
+    """Resolve the current transcript step for a session.
+
+    Plan 03 anchors operator-named checkpoints at the same step counter the
+    implicit ``JsonCheckpointStore`` already maintains for resume flows. We
+    look that up via ``checkpoint_store.load(session_id).step`` and fall back
+    to counting persisted transcript messages if no implicit checkpoint exists.
+    Both lookups are best-effort: a missing session anchors at step 0 so the
+    save still succeeds.
+    """
+
+    def __init__(
+        self,
+        transcript_store: Any,
+        checkpoint_store: Any | None = None,
+    ) -> None:
+        self._store = transcript_store
+        self._checkpoint_store = checkpoint_store
+
+    def current_step(self, session_id: str) -> int:
+        if self._checkpoint_store is not None:
+            ckpt_load = getattr(self._checkpoint_store, "load", None)
+            if callable(ckpt_load):
+                try:
+                    checkpoint = ckpt_load(session_id)
+                except Exception:
+                    checkpoint = None
+                if checkpoint is not None and getattr(checkpoint, "step", None) is not None:
+                    try:
+                        return int(checkpoint.step)
+                    except (TypeError, ValueError):
+                        pass
+
+        load_messages = getattr(self._store, "load_messages", None)
+        if callable(load_messages):
+            try:
+                messages = load_messages(session_id)
+            except Exception:
+                return 0
+            if isinstance(messages, list):
+                return len(messages)
+        return 0
+
+
+class _ParentRunLookupAdapter:
+    """Adapter exposing the run registry as a parent-run lookup port."""
+
+    def __init__(self, app_state: Any) -> None:
+        self._state = app_state
+
+    def get(self, run_id: str) -> RunState | None:
+        return self._state.get_run(run_id)
+
+
+class _RunLineageLookupAdapter:
+    """Adapter exposing runtime run lookups for lineage queries."""
+
+    def __init__(self, app_state: Any) -> None:
+        self._state = app_state
+
+    def get(self, run_id: str) -> RunState | None:
+        return self._state.get_run(run_id)
+
+    def list(
+        self,
+        *,
+        session_id: str | None = None,
+        limit: int = 20,
+    ) -> list[RunState]:
+        return self._state.list_runs(session_id=session_id, limit=limit)
+
+
+class _BranchedRunStarter:
+    """Adapter that starts a branched agent run via ``AppState.start_run``."""
+
+    def __init__(self, app_state: Any, callbacks: AgentCallbacks) -> None:
+        self._state = app_state
+        self._callbacks = callbacks
+
+    async def start_branched_run(
+        self,
+        *,
+        session_id: str,
+        message: str,
+        parent_run_id: str,
+        resume_from_checkpoint: bool,
+        model: str | None,
+    ) -> RunState:
+        return await self._state.start_run(
+            session_id=session_id,
+            message=message,
+            callbacks=self._callbacks,
+            model=model,
+            resume_from_checkpoint=resume_from_checkpoint,
+            branched_from_run_id=parent_run_id,
+        )
+
+
+class _RerunFromStepStarter:
+    """Adapter that starts a rerun-from-step agent run via ``AppState.start_run``.
+
+    Threading the ``plan_node_id`` through ``start_run`` records the rerun
+    anchor on ``RunState.rerun_from_node_id`` while reusing every other
+    branched-run mechanic (parent linkage, session inheritance, surface).
+    """
+
+    def __init__(self, app_state: Any, callbacks: AgentCallbacks) -> None:
+        self._state = app_state
+        self._callbacks = callbacks
+
+    async def start_rerun_from_step(
+        self,
+        *,
+        session_id: str,
+        message: str,
+        parent_run_id: str,
+        plan_node_id: str,
+        model: str | None,
+    ) -> RunState:
+        return await self._state.start_run(
+            session_id=session_id,
+            message=message,
+            callbacks=self._callbacks,
+            model=model,
+            branched_from_run_id=parent_run_id,
+            rerun_from_node_id=plan_node_id,
+        )
+
+
 class WsRpcHandler:
     """Dispatch incoming WsRequest frames to the appropriate method handler.
 
@@ -153,7 +425,10 @@ class WsRpcHandler:
     def __init__(self, state: AppState, websocket: WebSocket) -> None:
         self._state = state
         self._ws = websocket
-        self._callbacks = WsAgentCallbacks(websocket)
+        self._callbacks = WsAgentCallbacks(
+            websocket,
+            workspace_dir=str(state.config.agent.workspace_dir),
+        )
         self._last_run_id: str | None = None
         self._background_tasks: set[asyncio.Task[Any]] = set()
 
@@ -172,6 +447,9 @@ class WsRpcHandler:
 
         handler = self._METHOD_MAP.get(method)
         if handler is None:
+            await self._send_error(req_id, "UNKNOWN_METHOD", f"Unknown method: {method}")
+            return
+        if method in _LEARNING_MUTATION_METHODS and not _self_improve_governance_enabled():
             await self._send_error(req_id, "UNKNOWN_METHOD", f"Unknown method: {method}")
             return
 
@@ -205,13 +483,29 @@ class WsRpcHandler:
         session_id = params.get("sessionId", "")
         limit = params.get("limit", 50)
         history = self._state.get_session_history(session_id, limit=limit)
-        return {
-            "messages": [{"role": m.role, "content": m.content} for m in history],
-        }
+        ensure_message_ids(history)
+        cards_by_message_id = _group_result_cards_by_message(
+            self._state.get_session_result_cards(session_id, limit=max(limit * 4, 100))
+        )
+        messages: list[dict[str, object]] = []
+        for message in history:
+            payload: dict[str, object] = {
+                "messageId": message.message_id,
+                "role": message.role.value,
+                "content": message.content,
+            }
+            message_cards = cards_by_message_id.get(message.message_id or "")
+            if message_cards:
+                payload["cards"] = message_cards
+            messages.append(payload)
+        return {"messages": messages}
 
     async def _config_get(self, _params: dict) -> dict:
         """Return current config."""
-        return {"config": self._state.config_manager.get_dump()}
+        return {
+            "config": self._state.config_manager.get_dump(),
+            "featureFlags": _feature_flags_payload(),
+        }
 
     # 4.8 fix: Single source of truth — import from routes/config.py
     _ALLOWED_CONFIG_PATHS: ClassVar[frozenset[str]] = ALLOWED_CONFIG_PATHS
@@ -535,6 +829,7 @@ class WsRpcHandler:
         model = params.get("model")
         session_id = params.get("sessionId") or str(uuid.uuid4())[:8]
         actor_id = str(params.get("actorId")).strip() if params.get("actorId") is not None else None
+        resume_flag = bool(params.get("resumeFromCheckpoint", False))
         self._state.publish_user_input_event(session_id=session_id, surface="ws", message=message)
         run = await self._state.start_run(
             session_id=session_id,
@@ -542,6 +837,7 @@ class WsRpcHandler:
             callbacks=self._callbacks,
             model=model,
             actor_id=actor_id,
+            resume_from_checkpoint=resume_flag,
         )
         self._last_run_id = run.run_id
         payload = self._serialize_run(run)
@@ -585,6 +881,231 @@ class WsRpcHandler:
         runs = self._state.list_runs(session_id=session_id, status=status, limit=limit)
         return {"runs": [self._serialize_run(run) for run in runs]}
 
+    # -- Checkpoint / Branch handlers (Plan 03 slice) ---------------------
+
+    async def _checkpoint_save(self, params: dict) -> dict:
+        """Save a new operator-named checkpoint for a session."""
+        from ds_agent.application.use_cases.save_named_checkpoint_usecase import (
+            SaveNamedCheckpointInput,
+            SaveNamedCheckpointUseCase,
+        )
+
+        session_id = str(params.get("sessionId") or "").strip()
+        name = str(params.get("name") or "").strip()
+        description_raw = params.get("description")
+        description = str(description_raw).strip() if description_raw is not None else None
+
+        use_case = SaveNamedCheckpointUseCase(
+            store=self._state.checkpoint_store,
+            step_provider=_TranscriptStepProvider(
+                self._state.transcript_store,
+                self._state.checkpoint_store,
+            ),
+        )
+        record = use_case.execute(
+            SaveNamedCheckpointInput(
+                session_id=session_id,
+                name=name,
+                description=description,
+            )
+        )
+        return {
+            "checkpoint": {
+                "id": record.id,
+                "name": record.name,
+                "sessionId": record.session_id,
+                "createdAt": record.created_at,
+                "transcriptStep": record.transcript_step,
+                "description": record.description,
+            }
+        }
+
+    async def _checkpoint_list(self, params: dict) -> dict:
+        """List operator-named checkpoints for a session, newest first."""
+        session_id = str(params.get("sessionId") or "").strip()
+        if not session_id:
+            raise ValueError("sessionId is required")
+        limit = int(params.get("limit") or 50)
+        records = self._state.checkpoint_store.list_named(session_id, limit=limit)
+        return {
+            "checkpoints": [
+                {
+                    "id": record.id,
+                    "name": record.name,
+                    "sessionId": record.session_id,
+                    "createdAt": record.created_at,
+                    "transcriptStep": record.transcript_step,
+                    "description": record.description,
+                }
+                for record in records
+            ]
+        }
+
+    async def _run_branch(self, params: dict) -> dict:
+        """Branch a tracked agent run from a parent run + optional checkpoint."""
+        from ds_agent.application.use_cases.branch_run_usecase import (
+            BranchRunInput,
+            BranchRunUseCase,
+        )
+
+        parent_run_id = str(params.get("parentRunId") or "").strip()
+        message = str(params.get("message") or "")
+        checkpoint_id_raw = params.get("checkpointId")
+        checkpoint_id = str(checkpoint_id_raw).strip() if checkpoint_id_raw is not None else None
+        model_raw = params.get("model")
+        model = str(model_raw).strip() if model_raw is not None else None
+        if model == "":
+            model = None
+
+        use_case = BranchRunUseCase(
+            parent_lookup=_ParentRunLookupAdapter(self._state),
+            checkpoint_lookup=self._state.checkpoint_store,
+            starter=_BranchedRunStarter(self._state, self._callbacks),
+        )
+        branched = await use_case.execute(
+            BranchRunInput(
+                parent_run_id=parent_run_id,
+                message=message,
+                checkpoint_id=checkpoint_id,
+                model=model,
+            )
+        )
+        self._last_run_id = branched.run.run_id
+        payload = self._serialize_run(branched.run)
+        payload["sessionId"] = branched.run.session_id
+        payload["branchedFromRunId"] = branched.parent_run_id
+        return payload
+
+    async def _run_rerun(self, params: dict) -> dict:
+        """Rerun a tracked agent run from a specific plan-tree node."""
+        from ds_agent.application.use_cases.rerun_from_step_usecase import (
+            RerunFromStepInput,
+            RerunFromStepUseCase,
+        )
+
+        parent_run_id = str(params.get("parentRunId") or "").strip()
+        plan_node_id = str(params.get("planNodeId") or "").strip()
+        message_raw = params.get("message")
+        message_override = str(message_raw).strip() if message_raw is not None else None
+        model_raw = params.get("model")
+        model = str(model_raw).strip() if model_raw is not None else None
+        if model == "":
+            model = None
+
+        use_case = RerunFromStepUseCase(
+            parent_lookup=_ParentRunLookupAdapter(self._state),
+            starter=_RerunFromStepStarter(self._state, self._callbacks),
+        )
+        result = await use_case.execute(
+            RerunFromStepInput(
+                parent_run_id=parent_run_id,
+                plan_node_id=plan_node_id,
+                message_override=message_override,
+                model=model,
+            )
+        )
+        self._last_run_id = result.run.run_id
+        payload = self._serialize_run(result.run)
+        payload["sessionId"] = result.run.session_id
+        payload["branchedFromRunId"] = result.parent_run_id
+        payload["rerunFromNodeId"] = result.plan_node_id
+        return payload
+
+    async def _run_promote(self, params: dict) -> dict:
+        """Promote one result card to an audience-tagged artifact."""
+        from ds_agent.application.use_cases.promote_to_artifact_usecase import (
+            PromoteToArtifactInput,
+            PromoteToArtifactUseCase,
+        )
+
+        run_id = str(params.get("runId") or "").strip()
+        card_id = str(params.get("cardId") or "").strip()
+        audience = str(params.get("audience") or "").strip()
+        title_raw = params.get("title")
+        title = str(title_raw).strip() if title_raw is not None else None
+
+        use_case = PromoteToArtifactUseCase(
+            store=self._state.promoted_artifact_store,
+        )
+        artifact = use_case.execute(
+            PromoteToArtifactInput(
+                run_id=run_id,
+                card_id=card_id,
+                audience=audience,
+                title=title,
+            )
+        )
+        return {
+            "artifact": {
+                "artifactId": artifact.artifact_id,
+                "runId": artifact.run_id,
+                "cardId": artifact.card_id,
+                "audience": artifact.audience,
+                "title": artifact.title,
+                "createdAt": artifact.created_at,
+            }
+        }
+
+    async def _run_list_promoted(self, params: dict) -> dict:
+        """List persisted promoted artifacts for one run, newest first."""
+        run_id = str(params.get("runId") or "").strip()
+        if not run_id:
+            raise ValueError("runId is required")
+        card_id_raw = params.get("cardId")
+        card_id = str(card_id_raw).strip() if card_id_raw is not None else None
+        if card_id == "":
+            card_id = None
+        limit = int(params.get("limit") or 20)
+        records = self._state.promoted_artifact_store.list_promoted_artifacts(
+            run_id,
+            card_id=card_id,
+            limit=limit,
+        )
+        return {
+            "artifacts": [
+                {
+                    "artifactId": record.artifact_id,
+                    "runId": record.run_id,
+                    "cardId": record.card_id,
+                    "audience": record.audience,
+                    "title": record.title,
+                    "createdAt": record.created_at,
+                }
+                for record in records
+            ]
+        }
+
+    async def _runs_list_lineage(self, params: dict) -> dict:
+        """List the connected branch / rerun lineage tree for one run family."""
+        from ds_agent.application.use_cases.list_run_lineage_usecase import (
+            ListRunLineageUseCase,
+        )
+
+        root_run_id = str(params.get("rootRunId") or "").strip()
+        use_case = ListRunLineageUseCase(_RunLineageLookupAdapter(self._state))
+        result = use_case.execute(root_run_id)
+        return {
+            "rootRunId": result.root_run_id,
+            "seedRunId": result.seed_run_id,
+            "nodes": [
+                {
+                    "runId": node.run.run_id,
+                    "sessionId": node.run.session_id,
+                    "status": node.run.status.value,
+                    "message": node.run.message,
+                    "createdAt": node.run.created_at,
+                    "startedAt": node.run.started_at,
+                    "finishedAt": node.run.finished_at,
+                    "branchedFromRunId": node.run.branched_from_run_id,
+                    "rerunFromNodeId": node.run.rerun_from_node_id,
+                    "depth": node.depth,
+                    "isRoot": node.is_root,
+                    "isSeed": node.is_seed,
+                }
+                for node in result.nodes
+            ],
+        }
+
     async def _session_list(self, params: dict) -> dict:
         """List runtime-visible sessions."""
         limit = int(params.get("limit") or 20)
@@ -620,6 +1141,24 @@ class WsRpcHandler:
         status = ApprovalStatus(status_name) if status_name else None
         approvals = self._state.list_approvals(session_id=session_id, status=status, limit=limit)
         return {"approvals": [self._serialize_approval(item) for item in approvals]}
+
+    async def _approval_get(self, params: dict) -> dict:
+        """Return one approval request enriched for the approval modal."""
+        approval_id = str(params.get("approvalId") or params.get("requestId") or "").strip()
+        if not approval_id:
+            raise ValueError("approvalId is required")
+        approval: Any = self._state.get_approval_request(approval_id)
+        return approval.to_dict()
+
+    async def _approval_submit(self, params: dict) -> dict:
+        """Submit an approval decision using the v2 approval contract."""
+        result: Any = self._state.submit_approval(params)
+        if result.approval is not None:
+            self._callbacks.emit_event(
+                "approval.resolved",
+                self._serialize_approval(result.approval),
+            )
+        return result.to_dict()
 
     async def _approval_resolve(self, params: dict) -> dict:
         """Resolve one pending approval."""
@@ -828,7 +1367,8 @@ class WsRpcHandler:
             waiting = store.list_entries(quadrant=PortfolioQuadrant.WAITING, limit=limit)
             monitoring = store.list_entries(quadrant=PortfolioQuadrant.MONITORING, limit=limit)
             candidates = store.list_entries(
-                quadrant=PortfolioQuadrant.PLAYBOOK_CANDIDATE, limit=limit,
+                quadrant=PortfolioQuadrant.PLAYBOOK_CANDIDATE,
+                limit=limit,
             )
 
             from ds_agent.application.portfolio.slot_manager import SlotManager
@@ -883,16 +1423,30 @@ class WsRpcHandler:
 
         updated = entry.transition_to(
             PortfolioQuadrant.WAITING,
-            reason=reason, actor="user", now=now, wait_condition_id=condition_id,
+            reason=reason,
+            actor="user",
+            now=now,
+            wait_condition_id=condition_id,
         )
-        store.save_wait_condition(WaitCondition.create(
-            condition_id=condition_id, kind=kind, spec=spec, now=now,
-        ))
+        store.save_wait_condition(
+            WaitCondition.create(
+                condition_id=condition_id,
+                kind=kind,
+                spec=spec,
+                now=now,
+            )
+        )
         store.save_entry(updated)
-        store.record_transition(entry_id, PortfolioTransition(
-            from_quadrant=entry.quadrant, to_quadrant=PortfolioQuadrant.WAITING,
-            reason=reason, actor="user", at=now,
-        ))
+        store.record_transition(
+            entry_id,
+            PortfolioTransition(
+                from_quadrant=entry.quadrant,
+                to_quadrant=PortfolioQuadrant.WAITING,
+                reason=reason,
+                actor="user",
+                at=now,
+            ),
+        )
         return {"ok": True, "entryId": entry_id, "newQuadrant": "waiting"}
 
     async def _portfolio_resume(self, params: dict) -> dict:
@@ -923,13 +1477,22 @@ class WsRpcHandler:
         now = datetime.now(UTC)
         updated = entry.transition_to(
             PortfolioQuadrant.ACTIVE,
-            reason=reason, actor="user", now=now, run_id=run_id,
+            reason=reason,
+            actor="user",
+            now=now,
+            run_id=run_id,
         )
         store.save_entry(updated)
-        store.record_transition(entry_id, PortfolioTransition(
-            from_quadrant=entry.quadrant, to_quadrant=PortfolioQuadrant.ACTIVE,
-            reason=reason, actor="user", at=now,
-        ))
+        store.record_transition(
+            entry_id,
+            PortfolioTransition(
+                from_quadrant=entry.quadrant,
+                to_quadrant=PortfolioQuadrant.ACTIVE,
+                reason=reason,
+                actor="user",
+                at=now,
+            ),
+        )
         return {"ok": True, "entryId": entry_id, "newQuadrant": "active"}
 
     async def _portfolio_set_sla(self, params: dict) -> dict:
@@ -953,11 +1516,13 @@ class WsRpcHandler:
 
         bp = BusinessPriority(priority)
         sla_deadline = datetime.fromisoformat(deadline_str) if deadline_str else None
-        updated = entry.model_copy(update={
-            "business_priority": bp,
-            "sla_deadline": sla_deadline,
-            "updated_at": datetime.now(UTC),
-        })
+        updated = entry.model_copy(
+            update={
+                "business_priority": bp,
+                "sla_deadline": sla_deadline,
+                "updated_at": datetime.now(UTC),
+            }
+        )
         store.save_entry(updated)
         return {
             "ok": True,
@@ -977,8 +1542,10 @@ class WsRpcHandler:
 
     # -- Learning Governance RPC (Phase 12) -----------------------------------
 
-    def _get_learning_store(self):
+    def _get_learning_store(self, *, require_mutation: bool = False):
         """Lazy-load learning store."""
+        if require_mutation and not _self_improve_governance_enabled():
+            raise ValueError("Self-improve governance is not enabled.")
         if not hasattr(self, "_learning_store_cache"):
             from ds_agent.infrastructure.persistence.learning_store import (
                 SqliteLearningStore,
@@ -987,6 +1554,19 @@ class WsRpcHandler:
             workspace = str(self._state.config.agent.workspace_dir)
             self._learning_store_cache = SqliteLearningStore.for_workspace(workspace)
         return self._learning_store_cache
+
+    async def _learning_status(self, params: dict) -> dict:
+        """Return read-only learning governance status."""
+
+        history_limit = int(params.get("historyLimit") or 5)
+        payload = build_learning_governance_status_payload(
+            policy_store=self._state._policy_store,
+            store=self._get_learning_store(),
+            workspace_dir=str(self._state.config.agent.workspace_dir),
+            history_limit=history_limit,
+        )
+        payload["reviewEnabled"] = _self_improve_governance_enabled()
+        return payload
 
     async def _learning_inbox(self, params: dict) -> dict:
         """Return scored learning inbox items."""
@@ -1020,18 +1600,7 @@ class WsRpcHandler:
         )
         return {
             "items": [
-                {
-                    "item_id": s.item.item_id,
-                    "type": s.item.item_type.value,
-                    "status": s.item.status.value,
-                    "title": s.item.title,
-                    "priority_score": s.priority_score,
-                    "evidence_count": len(s.item.evidence),
-                    "conflict_count": len(s.item.conflict_refs),
-                    "scope": s.item.scope,
-                    "tags": s.item.tags,
-                    "created_at": s.item.created_at.isoformat(),
-                }
+                _serialize_learning_item_summary(s.item, priority_score=s.priority_score)
                 for s in scored
             ],
             "total": len(scored),
@@ -1062,14 +1631,18 @@ class WsRpcHandler:
             raise ValueError("decision is required")
 
         dec = ReviewDecision(decision)
-        checklist = ReviewChecklist(
-            evidence_sufficient=True,
-            no_unresolved_conflicts=True,
-            scope_appropriate=True,
-            content_accurate=True,
-        ) if dec == ReviewDecision.APPROVE else None
+        checklist = (
+            ReviewChecklist(
+                evidence_sufficient=True,
+                no_unresolved_conflicts=True,
+                scope_appropriate=True,
+                content_accurate=True,
+            )
+            if dec == ReviewDecision.APPROVE
+            else None
+        )
 
-        store = self._get_learning_store()
+        store = self._get_learning_store(require_mutation=True)
         uc = ReviewLearningItemUseCase(store, _Clock())
         updated, event = uc.execute(
             item_id=item_id,
@@ -1094,20 +1667,7 @@ class WsRpcHandler:
         item = store.get_item(item_id)
         if item is None:
             raise ValueError(f"Learning item {item_id} not found")
-        return {
-            "item_id": item.item_id,
-            "type": item.item_type.value,
-            "status": item.status.value,
-            "title": item.title,
-            "content": item.content[:1000],
-            "scope": item.scope,
-            "review_count": item.review_count,
-            "evidence_count": len(item.evidence),
-            "conflict_count": len(item.conflict_refs),
-            "tags": item.tags,
-            "created_at": item.created_at.isoformat(),
-            "updated_at": item.updated_at.isoformat(),
-        }
+        return _serialize_learning_item_detail(item)
 
     async def _learning_promotions(self, params: dict) -> dict:
         """List promotion records."""
@@ -1163,7 +1723,7 @@ class WsRpcHandler:
         if not item_id:
             raise ValueError("itemId is required")
 
-        store = self._get_learning_store()
+        store = self._get_learning_store(require_mutation=True)
         uc = RollbackPromotionUseCase(store, _Clock())
         updated, dep_record = uc.execute(item_id=item_id, reason=reason)
         return {
@@ -1171,6 +1731,59 @@ class WsRpcHandler:
             "itemId": updated.item_id,
             "newStatus": updated.status.value,
             "deprecationRecordId": dep_record.record_id,
+        }
+
+    async def _learning_finalize_promotion(self, params: dict) -> dict:
+        """Finalize one pending learning candidate."""
+
+        from ds_agent.application.learning.finalize_learning_candidate_promotion import (
+            FinalizeLearningCandidatePromotionUseCase,
+        )
+
+        candidate_id = str(params.get("candidateId") or "").strip()
+        if not candidate_id:
+            raise ValueError("candidateId is required")
+
+        try:
+            candidate_score = float(params.get("candidateScore"))
+        except (TypeError, ValueError):
+            raise ValueError("candidateScore must be a number") from None
+
+        try:
+            passed_tasks = int(params.get("passedTasks"))
+        except (TypeError, ValueError):
+            raise ValueError("passedTasks must be an integer") from None
+
+        try:
+            total_tasks = int(params.get("totalTasks"))
+        except (TypeError, ValueError):
+            raise ValueError("totalTasks must be an integer") from None
+
+        decision, candidate = FinalizeLearningCandidatePromotionUseCase(
+            str(self._state.config.agent.workspace_dir),
+            active_custom_dir=_active_custom_skills_dir(),
+        ).execute(
+            candidate_id=candidate_id,
+            candidate_score=candidate_score,
+            passed_tasks=passed_tasks,
+            total_tasks=total_tasks,
+            baseline_score=_optional_float(params.get("baselineScore")),
+            delta_threshold=_optional_float(params.get("deltaThreshold")) or 0.03,
+        )
+        return {
+            "ok": True,
+            "candidateId": decision.candidate_id,
+            "status": decision.status,
+            "promoted": decision.promoted,
+            "candidateScore": decision.candidate_score,
+            "baselineScore": decision.baseline_score,
+            "deltaScore": decision.delta_score,
+            "deltaThreshold": decision.delta_threshold,
+            "passedTasks": decision.passed_tasks,
+            "totalTasks": decision.total_tasks,
+            "summary": decision.summary,
+            "promotedPath": candidate.promoted_path,
+            "pendingPath": candidate.pending_path,
         }
 
     async def _policy_set_action_matrix_overrides(self, params: dict) -> dict:
@@ -1193,6 +1806,73 @@ class WsRpcHandler:
         return {
             "actionMatrixOverrides": normalized,
             "actionMatrixOverrideCount": sum(len(row) for row in normalized.values()),
+        }
+
+    async def _policy_matrix_get(self, _params: dict) -> dict:
+        """Return the persisted risk-tier matrix and recent history."""
+        from ds_agent.application.use_cases.risk_tier_matrix_usecases import (
+            LoadRiskTierMatrixUseCase,
+        )
+
+        use_case = LoadRiskTierMatrixUseCase(self._state.policy_store)
+        result = use_case.execute()
+        return {
+            "matrix": dict(result.matrix),
+            "history": [
+                {
+                    "savedAt": snapshot.saved_at,
+                    "matrix": dict(snapshot.matrix),
+                    "savedBy": snapshot.saved_by,
+                }
+                for snapshot in result.history
+            ],
+        }
+
+    async def _policy_matrix_save(self, params: dict) -> dict:
+        """Persist a risk-tier matrix draft and return the saved snapshot."""
+        from ds_agent.application.use_cases.risk_tier_matrix_usecases import (
+            SaveRiskTierMatrixInput,
+            SaveRiskTierMatrixUseCase,
+        )
+
+        matrix = params.get("matrix")
+        if not isinstance(matrix, dict):
+            raise ValueError("matrix must be an object")
+        saved_by_raw = params.get("savedBy")
+        saved_by = (
+            str(saved_by_raw).strip()
+            if isinstance(saved_by_raw, str) and saved_by_raw.strip()
+            else None
+        )
+
+        use_case = SaveRiskTierMatrixUseCase(self._state.policy_store)
+        snapshot = use_case.execute(SaveRiskTierMatrixInput(matrix=matrix, saved_by=saved_by))
+        return {
+            "snapshot": {
+                "savedAt": snapshot.saved_at,
+                "matrix": dict(snapshot.matrix),
+                "savedBy": snapshot.saved_by,
+            },
+        }
+
+    async def _policy_matrix_preview(self, params: dict) -> dict:
+        """Build a history-backed impact preview for a candidate matrix."""
+        from ds_agent.application.use_cases.risk_tier_matrix_usecases import (
+            BuildHistoryBackedImpactPreview,
+            HistoryBackedImpactPreviewInput,
+        )
+
+        candidate = params.get("candidateMatrix")
+        if not isinstance(candidate, dict):
+            raise ValueError("candidateMatrix must be an object")
+
+        use_case = BuildHistoryBackedImpactPreview(self._state.policy_store)
+        result = use_case.execute(HistoryBackedImpactPreviewInput(candidate_matrix=candidate))
+        return {
+            "addedRows": list(result.added_rows),
+            "removedRows": list(result.removed_rows),
+            "modifiedRows": list(result.modified_rows),
+            "historicalCounts": dict(result.historical_counts),
         }
 
     async def _files_list(self, params: dict) -> dict:
@@ -1341,78 +2021,101 @@ class WsRpcHandler:
         from ds_agent.providers.codex_oauth import CODEX_MODELS
         from ds_agent.providers.gemini_oauth import GEMINI_MODELS
         from ds_agent.providers.litellm_provider import LITELLM_MODELS
+        from ds_agent.providers.model_metadata import derive_capability_metadata
         from ds_agent.providers.openai_provider import OPENAI_MODELS
 
         catalog: list[dict] = []
 
+        def _enrich(entry: dict) -> dict:
+            metadata = derive_capability_metadata(
+                model_id=entry["id"],
+                provider=entry["provider"],
+                display_name=entry["displayName"],
+                max_context=entry["maxContext"],
+                auth_type=entry["authType"],
+                legacy=entry["legacy"],
+            )
+            entry.update(metadata.to_dict())
+            return entry
+
         # Anthropic
         for model_id, meta in ANTHROPIC_MODELS.items():
             catalog.append(
-                {
-                    "id": f"anthropic/{model_id}",
-                    "provider": "anthropic",
-                    "displayName": meta["display_name"],
-                    "maxContext": meta["max_context"],
-                    "maxOutput": meta["max_output"],
-                    "authType": "api_key",
-                    "legacy": meta.get("legacy", False),
-                }
+                _enrich(
+                    {
+                        "id": f"anthropic/{model_id}",
+                        "provider": "anthropic",
+                        "displayName": meta["display_name"],
+                        "maxContext": meta["max_context"],
+                        "maxOutput": meta["max_output"],
+                        "authType": "api_key",
+                        "legacy": meta.get("legacy", False),
+                    }
+                )
             )
 
         # OpenAI
         for model_id, meta in OPENAI_MODELS.items():
             catalog.append(
-                {
-                    "id": f"openai/{model_id}",
-                    "provider": "openai",
-                    "displayName": meta["display_name"],
-                    "maxContext": meta["max_context"],
-                    "maxOutput": meta["max_output"],
-                    "authType": "api_key",
-                    "legacy": meta.get("legacy", False),
-                }
+                _enrich(
+                    {
+                        "id": f"openai/{model_id}",
+                        "provider": "openai",
+                        "displayName": meta["display_name"],
+                        "maxContext": meta["max_context"],
+                        "maxOutput": meta["max_output"],
+                        "authType": "api_key",
+                        "legacy": meta.get("legacy", False),
+                    }
+                )
             )
 
         # Codex OAuth
         for model_id, meta in CODEX_MODELS.items():
             catalog.append(
-                {
-                    "id": f"codex/{model_id}",
-                    "provider": "codex",
-                    "displayName": f"{meta['display_name']} (Codex)",
-                    "maxContext": meta["max_context"],
-                    "maxOutput": meta["max_output"],
-                    "authType": "oauth",
-                    "legacy": meta.get("legacy", False),
-                }
+                _enrich(
+                    {
+                        "id": f"codex/{model_id}",
+                        "provider": "codex",
+                        "displayName": f"{meta['display_name']} (Codex)",
+                        "maxContext": meta["max_context"],
+                        "maxOutput": meta["max_output"],
+                        "authType": "oauth",
+                        "legacy": meta.get("legacy", False),
+                    }
+                )
             )
 
         # Gemini OAuth
         for model_id, meta in GEMINI_MODELS.items():
             catalog.append(
-                {
-                    "id": f"gemini/{model_id}",
-                    "provider": "gemini",
-                    "displayName": meta["display_name"],
-                    "maxContext": meta["max_context"],
-                    "maxOutput": meta["max_output"],
-                    "authType": "oauth",
-                    "legacy": meta.get("legacy", False),
-                }
+                _enrich(
+                    {
+                        "id": f"gemini/{model_id}",
+                        "provider": "gemini",
+                        "displayName": meta["display_name"],
+                        "maxContext": meta["max_context"],
+                        "maxOutput": meta["max_output"],
+                        "authType": "oauth",
+                        "legacy": meta.get("legacy", False),
+                    }
+                )
             )
 
         # LiteLLM (Chinese providers, Groq, etc.)
         for model_id, meta in LITELLM_MODELS.items():
             catalog.append(
-                {
-                    "id": model_id,
-                    "provider": meta.get("provider", "litellm"),
-                    "displayName": meta["display_name"],
-                    "maxContext": meta["max_context"],
-                    "maxOutput": meta["max_output"],
-                    "authType": meta.get("auth_type", "api_key"),
-                    "legacy": meta.get("legacy", False),
-                }
+                _enrich(
+                    {
+                        "id": model_id,
+                        "provider": meta.get("provider", "litellm"),
+                        "displayName": meta["display_name"],
+                        "maxContext": meta["max_context"],
+                        "maxOutput": meta["max_output"],
+                        "authType": meta.get("auth_type", "api_key"),
+                        "legacy": meta.get("legacy", False),
+                    }
+                )
             )
 
         return {"models": catalog}
@@ -1742,6 +2445,13 @@ class WsRpcHandler:
         "run.wait": _run_wait,
         "run.abort": _run_abort,
         "run.list": _run_list,
+        "run.branch": _run_branch,
+        "run.rerun": _run_rerun,
+        "run.promote": _run_promote,
+        "run.list_promoted": _run_list_promoted,
+        "checkpoint.save": _checkpoint_save,
+        "checkpoint.list": _checkpoint_list,
+        "runs.list_lineage": _runs_list_lineage,
         "run.scorecard": _run_scorecard,
         "run.submitHumanRubric": _run_submit_human_rubric,
         "run.shadowCompare": _run_shadow_compare,
@@ -1751,11 +2461,16 @@ class WsRpcHandler:
         "task.list": _task_list,
         "runtime.events.list": _runtime_events_list,
         "approval.list": _approval_list,
+        "approval.get": _approval_get,
+        "approval.submit": _approval_submit,
         "approval.resolve": _approval_resolve,
         "policy.get": _policy_get,
         "policy.upsertRecurringGoal": _policy_upsert_recurring_goal,
         "policy.setStandingOrders": _policy_set_standing_orders,
         "policy.setActionMatrixOverrides": _policy_set_action_matrix_overrides,
+        "policy.matrix.get": _policy_matrix_get,
+        "policy.matrix.save": _policy_matrix_save,
+        "policy.matrix.preview": _policy_matrix_preview,
         "decisionOs.overview": _decision_os_overview,
         "decisionOs.compareRuns": _decision_os_compare_runs,
         "decisionOs.requestPromotion": _decision_os_request_promotion,
@@ -1766,12 +2481,14 @@ class WsRpcHandler:
         "portfolio.pause": _portfolio_pause,
         "portfolio.resume": _portfolio_resume,
         "portfolio.setSla": _portfolio_set_sla,
+        "learning.status": _learning_status,
         "learning.inbox": _learning_inbox,
         "learning.review": _learning_review,
         "learning.getItem": _learning_get_item,
         "learning.promotions": _learning_promotions,
         "learning.deprecations": _learning_deprecations,
         "learning.rollback": _learning_rollback,
+        "learning.finalizePromotion": _learning_finalize_promotion,
         "config.get": _config_get,
         "config.set": _config_set,
         "status.get": _status_get,
@@ -1862,6 +2579,9 @@ class WsRpcHandler:
             "createdAt": run.created_at,
             "startedAt": run.started_at,
             "finishedAt": run.finished_at,
+            "resumedFromCheckpoint": bool(getattr(run, "resumed_from_checkpoint", False)),
+            "branchedFromRunId": getattr(run, "branched_from_run_id", None),
+            "rerunFromNodeId": getattr(run, "rerun_from_node_id", None),
         }
 
     @staticmethod
@@ -1953,10 +2673,16 @@ class AppState:
         from ds_agent.application.services.usage_summary import UsageSummaryService
         from ds_agent.config.schema import DSAgentConfig, WarehouseConnectorSettings
         from ds_agent.infrastructure.auth.oauth_service import OAuthService
+        from ds_agent.infrastructure.persistence.access_log import JsonAccessLogStore
+        from ds_agent.infrastructure.persistence.access_policy_store import (
+            JsonAccessPolicyStore,
+        )
+        from ds_agent.infrastructure.persistence.card_store import SqliteCardStore
         from ds_agent.infrastructure.persistence.connector_factory import create_connector_adapter
         from ds_agent.infrastructure.secrets.connector_secret_manager import (
             create_connector_secret_manager,
         )
+        from ds_agent.runtime.approval_grant_store import JsonApprovalGrantStore
         from ds_agent.runtime.approval_store import JsonApprovalStore
         from ds_agent.runtime.checkpoint_store import JsonCheckpointStore
         from ds_agent.runtime.goal_store import JsonGoalStore
@@ -1984,13 +2710,20 @@ class AppState:
         self._connector_secrets = create_connector_secret_manager()
         self._transcript_store = JsonTranscriptStore(self.config.agent.workspace_dir)
         self._checkpoint_store = JsonCheckpointStore(self.config.agent.workspace_dir)
+        self._result_card_store = SqliteCardStore.for_workspace(self.config.agent.workspace_dir)
         self._goal_store = JsonGoalStore(self.config.agent.workspace_dir)
         self._approval_store = JsonApprovalStore(self.config.agent.workspace_dir)
+        self._approval_grant_store = JsonApprovalGrantStore(self.config.agent.workspace_dir)
         self._organization_store = JsonOrganizationStore(self.config.agent.workspace_dir)
         self._usage_summary_service = UsageSummaryService(self._organization_store)
         self._org_policy_gate = OrgPolicyGate()
         self._policy_store = JsonPolicyStore(self.config.agent.workspace_dir)
         self._runtime_event_log = RuntimeEventLog(self.config.agent.workspace_dir)
+        from ds_agent.runtime.promoted_artifact_store import JsonPromotedArtifactStore
+
+        self._promoted_artifact_store = JsonPromotedArtifactStore(
+            self.config.agent.workspace_dir,
+        )
         self._runtime_event_listeners: set[Callable[[str, dict], None]] = set()
         self._autonomous_daemon: Any | None = None
         self._semantic_memory_container: Any | None = None
@@ -2016,6 +2749,7 @@ class AppState:
             token_store=self._token_store,
             transcript_store=self._transcript_store,
             checkpoint_store=self._checkpoint_store,
+            result_card_store=self._result_card_store,
             approval_store=self._approval_store,
             skill_hub=self._skill_hub,
             org_policy_supplier=self._organization_store.get,
@@ -2030,6 +2764,97 @@ class AppState:
         self._review_sampling_store = JsonlReviewSamplingStore.for_workspace(
             self.config.agent.workspace_dir
         )
+        self._access_policy_store = JsonAccessPolicyStore(self.config.agent.workspace_dir)
+        self._access_log_store = JsonAccessLogStore(self.config.agent.workspace_dir)
+        from ds_agent.api.access_middleware import build_resource_access_guard
+
+        self._resource_access_guard = build_resource_access_guard(
+            policy_store=self._access_policy_store,
+            log_store=self._access_log_store,
+        )
+
+        # ----- Web push (Wave 4 PLAN_06b infrastructure close) ---------
+        # Subscription store: per-operator JSON files under workspace.
+        from ds_agent.application.use_cases.dispatch_web_push_usecase import (
+            DispatchWebPushUseCase,
+        )
+        from ds_agent.infrastructure.notification.web_push_transport import (
+            build_web_push_transport,
+        )
+        from ds_agent.infrastructure.persistence.web_push_subscription_store import (
+            JsonWebPushSubscriptionStore,
+        )
+        from ds_agent.runtime.web_push_keys import (
+            VapidKeys,
+            load_vapid_keys,
+            load_vapid_subject,
+        )
+        from ds_agent.runtime.web_push_metrics import JsonWebPushMetricsStore
+        from ds_agent.runtime.web_push_subject_store import JsonWebPushSubjectStore
+
+        self._web_push_subscription_store = JsonWebPushSubscriptionStore(
+            self.config.agent.workspace_dir,
+        )
+        self._web_push_subject_store = JsonWebPushSubjectStore(
+            self.config.agent.workspace_dir,
+        )
+        self._web_push_metrics_store = JsonWebPushMetricsStore(
+            self.config.agent.workspace_dir,
+        )
+
+        loaded_keys = load_vapid_keys(self.config.agent.workspace_dir)
+        self._vapid_public_key: str | None
+        if isinstance(loaded_keys, VapidKeys):
+            self._vapid_public_key = loaded_keys.public_key_b64url
+
+            def _on_subscription_expired(operator_id: str, endpoint: str) -> None:
+                # The store ignores unknown endpoints idempotently, so the
+                # callback is safe to invoke for races where two pushes
+                # discover the same expired subscription.
+                self._web_push_subscription_store.unregister(operator_id, endpoint)
+
+            def _on_delivery_recorded(operator_id: str, endpoint: str, ok: bool) -> None:
+                self._web_push_metrics_store.record_delivery(operator_id, endpoint, ok)
+
+            def _on_subscription_pruned(
+                operator_id: str,
+                endpoint: str,
+                reason: str,
+            ) -> None:
+                self._web_push_metrics_store.record_prune(operator_id, endpoint, reason)
+
+            self._web_push_transport = build_web_push_transport(
+                private_key_pem=loaded_keys.private_key_pem,
+                public_key_b64url=loaded_keys.public_key_b64url,
+                subject=loaded_keys.subject,
+                subject_provider=lambda: (
+                    load_vapid_subject(
+                        self.config.agent.workspace_dir,
+                    )
+                    or loaded_keys.subject
+                ),
+                on_delivery_recorded=_on_delivery_recorded,
+                on_subscription_expired=_on_subscription_expired,
+                on_subscription_pruned=_on_subscription_pruned,
+            )
+            logger.info("web_push transport built (vapid keys loaded)")
+        else:
+            self._vapid_public_key = None
+            self._web_push_transport = build_web_push_transport(
+                private_key_pem=None,
+                public_key_b64url=None,
+                subject="mailto:operator@ds-agent.local",
+            )
+            logger.info(
+                "web_push transport disabled",
+                reason=getattr(loaded_keys, "reason", "unknown"),
+            )
+
+        self._dispatch_web_push_use_case = DispatchWebPushUseCase(
+            transport=self._web_push_transport,
+            subscription_store=self._web_push_subscription_store,
+        )
+
         self._refresh_connector_registry()
 
     # -- Public facade: keep existing API surface stable ----------------------
@@ -2065,14 +2890,86 @@ class AppState:
         return self._checkpoint_store
 
     @property
+    def result_card_store(self) -> Any:
+        """Access the persisted result-card store."""
+        return self._result_card_store
+
+    @property
     def approval_store(self) -> Any:
         """Access the persisted approval store."""
         return self._approval_store
 
     @property
+    def approval_grant_store(self) -> Any:
+        """Access the persisted approval grant store (W2-F)."""
+        return self._approval_grant_store
+
+    @property
     def policy_store(self) -> Any:
         """Access the persisted autonomous policy store."""
         return self._policy_store
+
+    @property
+    def access_policy_store(self) -> Any:
+        """Access the resource sharing policy store (PLAN_05)."""
+        return self._access_policy_store
+
+    @property
+    def access_log_store(self) -> Any:
+        """Access the redacted access-audit log store (PLAN_05)."""
+        return self._access_log_store
+
+    @property
+    def resource_access_guard(self) -> Any:
+        """Access the resource boundary middleware (PLAN_05)."""
+        return self._resource_access_guard
+
+    @property
+    def web_push_subscription_store(self) -> Any:
+        """Access the per-operator web push subscription store (W4-06b)."""
+        return self._web_push_subscription_store
+
+    @property
+    def web_push_subject_store(self) -> Any:
+        """Access the persisted VAPID subject store."""
+        return self._web_push_subject_store
+
+    @property
+    def web_push_metrics_store(self) -> Any:
+        """Access the per-operator web push metrics store."""
+        return self._web_push_metrics_store
+
+    @property
+    def web_push_transport(self) -> Any:
+        """Access the web push transport adapter (real or no-op)."""
+        return self._web_push_transport
+
+    @property
+    def dispatch_web_push_use_case(self) -> Any:
+        """Access the use case that fans out push notifications."""
+        return self._dispatch_web_push_use_case
+
+    @property
+    def vapid_public_key(self) -> str | None:
+        """Return the VAPID public key string or ``None`` when missing."""
+        return self._vapid_public_key
+
+    @property
+    def vapid_subject(self) -> str | None:
+        """Return the effective VAPID subject from persisted config or env."""
+        return (
+            self._web_push_subject_store.load()
+            or os.environ.get(
+                "DS_AGENT_VAPID_SUBJECT",
+                "",
+            ).strip()
+            or None
+        )
+
+    @property
+    def promoted_artifact_store(self) -> Any:
+        """Access the persisted promoted-artifact store (Plan 03 §1.1)."""
+        return self._promoted_artifact_store
 
     @property
     def organization_store(self) -> Any:
@@ -2799,11 +3696,92 @@ class AppState:
     def get_agent(self, session_id: str) -> DSAgent | None:
         return self._sessions.get(session_id)
 
+    def broadcast_mission_context_update(
+        self,
+        session_id: str,
+        *,
+        delta: dict[str, object] | None = None,
+    ) -> None:
+        """Broadcast a mission.context.updated event to every active listener.
+
+        Used after task contract / pause actions where the mission context
+        derives from store state independent of an active agent run.
+
+        ``delta`` carries the changed-only subset of (``dataSources``,
+        ``deliverables``, ``constraints``) so renderers can patch incrementally
+        without paying the cost of a full snapshot diff. Unknown delta keys are
+        ignored.
+        """
+
+        if not session_id:
+            return
+        try:
+            mission = self.get_mission_context(session_id)
+        except Exception as exc:
+            logger.warning("mission_broadcast_build_failed", error=str(exc))
+            return
+        payload: dict[str, object] = {
+            "sessionId": session_id,
+            **mission.model_dump(mode="json", by_alias=True),
+        }
+        if delta:
+            allowed = {"dataSources", "deliverables", "constraints"}
+            scoped = {k: v for k, v in delta.items() if k in allowed}
+            if scoped:
+                payload["delta"] = scoped
+        for listener in list(self._runtime_event_listeners):
+            try:
+                listener("mission.context.updated", payload)
+            except Exception as exc:
+                logger.warning("mission_broadcast_listener_failed", error=str(exc))
+
+    def get_mission_context(
+        self,
+        session_id: str,
+        *,
+        latest_run: RunState | None = None,
+        active_agent: object | None = None,
+    ) -> object:
+        from ds_agent.application.usecases.get_mission_context_usecase import (
+            GetMissionContextUseCase,
+        )
+        from ds_agent.infrastructure.persistence.task_contract_store import (
+            SqliteTaskContractStore,
+        )
+        from ds_agent.runtime.goal_store import JsonGoalStore
+
+        workspace_dir = self.config.agent.workspace_dir
+        task_store = SqliteTaskContractStore.for_workspace(workspace_dir)
+        goal_store = JsonGoalStore(workspace_dir)
+
+        active_bundle = task_store.get_active_bundle(session_id)
+        active_goal = goal_store.get_active_goal(session_id)
+        resolved_run = latest_run
+        if resolved_run is None:
+            running_runs = self.list_runs(
+                session_id=session_id, status=RuntimeStatus.RUNNING, limit=1
+            )
+            resolved_run = running_runs[0] if running_runs else None
+        if resolved_run is None:
+            latest_runs = self.list_runs(session_id=session_id, limit=1)
+            resolved_run = latest_runs[0] if latest_runs else None
+
+        return GetMissionContextUseCase(self.config).execute(
+            session_id=session_id,
+            task_contract_bundle=active_bundle,
+            active_goal=active_goal,
+            latest_run=resolved_run,
+            active_agent=active_agent if active_agent is not None else self.get_agent(session_id),
+        )
+
     def get_session_history(self, session_id: str, limit: int = 50) -> list:
         checkpoint = self._checkpoint_store.load(session_id)
         if checkpoint is not None:
             return checkpoint.messages[-limit:]
         return self._transcript_store.load_messages(session_id, limit=limit)
+
+    def get_session_result_cards(self, session_id: str, limit: int = 100) -> list[object]:
+        return self._result_card_store.list_cards_by_session(session_id, limit=limit)
 
     def get_status(self) -> dict:
         overlay = self._get_effective_authority_overlay()
@@ -3640,6 +4618,85 @@ class AppState:
         """List persisted approvals ordered by recency."""
         return self._approval_store.list(session_id=session_id, status=status, limit=limit)
 
+    def get_approval_request(self, approval_id: str) -> Any:
+        """Return one approval request enriched for the approval modal."""
+        from ds_agent.application.use_cases.get_approval_request_usecase import (
+            GetApprovalRequestUseCase,
+        )
+
+        return GetApprovalRequestUseCase(self._approval_store).execute(approval_id)
+
+    def submit_approval(self, request: dict[str, object]) -> Any:
+        """Submit one approval decision using the v2 approval contract."""
+        from ds_agent.application.use_cases.submit_approval_usecase import SubmitApprovalUseCase
+
+        result = SubmitApprovalUseCase(self._approval_store).execute(request)
+        approval = result.approval
+        if approval is None:
+            return result
+
+        finalized = self._finalize_resolved_approval(
+            approval=approval,
+            status=approval.status,
+            source=approval.source,
+            actor=approval.actor,
+        )
+        result.approval = finalized
+        result.metadata = dict(getattr(finalized, "metadata", {}) or {})
+        result.response = getattr(finalized, "response", result.response)
+        result.status = getattr(getattr(finalized, "status", None), "value", result.status)
+
+        if (
+            result.decision == "allow"
+            and result.scope in ("session", "workspace")
+            and finalized is not None
+        ):
+            try:
+                self._issue_approval_grant_for(approval=finalized, scope=result.scope)
+            except Exception as exc:  # pragma: no cover - defensive: grant issuance is best-effort
+                logger.warning(
+                    "approval_grant_issue_failed",
+                    approval_id=getattr(finalized, "approval_id", None),
+                    error=str(exc),
+                )
+        return result
+
+    def _issue_approval_grant_for(self, *, approval: object, scope: str) -> None:
+        """Persist a grant after the approval submit flow records the decision."""
+        from ds_agent.application.use_cases.approval_grant_usecases import (
+            IssueApprovalGrantInput,
+            IssueApprovalGrantUseCase,
+        )
+        from ds_agent.application.use_cases.get_approval_request_usecase import (
+            GetApprovalRequestUseCase,
+        )
+        from ds_agent.domain.entities.approval_grant import ApprovalGrantScope
+
+        try:
+            view = GetApprovalRequestUseCase(self._approval_store).execute(approval)
+        except ValueError:
+            return
+
+        scope_enum = (
+            ApprovalGrantScope.SESSION if scope == "session" else ApprovalGrantScope.WORKSPACE
+        )
+        workspace_id = view.workspace_id or str(self.config.agent.workspace_dir)
+        affected_scopes = list(view.affected_scopes) if view.affected_scopes else []
+
+        IssueApprovalGrantUseCase(self._approval_grant_store).execute(
+            IssueApprovalGrantInput(
+                approval_id=view.approval_id,
+                scope=scope_enum,
+                risk_code=view.risk_code or view.kind or "GENERIC",
+                kind=view.kind,
+                session_id=view.session_id,
+                workspace_id=workspace_id,
+                actor=view.actor,
+                source=view.source,
+                affected_scopes=affected_scopes,
+            )
+        )
+
     def resolve_approval(
         self,
         approval_id: str,
@@ -3660,6 +4717,22 @@ class AppState:
         if approval is None:
             return None
 
+        return self._finalize_resolved_approval(
+            approval=approval,
+            status=status,
+            source=source,
+            actor=actor,
+        )
+
+    def _finalize_resolved_approval(
+        self,
+        *,
+        approval: object,
+        status: ApprovalStatus,
+        source: str | None,
+        actor: str | None,
+    ) -> object:
+        """Apply approval side effects that must run after persistence."""
         if getattr(approval, "kind", "generic") != "semantic_proposal":
             return approval
 
@@ -3753,8 +4826,17 @@ class AppState:
         model: str | None = None,
         surface: str = "ws",
         actor_id: str | None = None,
+        resume_from_checkpoint: bool = False,
+        branched_from_run_id: str | None = None,
+        rerun_from_node_id: str | None = None,
     ) -> RunState:
-        """Start one tracked agent run for the given session."""
+        """Start one tracked agent run for the given session.
+
+        When ``resume_from_checkpoint`` is true and a persisted checkpoint exists for
+        ``session_id``, the agent resumes from the checkpointed history instead of
+        starting a fresh transcript. If no checkpoint is available, the run starts
+        normally and ``RunState.resumed_from_checkpoint`` is left ``False``.
+        """
         existing = self._runs.latest_for_session(
             session_id,
             statuses={RuntimeStatus.RUNNING},
@@ -3795,7 +4877,24 @@ class AppState:
         agent = await self._sessions.get_or_create(session_id, callbacks, model)
         if hasattr(agent, "set_runtime_context"):
             agent.set_runtime_context(run_id=None, surface=surface)
-        run = self._runs.create(session_id, surface, message)
+
+        resume_checkpoint = None
+        if resume_from_checkpoint and self._checkpoint_store is not None:
+            try:
+                resume_checkpoint = self._checkpoint_store.load(session_id)
+            except Exception:
+                logger.exception("checkpoint_load_failed", session_id=session_id)
+                resume_checkpoint = None
+
+        run = self._runs.create(
+            session_id,
+            surface,
+            message,
+            parent_run_id=branched_from_run_id,
+        )
+        run.resumed_from_checkpoint = resume_checkpoint is not None
+        if rerun_from_node_id is not None:
+            run.rerun_from_node_id = rerun_from_node_id
         if hasattr(agent, "set_runtime_context"):
             agent.set_runtime_context(run.run_id, surface=surface)
 
@@ -3807,6 +4906,8 @@ class AppState:
                 budget_policy = self._build_autonomous_run_budget(agent)
                 if budget_policy is not None:
                     run_kwargs["budget_policy"] = budget_policy
+            if resume_checkpoint is not None:
+                run_kwargs["resume_from_checkpoint"] = resume_checkpoint
 
             self.record_runtime_event(
                 category="task",
@@ -3841,7 +4942,7 @@ class AppState:
                     get_summary = getattr(agent._budget, "get_summary", None)
                     if callable(get_summary):
                         budget_summary = get_summary()
-                self._runs.mark_succeeded(run.run_id, result=result, cost_usd=cost)
+                completed_run = self._runs.mark_succeeded(run.run_id, result=result, cost_usd=cost)
                 self._organization_store.record_usage(
                     actor_id=resolved_actor_id,
                     provider=_provider_name_from_model(selected_model),
@@ -3885,11 +4986,29 @@ class AppState:
                         ),
                     },
                 )
+                self._emit_mission_context_event(
+                    callbacks=callbacks,
+                    session_id=session_id,
+                    latest_run=completed_run,
+                    active_agent=agent,
+                )
                 emit_stream_done = getattr(callbacks, "emit_stream_done", None)
                 if callable(emit_stream_done):
-                    await emit_stream_done(result, cost)
+                    message_id = getattr(agent, "last_assistant_message_id", None)
+                    result_cards = getattr(agent, "last_result_cards", None)
+                    cards_payload = (
+                        _serialize_result_cards(result_cards)
+                        if isinstance(result_cards, list)
+                        else None
+                    )
+                    await emit_stream_done(
+                        result,
+                        cost,
+                        message_id=message_id if isinstance(message_id, str) else None,
+                        cards=cards_payload or None,
+                    )
             except asyncio.CancelledError:
-                self._runs.mark_cancelled(run.run_id)
+                cancelled_run = self._runs.mark_cancelled(run.run_id)
                 self.record_runtime_event(
                     category="task",
                     kind="task.cancelled",
@@ -3904,6 +5023,12 @@ class AppState:
                     surface=surface,
                     source="agent",
                     metadata={"executionMode": execution_mode},
+                )
+                self._emit_mission_context_event(
+                    callbacks=callbacks,
+                    session_id=session_id,
+                    latest_run=cancelled_run,
+                    active_agent=agent,
                 )
                 emit_stream_done = getattr(callbacks, "emit_stream_done", None)
                 if callable(emit_stream_done):
@@ -3938,7 +5063,7 @@ class AppState:
                     session_id=session_id,
                     previous_warning_level=usage_before.warning_level,
                 )
-                self._runs.mark_failed(run.run_id, str(exc))
+                failed_run = self._runs.mark_failed(run.run_id, str(exc))
                 self.record_runtime_event(
                     category="task",
                     kind="task.failed",
@@ -3957,6 +5082,12 @@ class AppState:
                         "error": str(exc),
                     },
                 )
+                self._emit_mission_context_event(
+                    callbacks=callbacks,
+                    session_id=session_id,
+                    latest_run=failed_run,
+                    active_agent=agent,
+                )
                 emit_stream_done = getattr(callbacks, "emit_stream_done", None)
                 if callable(emit_stream_done):
                     await emit_stream_done("Internal server error", 0.0)
@@ -3967,6 +5098,12 @@ class AppState:
         task_state = self._task_ledger.register(run.run_id, task)
         updated = self._runs.attach_task(run.run_id, task_state.task_id)
         self._runtime_sessions.bind_run(session_id, run.run_id, surface)
+        self._emit_mission_context_event(
+            callbacks=callbacks,
+            session_id=session_id,
+            latest_run=updated or run,
+            active_agent=agent,
+        )
         return updated or run
 
     def _build_autonomous_run_budget(self, agent: object) -> BudgetPolicy | None:
@@ -4029,6 +5166,7 @@ class AppState:
             from ds_agent.api.agent_session_registry import AgentSessionRegistry
             from ds_agent.api.workspace_service import WorkspaceService
             from ds_agent.application.services.usage_summary import UsageSummaryService
+            from ds_agent.runtime.approval_grant_store import JsonApprovalGrantStore
             from ds_agent.runtime.approval_store import JsonApprovalStore
             from ds_agent.runtime.checkpoint_store import JsonCheckpointStore
             from ds_agent.runtime.organization_store import JsonOrganizationStore
@@ -4043,6 +5181,7 @@ class AppState:
             self._transcript_store = JsonTranscriptStore(self.config.agent.workspace_dir)
             self._checkpoint_store = JsonCheckpointStore(self.config.agent.workspace_dir)
             self._approval_store = JsonApprovalStore(self.config.agent.workspace_dir)
+            self._approval_grant_store = JsonApprovalGrantStore(self.config.agent.workspace_dir)
             self._organization_store = JsonOrganizationStore(self.config.agent.workspace_dir)
             self._usage_summary_service = UsageSummaryService(self._organization_store)
             self._policy_store = JsonPolicyStore(self.config.agent.workspace_dir)
@@ -4124,6 +5263,30 @@ class AppState:
                     else "Monthly AI budget warning. "
                     f"You have used {budget_used_pct:.0f}% of {monthly_budget_text}."
                 ),
+            },
+        )
+
+    def _emit_mission_context_event(
+        self,
+        *,
+        callbacks: AgentCallbacks,
+        session_id: str,
+        latest_run: RunState | None = None,
+        active_agent: object | None = None,
+    ) -> None:
+        emit_event = getattr(callbacks, "emit_event", None)
+        if not callable(emit_event):
+            return
+        mission = self.get_mission_context(
+            session_id,
+            latest_run=latest_run,
+            active_agent=active_agent,
+        )
+        emit_event(
+            "mission.context.updated",
+            {
+                "sessionId": session_id,
+                **mission.model_dump(mode="json", by_alias=True),
             },
         )
 
@@ -4387,8 +5550,17 @@ class AppState:
             header_row=header_row,
         )
 
-    def export_file(self, rel_path: str, export_format: str) -> dict:
-        return self._workspace.export_path(rel_path, export_format)
+    def export_file(
+        self,
+        rel_path: str,
+        export_format: str,
+        audience: str | None = None,
+    ) -> dict:
+        return self._workspace.export_path(
+            rel_path,
+            export_format,
+            audience=audience,
+        )
 
     def list_projects(self) -> list[dict]:
         return self._workspace.list_projects()

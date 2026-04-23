@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ds_agent.domain.entities.goal import GoalStatus
 from ds_agent.domain.entities.working_memory import SessionWorkingMemory
+from ds_agent.domain.value_objects.analysis_stage import AnalysisStage
 from ds_agent.runtime.goal_store import JsonGoalStore
 from ds_agent.runtime.working_memory import JsonWorkingMemoryStore
 
@@ -67,6 +68,8 @@ class TestJsonWorkingMemoryStore:
             pending_questions=["Which target column should be used?"],
             last_reflection="Blocked pending clarification.",
             recovery_note="Recovered after restart from checkpoint step 2.",
+            current_stage=AnalysisStage.PROFILING,
+            stage_entered_at=123.45,
         )
 
         store.save(memory)
@@ -78,3 +81,5 @@ class TestJsonWorkingMemoryStore:
         assert loaded.pending_questions == ["Which target column should be used?"]
         assert loaded.last_reflection == "Blocked pending clarification."
         assert loaded.recovery_note == "Recovered after restart from checkpoint step 2."
+        assert loaded.current_stage == AnalysisStage.PROFILING
+        assert loaded.stage_entered_at == 123.45

@@ -133,7 +133,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
     stats: dict[str, Any] | None = None  # injected at server start
 
     # Silence default stderr request log — we write our own.
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: Any) -> None:
         logger.debug("http %s - - %s", self.address_string(), format % args)
 
     def _json(self, status: int, obj: dict, extra_headers: dict[str, str] | None = None) -> None:
@@ -211,10 +211,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
         # VCR stores body under response.body.string
         body_obj = resp.get("body", {}) or {}
         body_str = body_obj.get("string") or ""
-        if isinstance(body_str, str):
-            resp_body = body_str.encode("utf-8")
-        else:
-            resp_body = bytes(body_str)
+        resp_body = body_str.encode("utf-8") if isinstance(body_str, str) else bytes(body_str)
 
         recorded_headers: dict[str, list[str]] = resp.get("headers", {}) or {}
 
@@ -313,7 +310,7 @@ class ReplayProxyServer:
             self._thread.join(timeout=5.0)
             self._thread = None
 
-    def __enter__(self) -> "ReplayProxyServer":
+    def __enter__(self) -> ReplayProxyServer:
         self.start()
         return self
 

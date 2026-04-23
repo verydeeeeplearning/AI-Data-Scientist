@@ -43,6 +43,9 @@ class RunState:
     error: str | None = None
     result_preview: str | None = None
     cost_usd: float = 0.0
+    resumed_from_checkpoint: bool = False
+    branched_from_run_id: str | None = None
+    rerun_from_node_id: str | None = None
 
 
 @dataclass(slots=True)

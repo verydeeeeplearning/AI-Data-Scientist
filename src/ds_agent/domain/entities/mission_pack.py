@@ -64,7 +64,7 @@ class MissionPack(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    name: str = Field(min_length=3, pattern=r"^[a-z0-9][a-z0-9-]*$")
+    name: str = Field(min_length=3, pattern=r"^[a-z0-9][a-z0-9_-]*$")
     version: int = Field(ge=1)
     summary: str = Field(min_length=1)
     authority_default: AuthorityMode | None = None
@@ -73,6 +73,7 @@ class MissionPack(BaseModel):
     boundary: MissionBoundary
     required_checks: tuple[str, ...] = Field(default_factory=tuple)
     required_artifacts: tuple[str, ...] = Field(default_factory=tuple)
+    required_delivery_channels: tuple[str, ...] = Field(default_factory=tuple)
     auto_escalate_when: tuple[str, ...] = Field(default_factory=tuple)
     success_criteria: tuple[str, ...] = Field(default_factory=tuple)
     action_policy_overrides: dict[str, dict[str, str]] = Field(default_factory=dict)
@@ -96,6 +97,11 @@ class MissionPack(BaseModel):
             allow_empty=False,
         )
         _validate_string_items(
+            self.required_delivery_channels,
+            field_name="required_delivery_channels",
+            allow_empty=True,
+        )
+        _validate_string_items(
             self.auto_escalate_when,
             field_name="auto_escalate_when",
             allow_empty=True,
@@ -114,9 +120,7 @@ class MissionPack(BaseModel):
                         "action_policy_overrides authority keys must be non-empty strings."
                     )
                 if verdict not in _VALID_OVERRIDE_VERDICTS:
-                    raise ValueError(
-                        f"Unsupported mission override verdict: {verdict!r}."
-                    )
+                    raise ValueError(f"Unsupported mission override verdict: {verdict!r}.")
         return self
 
     def policy_override(

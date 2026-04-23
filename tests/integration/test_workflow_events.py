@@ -4,6 +4,8 @@ Tests that hooks emit the right events with correct payloads,
 and that the emit wiring (HookContext.emit → callback) works end-to-end.
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 from ds_agent.agent.builtin_hooks import (
@@ -11,6 +13,7 @@ from ds_agent.agent.builtin_hooks import (
     ProcessMetricsHook,
     SessionInitHook,
 )
+from ds_agent.agent.core import DSAgent
 from ds_agent.agent.ds_workflow_hooks import (
     BaselineGuardHook,
     LeakageDetectionHook,
@@ -21,6 +24,8 @@ from ds_agent.agent.ds_workflow_hooks import (
     WorkflowTrackerHook,
 )
 from ds_agent.agent.hooks import HookContext, HookRegistry
+from ds_agent.domain.entities.messages import LLMResponse, Usage
+from ds_agent.domain.entities.provider_models import ModelInfo
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -58,6 +63,17 @@ def _ctx(events: list) -> HookContext:
 
 class TestEventChain:
     """Verify events flow through the full hook registry."""
+
+    @pytest.mark.asyncio
+    async def test_session_init_emits_plan_created(self):
+        registry, events = _make_registry_and_events()
+        ctx = _ctx(events)
+
+        await registry.run_session_init(ctx)
+
+        plan_events = [event for event in events if event[0] == "plan.created"]
+        assert len(plan_events) == 1
+        assert plan_events[0][1]["planTree"]["id"] == "ds_workflow_plan"
 
     @pytest.mark.asyncio
     async def test_workflow_step_events_on_profiler(self):
@@ -226,6 +242,9 @@ class TestEventChain:
         assert "modeling" in stages_seen
         assert "evaluation" in stages_seen
 
+        plan_updates = [event for event in events if event[0] == "plan.updated"]
+        assert len(plan_updates) >= 10
+
         # Verify quality events were emitted
         quality_events = [e for e in events if e[0] == "quality.update"]
         assert len(quality_events) >= 3  # profiling, eda, modeling, evaluation
@@ -304,3 +323,121 @@ class TestExecPlanSaveIntegration:
         # Second call — should not overwrite
         await hook.post_tool_use("run_eda", {}, "Step 1 something else plan", False, ctx)
         assert hook._saved is True
+
+
+# ---------------------------------------------------------------------------
+# Reasoning ↔ plan-node linkage (DSAgent ↔ WorkflowTrackerHook)
+# ---------------------------------------------------------------------------
+
+
+def _make_provider_for_thinking(thinking_text: str) -> MagicMock:
+    """Build a stub LLM provider that returns a single thinking-only step."""
+
+    provider = MagicMock()
+    provider.chat = AsyncMock(
+        return_value=LLMResponse(
+            content="ok",
+            thinking=thinking_text,
+            usage=Usage(),
+        )
+    )
+    provider.count_tokens = AsyncMock(return_value=10)
+    provider.get_model_info = MagicMock(
+        return_value=ModelInfo(
+            model_id="test-model",
+            provider="test",
+            display_name="Test",
+            max_context_tokens=128_000,
+            max_output_tokens=4_096,
+        )
+    )
+    return provider
+
+
+class _StubToolRegistry:
+    """Minimal ToolRegistry stand-in — no tools, no dispatch needed."""
+
+    def get_definitions(self) -> list[dict]:
+        return []
+
+    async def dispatch(self, name: str, arguments: dict) -> str:  # pragma: no cover
+        raise AssertionError(f"unexpected tool dispatch: {name}")
+
+
+class TestReasoningPlanNodeLinkage:
+    """Reasoning-emitted events must carry planNodeId for the active stage."""
+
+    @pytest.mark.asyncio
+    async def test_reasoning_emitted_links_to_current_plan_node(self):
+        """When the agent emits thinking while a stage is running, the
+        ``reasoning.emitted`` payload must include the active stage's
+        ``planNodeId`` AND the WorkflowTrackerHook must record the reasoning
+        id in that node's ``reasoningRefs`` (visible via a follow-up
+        ``plan.updated`` patch).
+        """
+
+        emitted: list[tuple[str, dict]] = []
+
+        callbacks = MagicMock()
+        callbacks.emit_event = lambda event, payload: emitted.append((event, payload))
+        callbacks.on_step = AsyncMock()
+        callbacks.on_status = AsyncMock()
+        callbacks.on_thinking = AsyncMock()
+        callbacks.on_stream_delta = AsyncMock()
+        callbacks.on_tool_start = AsyncMock()
+        callbacks.on_tool_end = AsyncMock()
+        callbacks.on_budget_warning = AsyncMock()
+
+        tracker = WorkflowTrackerHook()
+        registry = HookRegistry()
+        registry.register(tracker)
+
+        # Stub provider whose ``chat`` ALSO flips the profiling stage to
+        # ``running`` immediately before returning. This mimics the
+        # realistic interleaving where the LLM step happens while a stage
+        # tool is executing — the WorkflowTrackerHook's
+        # ``on_session_init`` runs first and resets state, so we cannot
+        # pre-seed earlier than the LLM call itself.
+        async def _chat(**_kwargs):
+            tracker._stages["profiling"] = "running"
+            return LLMResponse(
+                content="ok",
+                thinking="Considering profile coverage.",
+                usage=Usage(),
+            )
+
+        provider = _make_provider_for_thinking("Considering profile coverage.")
+        provider.chat = _chat  # type: ignore[assignment]
+
+        agent = DSAgent(
+            provider=provider,
+            tool_registry=_StubToolRegistry(),
+            callbacks=callbacks,
+            hook_registry=registry,
+        )
+        agent.set_runtime_context(run_id="run-link-1", surface="test")
+
+        await agent.run("Profile the dataset.")
+        # Sanity: the stage really was running at the moment of emission.
+        assert tracker.current_active_stage_id() == "profiling"
+
+        reasoning_events = [evt for evt in emitted if evt[0] == "reasoning.emitted"]
+        assert len(reasoning_events) == 1
+        payload = reasoning_events[0][1]
+        assert payload["planNodeId"] == "profiling"
+        # id is mandatory for downstream plan-node ↔ trace linking.
+        assert isinstance(payload.get("id"), str)
+        assert payload["id"]
+
+        # The WorkflowTrackerHook should have recorded the reasoning id on
+        # the active stage and emitted a corresponding plan.updated patch.
+        assert payload["id"] in tracker._stage_reasoning_refs["profiling"]
+        link_patches = [
+            evt
+            for evt in emitted
+            if evt[0] == "plan.updated"
+            and evt[1].get("nodeId") == "profiling"
+            and "reasoningRefs" in evt[1].get("updates", {})
+        ]
+        assert len(link_patches) >= 1
+        assert payload["id"] in link_patches[-1][1]["updates"]["reasoningRefs"]

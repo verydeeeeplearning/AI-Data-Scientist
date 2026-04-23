@@ -7,6 +7,10 @@ from datetime import UTC, datetime
 
 from ds_agent.agent.confidence_scorer import ConfidenceScorer
 from ds_agent.application.ports.task_contract_support import Clock
+from ds_agent.application.services.mission_required_checks import (
+    MissionPackLoaderPort,
+    MissionRequiredCheckResolver,
+)
 from ds_agent.application.services.verifier_orchestrator import VerifierOrchestrator
 from ds_agent.application.services.verifier_shadow_comparator import LegacyHookShadowComparator
 from ds_agent.domain.interfaces.llm_provider import LLMProvider
@@ -46,6 +50,7 @@ def build_verifier_container(
     llm_provider: LLMProvider | None = None,
     narrative_judge: LLMJudgePort | None = None,
     shadow_comparator: ShadowComparatorPort | None = None,
+    mission_loader: MissionPackLoaderPort | None = None,
 ) -> VerifierContainer:
     """Build a fully wired verifier container."""
 
@@ -54,6 +59,7 @@ def build_verifier_container(
     from ds_agent.infrastructure.verifiers.narrative import NarrativeVerifier
     from ds_agent.infrastructure.verifiers.policy import PolicyVerifier
     from ds_agent.infrastructure.verifiers.statistical import StatisticalVerifier
+    from ds_agent.skills.mission_pack_loader import MissionPackLoader
 
     resolved_repo = repo or SqliteVerdictRepository.for_workspace(workspace_dir)
     resolved_shadow_repo = shadow_repo or SqliteShadowComparisonRepository.for_workspace(
@@ -63,6 +69,7 @@ def build_verifier_container(
     if resolved_judge is None and llm_provider is not None:
         resolved_judge = LLMNarrativeJudge(llm_provider)
     resolved_shadow_comparator = shadow_comparator or LegacyHookShadowComparator()
+    resolved_mission_loader = mission_loader or MissionPackLoader()
     orchestrator = VerifierOrchestrator(
         statistical=StatisticalVerifier(),
         data=DataVerifier(),
@@ -73,6 +80,9 @@ def build_verifier_container(
         clock=SystemClock(),
         shadow_comparator=resolved_shadow_comparator,
         shadow_repo=resolved_shadow_repo,
+        mission_required_check_resolver=MissionRequiredCheckResolver(
+            resolved_mission_loader
+        ),
     )
     return VerifierContainer(
         repo=resolved_repo,

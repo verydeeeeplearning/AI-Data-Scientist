@@ -10,6 +10,7 @@ from ds_agent.domain.entities.mission_pack import MissionPack
 from ds_agent.domain.entities.task_contract import TaskContract
 from ds_agent.domain.entities.task_contract_bundle import TaskContractBundle
 from ds_agent.domain.entities.working_memory import SessionWorkingMemory
+from ds_agent.domain.value_objects.analysis_stage import AnalysisStage
 
 
 class TestPromptBuilder:
@@ -79,7 +80,8 @@ class TestComposableSections:
                 "allowed_action_classes": ["read_sql_gold", "jira_create"],
             },
             "required_checks": ["schema_drift", "baseline_compare"],
-            "required_artifacts": ["exec_brief", "jira_ticket"],
+            "required_artifacts": ["exec_brief"],
+            "required_delivery_channels": ["jira_ticket"],
             "auto_escalate_when": ["confidence_low"],
             "success_criteria": ["issue_classified"],
         }
@@ -162,6 +164,81 @@ class TestComposableSections:
         assert "prediction target" in system
         assert "Blocked pending clarification" in system
         assert "Recovered after restart" in system
+
+    def test_execution_continuity_section_included(self):
+        mock_goal_store = MagicMock()
+        mock_goal_store.get_active_goal.return_value = GoalRecord(
+            goal_id="goal-1",
+            session_id="session-1",
+            summary="Profile the dataset",
+            detail="Profile the dataset before modeling",
+            status=GoalStatus.BLOCKED,
+            blocked_reason="Which column is the prediction target?",
+        )
+        mock_memory_store = MagicMock()
+        mock_memory_store.load.return_value = SessionWorkingMemory(
+            session_id="session-1",
+            current_summary="Profiling in progress.",
+            current_stage=AnalysisStage.PROFILING,
+            next_step="Inspect missingness by column.",
+            pending_questions=["Which column is the prediction target?"],
+            recovery_note="Recovered after restart from checkpoint step 4.",
+        )
+
+        builder = PromptBuilder(
+            session_id="session-1",
+            goal_store=mock_goal_store,
+            working_memory_store=mock_memory_store,
+        )
+        system = builder.build("Hello")[0].content
+
+        assert "Execution Continuity" in system
+        assert "Current stage: profiling" in system
+        assert "Active blocker: Which column is the prediction target?" in system
+        assert "Next step: Inspect missingness by column." in system
+        assert "Recovery state: Recovered after restart from checkpoint step 4." in system
+
+    def test_stage_guidance_section_included_for_current_stage(self):
+        mock_memory_store = MagicMock()
+        mock_memory_store.load.return_value = SessionWorkingMemory(
+            session_id="session-1",
+            current_stage=AnalysisStage.MODELING,
+            next_step="Train a documented baseline before tuning.",
+        )
+
+        builder = PromptBuilder(
+            session_id="session-1",
+            working_memory_store=mock_memory_store,
+        )
+        system = builder.build("Hello")[0].content
+
+        assert "Stage-Aware Guidance" in system
+        assert "Current stage: modeling" in system
+        assert "baseline" in system.lower()
+        assert "Prioritize these skills right now: `modeling`" in system
+
+    def test_stage_overlay_adds_builtin_anchor_and_reorders_it_first(self):
+        class HubWithoutPromptLoader:
+            def view_skill(self, name: str):
+                return {"content": f"Skill {name}"}
+
+        mock_memory_store = MagicMock()
+        mock_memory_store.load.return_value = SessionWorkingMemory(
+            session_id="session-1",
+            current_stage=AnalysisStage.FEATURE_ENG,
+        )
+
+        builder = PromptBuilder(
+            session_id="session-1",
+            working_memory_store=mock_memory_store,
+            skill_names=["scoping", "data-profiling", "eda", "modeling"],
+            skill_hub=HubWithoutPromptLoader(),
+        )
+        system = builder.build("Hello")[0].content
+
+        assert "## feature-engineering" in system
+        assert system.index("## feature-engineering") < system.index("## scoping")
+        assert system.index("## feature-engineering") < system.index("## modeling")
 
     def test_task_contract_section_included_when_active(self):
         mock_contract_store = MagicMock()
@@ -274,7 +351,8 @@ class TestComposableSections:
 
         assert "MISSION: weekly-kpi-triage (v1)" in system
         assert "required_checks: schema_drift, baseline_compare" in system
-        assert "required_artifacts: exec_brief, jira_ticket" in system
+        assert "required_artifacts: exec_brief" in system
+        assert "required_delivery_channels: jira_ticket" in system
 
     def test_mission_defaults_apply_when_contract_has_only_mission(self):
         mock_contract_store = MagicMock()
@@ -423,6 +501,27 @@ class TestTokenBudget:
         # These are required=True
         assert "DS Agent" in system
         assert "Environment" in system
+
+    def test_execution_continuity_is_required_under_tight_budget(self):
+        mock_memory_store = MagicMock()
+        mock_memory_store.load.return_value = SessionWorkingMemory(
+            session_id="session-1",
+            current_stage=AnalysisStage.EVALUATION,
+            next_step="Resume feature validation.",
+            recovery_note="Recovered after restart from checkpoint step 3.",
+        )
+
+        builder = PromptBuilder(
+            session_id="session-1",
+            working_memory_store=mock_memory_store,
+            max_system_tokens=50,
+        )
+        system = builder.build("Hello")[0].content
+
+        assert "Execution Continuity" in system
+        assert "Current stage: evaluation" in system
+        assert "Next step: Resume feature validation." in system
+        assert "Recovery state: Recovered after restart from checkpoint step 3." in system
 
 
 class TestPromptSection:

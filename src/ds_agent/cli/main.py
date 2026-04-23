@@ -17,7 +17,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from ds_agent.cli.certification_cli import run_certification_command
-from ds_agent.cli.commands import handle_slash_command
+from ds_agent.cli.commands import handle_slash_command, run_open_command, run_share_command
 from ds_agent.cli.delivery_cli import run_delivery_command
 from ds_agent.cli.integration_cli import run_integration_command
 from ds_agent.cli.learning_cli import run_learning_command
@@ -118,6 +118,9 @@ async def _run_agent_turn(
             sandbox_config=getattr(agent_config, "sandbox", None),
         )
         context["_agent"] = agent
+        if hasattr(agent, "set_runtime_context"):
+            run_id = f"cli-{uuid.uuid4().hex[:16]}"
+            agent.set_runtime_context(run_id=run_id)
     elif hasattr(agent, "set_callbacks"):
         agent.set_callbacks(callbacks)
 
@@ -338,6 +341,16 @@ def main() -> None:
             print("ds-agent v0.1.0")
             return
 
+        # ds-agent open <ds-agent://...>  (PLAN_03 sp3.3)
+        if subcmd == "open":
+            console = Console(theme=DS_THEME)
+            raise SystemExit(run_open_command(sys.argv[2:], console=console))
+
+        # ds-agent share <type> <id> [--workspace W] [--action A]  (PLAN_03 sp3.3)
+        if subcmd == "share":
+            console = Console(theme=DS_THEME)
+            raise SystemExit(run_share_command(sys.argv[2:], console=console))
+
         if subcmd == "contract":
             config = load_config(get_default_config_path())
             console = Console(theme=DS_THEME)
@@ -430,6 +443,17 @@ def main() -> None:
                 run_verdict_command(
                     sys.argv[2:],
                     console=console,
+                    workspace_dir=str(config.agent.workspace_dir),
+                )
+            )
+
+        if subcmd == "web-push":
+            from ds_agent.cli.web_push_cli import run_web_push_command
+
+            config = load_config(get_default_config_path())
+            raise SystemExit(
+                run_web_push_command(
+                    sys.argv[2:],
                     workspace_dir=str(config.agent.workspace_dir),
                 )
             )

@@ -11,15 +11,18 @@ from typing import TYPE_CHECKING
 import structlog
 
 from ds_agent.agent.callbacks import NullCallbacks
+from ds_agent.application.learning.harness_warning_ingestor import HarnessWarningIngestor
 from ds_agent.application.services.scheduler_service import SchedulerService
 from ds_agent.config.loader import get_default_config_path, load_config
 from ds_agent.domain.entities.runtime_state import RuntimeStatus
 from ds_agent.infrastructure.cron_runner import CronRunner
 from ds_agent.infrastructure.decision_os_container import build_decision_os_container
+from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
 from ds_agent.memory.experiment_log import ExperimentLog
 from ds_agent.runtime.coordinator import AutonomousCoordinator
 from ds_agent.runtime.decision_os_scheduler import DecisionOsMonitorScheduler
 from ds_agent.runtime.goal_store import JsonGoalStore
+from ds_agent.runtime.learning_governance_scheduler import LearningGovernanceScheduler
 from ds_agent.runtime.policy_engine import PolicyEngine
 from ds_agent.runtime.policy_store import JsonPolicyStore
 from ds_agent.runtime.regression_alert_scheduler import RegressionAlertScheduler
@@ -77,27 +80,74 @@ class _RuntimeEventRecorderAdapter:
 class AutonomousCallbacks(NullCallbacks):
     """Low-noise callbacks for autonomous background runs."""
 
-    def __init__(self, surface: str) -> None:
+    def __init__(
+        self,
+        surface: str,
+        *,
+        workspace_dir: str | None = None,
+        warning_ingestor: HarnessWarningIngestor | None = None,
+    ) -> None:
         self._surface = surface
+        self._warning_ingestor = warning_ingestor
+        if self._warning_ingestor is None and workspace_dir is not None:
+            self._warning_ingestor = HarnessWarningIngestor(
+                SqliteLearningStore.for_workspace(workspace_dir)
+            )
+        self._current_session_id: str | None = None
+        self._current_run_id: str | None = None
 
     def emit_event(self, event: str, payload: dict) -> None:
+        self._remember_runtime_context(payload)
+        self._ingest_warning_if_needed(event, payload)
         logger.debug(
             "autonomous_emit",
             surface=self._surface,
-            event=event,
+            event_name=event,
             payload_keys=sorted(payload.keys()),
         )
 
     async def on_status(self, status: str, detail: str) -> None:
         logger.info("autonomous_status", surface=self._surface, status=status, detail=detail)
 
-    async def emit_stream_done(self, content: str, cost: float) -> None:
+    async def emit_stream_done(
+        self,
+        content: str,
+        cost: float,
+        message_id: str | None = None,
+    ) -> None:
         logger.info(
             "autonomous_run_done",
             surface=self._surface,
             cost_usd=cost,
             preview=content[:200],
         )
+
+    def _remember_runtime_context(self, payload: dict) -> None:
+        session_id = payload.get("sessionId")
+        run_id = payload.get("runId")
+        if isinstance(session_id, str) and session_id.strip():
+            self._current_session_id = session_id
+        if isinstance(run_id, str) and run_id.strip():
+            self._current_run_id = run_id
+        surface = payload.get("surface")
+        if isinstance(surface, str) and surface.strip():
+            self._surface = surface
+
+    def _ingest_warning_if_needed(self, event: str, payload: dict) -> None:
+        if event != "harness.warning" or self._warning_ingestor is None:
+            return
+        try:
+            self._warning_ingestor.ingest(
+                payload,
+                session_id=_first_non_empty_string(
+                    payload.get("sessionId"),
+                    self._current_session_id,
+                ),
+                run_id=_first_non_empty_string(payload.get("runId"), self._current_run_id),
+                surface=_first_non_empty_string(payload.get("surface"), self._surface) or "daemon",
+            )
+        except Exception as exc:
+            logger.warning("daemon_harness_warning_ingest_failed", error=str(exc))
 
 
 class AutonomousDaemon:
@@ -136,6 +186,15 @@ class AutonomousDaemon:
             scheduler_service=self._scheduler_service,
             monitor=self._decision_os.post_deploy_monitor,
             cron=self._decision_os.post_deploy_policy.schedule_cron(),
+        )
+        self._learning_store = SqliteLearningStore.for_workspace(self._workspace_dir)
+        self._learning_governance_scheduler = LearningGovernanceScheduler(
+            scheduler_service=self._scheduler_service,
+            store=self._learning_store,
+            workspace_dir=self._workspace_dir,
+            cron=os.getenv("DS_AGENT_GC_LOOP_CRON", "0 9 * * MON"),
+            promotion_threshold=_int_env("DS_AGENT_GC_PROMOTION_THRESHOLD", default=3),
+            limit=_int_env("DS_AGENT_GC_LOOP_LIMIT", default=200),
         )
         self._regression_alert_scheduler = RegressionAlertScheduler(
             scheduler_service=self._scheduler_service,
@@ -201,6 +260,7 @@ class AutonomousDaemon:
     async def start(self) -> None:
         """Start the autonomous runtime."""
         order = self._decision_os_scheduler.register()
+        learning_gc_order = self._learning_governance_scheduler.register()
         alert_order = self._regression_alert_scheduler.register()
         await self._coordinator.start()
         await self._file_watch_sensor.start()
@@ -222,6 +282,8 @@ class AutonomousDaemon:
                 "watchDir": str(self._file_watch_sensor._watch_dir),
                 "decisionOsOrderId": order.order_id,
                 "decisionOsCron": order.trigger.cron,
+                "learningGovernanceOrderId": learning_gc_order.order_id,
+                "learningGovernanceCron": learning_gc_order.trigger.cron,
                 "regressionAlertOrderId": alert_order.order_id,
                 "regressionAlertCron": alert_order.trigger.cron,
             },
@@ -237,6 +299,19 @@ class AutonomousDaemon:
             metadata={
                 "standingOrderId": order.order_id,
                 "cron": order.trigger.cron,
+            },
+        )
+        self._record_runtime_event(
+            category="learning",
+            kind="learning_governance.gc_registered",
+            severity="info",
+            message="Learning governance weekly GC standing order registered.",
+            session_id="learning:gc",
+            surface="daemon",
+            source="learning_governance",
+            metadata={
+                "standingOrderId": learning_gc_order.order_id,
+                "cron": learning_gc_order.trigger.cron,
             },
         )
         self._record_runtime_event(
@@ -340,7 +415,10 @@ class AutonomousDaemon:
         return len(runs) < self._max_concurrent_runs
 
     async def _dispatch_run(self, session_id: str, message: str, surface: str) -> object | None:
-        callbacks: AgentCallbacks = AutonomousCallbacks(surface)
+        callbacks: AgentCallbacks = AutonomousCallbacks(
+            surface,
+            workspace_dir=self._workspace_dir,
+        )
         return await self._state.start_run(
             session_id=session_id,
             message=message,
@@ -402,6 +480,46 @@ class AutonomousDaemon:
             )
             logger.warning("decision_os_monitor_failed", error=str(exc))
         try:
+            learning_gc_result = self._learning_governance_scheduler.run_due(now=now)
+            if learning_gc_result is not None:
+                self._record_runtime_event(
+                    category="learning",
+                    kind="learning_governance.gc_completed",
+                    severity="success",
+                    message=(
+                        "Learning governance weekly GC classified "
+                        f"{learning_gc_result.total_items} item(s) across "
+                        f"{learning_gc_result.total_recurrences} recurrence(s)."
+                    ),
+                    session_id="learning:gc",
+                    surface="daemon",
+                    source="learning_governance",
+                    metadata={
+                        "totalItems": learning_gc_result.total_items,
+                        "totalRecurrences": learning_gc_result.total_recurrences,
+                        "promotionThreshold": learning_gc_result.promotion_threshold,
+                        "promotionCandidateClasses": [
+                            failure_class.value
+                            for failure_class in learning_gc_result.promotion_candidate_classes
+                        ],
+                        "reportPath": learning_gc_result.report_path,
+                    },
+                    created_at=created_at,
+                )
+        except Exception as exc:
+            self._record_runtime_event(
+                category="learning",
+                kind="learning_governance.gc_failed",
+                severity="error",
+                message="Learning governance weekly GC sweep failed.",
+                session_id="learning:gc",
+                surface="daemon",
+                source="learning_governance",
+                metadata={"error": str(exc)},
+                created_at=created_at,
+            )
+            logger.warning("learning_governance_gc_failed", error=str(exc))
+        try:
             self._regression_alert_scheduler.run_due(now=now)
         except Exception as exc:
             self._record_runtime_event(
@@ -416,6 +534,13 @@ class AutonomousDaemon:
                 created_at=created_at,
             )
             logger.warning("regression_alert_monitor_failed", error=str(exc))
+
+
+def _first_non_empty_string(*values: object) -> str | None:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
 
 
 async def _run_forever() -> None:

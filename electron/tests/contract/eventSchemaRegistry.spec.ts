@@ -68,6 +68,7 @@ function run(): void {
   {
     const expected = [
       'mission.context.updated',
+      'stream.done',
       'card.created',
       'card.updated',
       'card.pinned',
@@ -100,14 +101,45 @@ function run(): void {
     assert.equal(result.ok, true);
   }
 
+  // === stream.done accepts embedded result cards with explicit ids ===
+  {
+    const result = validateEventPayload('stream.done', {
+      content: 'Analysis complete.',
+      cost: 0.42,
+      messageId: 'msg-assistant-1',
+      cards: [
+        {
+          cardId: 'card-1',
+          resultId: 'result-1',
+          type: 'insight',
+          createdAt: 1_713_650_000,
+          source: {
+            messageId: 'msg-assistant-1',
+            runId: 'run-1',
+          },
+          pinned: false,
+          archived: false,
+          title: 'Retention lifted',
+        },
+      ],
+    });
+    assert.equal(result.ok, true);
+  }
+
+  // === card lifecycle events still accept legacy id at the boundary ===
+  {
+    const result = validateEventPayload('card.created', { id: 'legacy-card-1' });
+    assert.equal(result.ok, true);
+  }
+
   // === unknown-type validation does NOT crash (graceful, per ADR-0007) ===
   {
-    // Should not throw — caller decides whether to log + skip.
+    // Should not throw; caller decides whether to log + skip.
     const result = validateEventPayload('totally.future.event', { anything: true });
     assert.equal(result.ok, false);
   }
 
-  console.log('[contract] PASS event-schema-registry (8 cases)');
+  console.log('[contract] PASS event-schema-registry (10 cases)');
 }
 
 run();

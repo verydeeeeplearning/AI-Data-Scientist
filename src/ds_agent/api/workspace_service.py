@@ -118,7 +118,12 @@ class WorkspaceService:
     _EXPORTS_DIRNAME: str = ".ds-agent"
     _EXPORTS_SUBDIR: str = "exports"
 
-    def export_path(self, rel_path: str, export_format: str) -> dict:
+    def export_path(
+        self,
+        rel_path: str,
+        export_format: str,
+        audience: str | None = None,
+    ) -> dict:
         """Export a workspace file to another format (P1-12).
 
         Writes the rendered file under ``<workspace>/.ds-agent/exports/<uuid>``
@@ -159,11 +164,12 @@ class WorkspaceService:
         staging_dir.mkdir(parents=True, exist_ok=True)
 
         ext = "pdf" if target_format == ExportFormat.PDF else target_format.value
+        audience_suffix = f".{audience}" if audience else ""
         # PDF emits an intermediate .html which Electron prints to PDF.
         if target_format == ExportFormat.PDF:
-            output_name = f"{source.stem}.pdf.html"
+            output_name = f"{source.stem}{audience_suffix}.pdf.html"
         else:
-            output_name = f"{source.stem}.{ext}"
+            output_name = f"{source.stem}{audience_suffix}.{ext}"
         output_path = staging_dir / output_name
 
         try:
@@ -176,7 +182,8 @@ class WorkspaceService:
             "format": target_format.value,
             "size": result.output_path.stat().st_size,
             "needsPdfRender": result.intermediate_html_path is not None,
-            "suggestedFilename": f"{source.stem}.{ext}",
+            "suggestedFilename": f"{source.stem}{audience_suffix}.{ext}",
+            "audience": audience,
         }
 
     # Text formats we're willing to dump as plain preview.

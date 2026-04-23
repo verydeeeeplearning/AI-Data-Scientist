@@ -41,7 +41,11 @@ def parse_skill_text(text: str, source_path: Path | None = None) -> SkillEntry |
     try:
         meta = yaml.safe_load(parts[1])
     except yaml.YAMLError as e:
-        logger.warning("skill_yaml_error", path=str(source_path) if source_path else None, error=str(e))
+        logger.warning(
+            "skill_yaml_error",
+            path=str(source_path) if source_path else None,
+            error=str(e),
+        )
         return None
 
     if not isinstance(meta, dict):
@@ -63,7 +67,9 @@ def parse_skill_text(text: str, source_path: Path | None = None) -> SkillEntry |
     permission_filesystem = ["workspace"]
     if isinstance(permissions_meta, dict):
         permission_network = _normalize_str_list(permissions_meta.get("network", []))
-        permission_filesystem = _normalize_str_list(permissions_meta.get("filesystem", ["workspace"]))
+        permission_filesystem = _normalize_str_list(
+            permissions_meta.get("filesystem", ["workspace"])
+        )
         if not permission_filesystem:
             permission_filesystem = ["workspace"]
 

@@ -6,12 +6,14 @@ so hooks, skills, memory, and prompt builder are consistently wired.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import structlog
 
+from ds_agent.agent.auto_verifier_hook import AutoVerifierHook
 from ds_agent.agent.backtrack_hook import BacktrackTriggerHook
 from ds_agent.agent.builtin_hooks import (
     AuditLogHook,
@@ -98,6 +100,22 @@ _DEFAULT_SKILL_NAMES = [
 ]
 
 
+def _self_improve_governance_enabled() -> bool:
+    value = os.environ.get("DS_AGENT_SELF_IMPROVE_GOVERNANCE_V1", "")
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _verifier_auto_run_mode() -> str:
+    value = os.environ.get("DS_AGENT_VERIFIER_AUTO_RUN_V1", "").strip().lower()
+    if value in {"", "1", "true", "yes", "on"}:
+        return "shadow"
+    if value in {"0", "false", "no", "off"}:
+        return "off"
+    if value in {"shadow", "log", "block"}:
+        return value
+    return "shadow"
+
+
 def _publish_sandbox_policy(sandbox_config: Any | None, workspace_dir: str | None) -> None:
     """Convert SandboxConfig (pydantic) into a SandboxPolicy and publish it.
 
@@ -149,6 +167,7 @@ def import_all_tools() -> None:
         "ds_agent.tools.evaluation",
         "ds_agent.tools.feature_eng",
         "ds_agent.tools.file_ops",
+        "ds_agent.tools.learning_tools",
         "ds_agent.tools.memory_tools",
         "ds_agent.tools.modeling",
         "ds_agent.tools.reporting",
@@ -182,11 +201,14 @@ def build_hook_registry(
     mission_loader: MissionPackLoader | None = None,
     certification_store: CertificationStore | None = None,
     policy_store: JsonPolicyStore | None = None,
+    verifier_orchestrator: Any | None = None,
+    record_review_verdict: Any | None = None,
+    auto_verifier_mode: str = "off",
 ) -> HookRegistry:
     """Create and populate a HookRegistry with all hooks."""
     registry = HookRegistry()
     audit_log_path = get_runtime_storage_root(workspace_dir) / "audit_log.jsonl"
-    for hook in [
+    hooks = [
         AuditLogHook(log_path=audit_log_path),
         SessionInitHook(),
         ProcessMetricsHook(),
@@ -221,8 +243,17 @@ def build_hook_registry(
         ClaimTraceabilityHook(),
         DriftDetectionHook(),
         ExecPlanSaveHook(),
-        ReviewArtifactCaptureHook(workspace_dir=workspace_dir),
-    ]:
+    ]
+    if auto_verifier_mode != "off" and verifier_orchestrator is not None:
+        hooks.append(
+            AutoVerifierHook(
+                verifier_orchestrator=verifier_orchestrator,
+                record_review_verdict=record_review_verdict,
+                mode=auto_verifier_mode,
+            )
+        )
+    hooks.append(ReviewArtifactCaptureHook(workspace_dir=workspace_dir))
+    for hook in hooks:
         registry.register(hook)
     return registry
 
@@ -307,6 +338,7 @@ def create_agent(
     goal_store: GoalStore | None = None,
     working_memory_store: WorkingMemoryStore | None = None,
     task_contract_store: TaskContractStore | None = None,
+    result_card_store: object | None = None,
     approval_store: object | None = None,
     connector_configs: Mapping[str, ConnectorConfig] | None = None,
     skill_hub: SkillHub | None = None,
@@ -384,6 +416,11 @@ def create_agent(
     resolved_working_memory_store = working_memory_store or JsonWorkingMemoryStore(workspace_dir)
     resolved_approval_store = approval_store or JsonApprovalStore(workspace_dir)
     resolved_certification_store = SqliteCertificationStore.for_workspace(workspace_dir)
+    verifier_container = build_verifier_container(
+        workspace_dir,
+        llm_provider=provider,
+        mission_loader=mission_loader,
+    )
     task_contract_container = build_task_contract_container(
         workspace_dir,
         store=task_contract_store,
@@ -397,17 +434,15 @@ def create_agent(
         mission_loader=mission_loader,
         certification_store=resolved_certification_store,
         policy_store=policy_store,
+        verifier_orchestrator=verifier_container.orchestrator,
+        record_review_verdict=task_contract_container.record_review_verdict,
+        auto_verifier_mode=_verifier_auto_run_mode(),
     )
     from ds_agent.tools.task_contract_tools import set_task_contract_container
     from ds_agent.tools.verifier_tool import set_verifier_container
 
     set_task_contract_container(task_contract_container)
-    set_verifier_container(
-        build_verifier_container(
-            workspace_dir,
-            llm_provider=provider,
-        )
-    )
+    set_verifier_container(verifier_container)
 
     prompt_builder = build_prompt_builder(
         model_name=model_name,
@@ -428,9 +463,17 @@ def create_agent(
     )
 
     # Composition root: wire infrastructure adapters here
+    from ds_agent.application.use_cases.emit_result_card_usecase import EmitResultCardUseCase
     from ds_agent.self_improve.learning_adapter import PostLearningAdapter
 
-    post_learner = PostLearningAdapter(workspace_dir=workspace_dir)
+    post_learner = (
+        PostLearningAdapter(workspace_dir=workspace_dir)
+        if _self_improve_governance_enabled()
+        else None
+    )
+    result_card_emitter = (
+        None if result_card_store is None else EmitResultCardUseCase(store=result_card_store)  # type: ignore[arg-type]
+    )
 
     return DSAgent(
         provider=provider,
@@ -452,6 +495,7 @@ def create_agent(
         checkpoint_store=checkpoint_store,
         goal_store=resolved_goal_store,
         working_memory_store=resolved_working_memory_store,
+        result_card_emitter=result_card_emitter,  # type: ignore[arg-type]
         approval_store=resolved_approval_store,
         skill_hub=shared_skill_hub,
     )

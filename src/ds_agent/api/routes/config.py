@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+
+from ds_agent.api.dependencies import require_resource_access
 
 if TYPE_CHECKING:
     from ds_agent.api.ws_handler import AppState
@@ -55,7 +57,18 @@ async def get_config(request: Request) -> dict:
     return {"config": state.config_manager.get_dump()}
 
 
-@router.post("/config")
+@router.post(
+    "/config",
+    dependencies=[
+        Depends(
+            require_resource_access(
+                resource_type="config",
+                action="mutate",
+                resource_id_extractor=lambda req: "workspace",
+            )
+        )
+    ],
+)
 async def set_config(request: Request, body: ConfigUpdateRequest) -> dict:
     """Update a config value by dotted path (e.g. 'provider.default_model').
 

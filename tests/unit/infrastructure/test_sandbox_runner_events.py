@@ -83,7 +83,7 @@ async def test_blocked_filesystem_violation_emits_event(captured_events, runtime
 
     violation_events = [evt for evt in captured_events if evt[0] == "sandbox.violation"]
     assert len(violation_events) == 1
-    name, payload = violation_events[0]
+    _name, payload = violation_events[0]
     assert payload["kind"] == "filesystem"
     assert payload["detail"] == violation.detail
     assert payload["blocked"] is True

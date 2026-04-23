@@ -335,6 +335,7 @@ class TestChatE2E:
         mock_agent._budget.state.total_cost_usd = 0.05
         mock_agent._callbacks = None
         mock_agent._history = []
+        mock_agent.last_assistant_message_id = "msg-assistant-live"
 
         def _fake_create_agent(
             session_id, callbacks, model=None, *, authority_mode=None, **kwargs
@@ -364,6 +365,7 @@ class TestChatE2E:
                 lambda d: d.get("type") == "event" and d.get("event") == "stream.done",
             )
             assert done["payload"]["content"] == "Test analysis complete."
+            assert done["payload"]["messageId"] == "msg-assistant-live"
 
     def test_chat_history_after_send(
         self, client: TestClient, app: Any, monkeypatch: pytest.MonkeyPatch
@@ -382,8 +384,12 @@ class TestChatE2E:
             app.state.app_state.transcript_store.replace_messages(
                 "e2e-test",
                 [
-                    ChatMessage(role=Role.USER, content=message),
-                    ChatMessage(role=Role.ASSISTANT, content="Hi there"),
+                    ChatMessage(role=Role.USER, content=message, message_id="msg-user-e2e"),
+                    ChatMessage(
+                        role=Role.ASSISTANT,
+                        content="Hi there",
+                        message_id="msg-assistant-e2e",
+                    ),
                 ],
             )
             return "Done."
@@ -426,6 +432,8 @@ class TestChatE2E:
             messages = history_res["payload"]["messages"]
             assert len(messages) == 2
             assert messages[0]["role"] == "user"
+            assert messages[0]["messageId"] == "msg-user-e2e"
+            assert messages[1]["messageId"] == "msg-assistant-e2e"
 
 
 # ---------------------------------------------------------------------------

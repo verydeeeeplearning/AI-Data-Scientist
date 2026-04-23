@@ -24,8 +24,8 @@ from contextlib import asynccontextmanager
 # (and since logging happens inside the sandbox wrapper, the whole tool
 # call fails in 0.0s before the subprocess even starts).
 try:
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
 except (AttributeError, OSError):
     pass
 
@@ -34,15 +34,24 @@ from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from ds_agent.api.routes.admin import router as admin_router
+from ds_agent.api.routes.approval_grants import router as approval_grants_router
+from ds_agent.api.routes.cards import router as cards_router
 from ds_agent.api.routes.certification import router as certification_router
 from ds_agent.api.routes.config import router as config_router
+from ds_agent.api.routes.access_log import router as access_log_router
+from ds_agent.api.routes.export import router as export_router
 from ds_agent.api.routes.files import router as files_router
 from ds_agent.api.routes.integrations import router as integrations_router
+from ds_agent.api.routes.mission import router as mission_router
+from ds_agent.api.routes.onboarding import router as onboarding_router
 from ds_agent.api.routes.status import router as status_router
 from ds_agent.api.routes.support import router as support_router
 from ds_agent.api.routes.task_contracts import router as task_contract_router
+from ds_agent.api.routes.trust import router as trust_router
 from ds_agent.api.routes.usage import router as usage_router
+from ds_agent.api.routes.web_push import router as web_push_router
 from ds_agent.api.routes.work_objects import router as work_object_router
+from ds_agent.api.routes.workspace import router as workspace_router
 from ds_agent.api.ws_handler import AppState, WsRpcHandler
 from ds_agent.infrastructure.observability import (
     configure_backend_observability,
@@ -107,15 +116,24 @@ def create_app(ws_token: str | None = None) -> FastAPI:
 
     # HTTP routes
     app.include_router(admin_router)
+    app.include_router(approval_grants_router)
+    app.include_router(cards_router)
     app.include_router(certification_router)
     app.include_router(status_router)
     app.include_router(config_router)
+    app.include_router(access_log_router)
+    app.include_router(export_router)
     app.include_router(files_router)
     app.include_router(support_router)
     app.include_router(task_contract_router)
+    app.include_router(trust_router)
     app.include_router(usage_router)
     app.include_router(integrations_router)
+    app.include_router(mission_router)
+    app.include_router(onboarding_router)
+    app.include_router(web_push_router)
     app.include_router(work_object_router)
+    app.include_router(workspace_router)
 
     # Health check
     @app.get("/health")

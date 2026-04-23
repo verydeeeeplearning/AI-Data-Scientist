@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from ds_agent.domain.entities.mission_pack import MissionPack
 
-_MISSION_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+_MISSION_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
 class MissionPackLoader:
@@ -68,4 +68,3 @@ def _normalize_mission_name(name: str) -> str:
     if not _MISSION_NAME_RE.fullmatch(normalized):
         raise ValueError(f"Invalid mission pack name: {name!r}")
     return normalized
-

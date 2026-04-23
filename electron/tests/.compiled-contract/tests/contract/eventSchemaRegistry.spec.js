@@ -54,6 +54,7 @@ function run() {
     {
         const expected = [
             'mission.context.updated',
+            'stream.done',
             'card.created',
             'card.updated',
             'card.pinned',
@@ -81,12 +82,41 @@ function run() {
         const result = (0, eventSchemaRegistry_1.validateEventPayload)(envelope.type, envelope.payload);
         strict_1.default.equal(result.ok, true);
     }
+    // === stream.done accepts embedded result cards with explicit ids ===
+    {
+        const result = (0, eventSchemaRegistry_1.validateEventPayload)('stream.done', {
+            content: 'Analysis complete.',
+            cost: 0.42,
+            messageId: 'msg-assistant-1',
+            cards: [
+                {
+                    cardId: 'card-1',
+                    resultId: 'result-1',
+                    type: 'insight',
+                    createdAt: 1713650000,
+                    source: {
+                        messageId: 'msg-assistant-1',
+                        runId: 'run-1',
+                    },
+                    pinned: false,
+                    archived: false,
+                    title: 'Retention lifted',
+                },
+            ],
+        });
+        strict_1.default.equal(result.ok, true);
+    }
+    // === card lifecycle events still accept legacy id at the boundary ===
+    {
+        const result = (0, eventSchemaRegistry_1.validateEventPayload)('card.created', { id: 'legacy-card-1' });
+        strict_1.default.equal(result.ok, true);
+    }
     // === unknown-type validation does NOT crash (graceful, per ADR-0007) ===
     {
-        // Should not throw — caller decides whether to log + skip.
+        // Should not throw; caller decides whether to log + skip.
         const result = (0, eventSchemaRegistry_1.validateEventPayload)('totally.future.event', { anything: true });
         strict_1.default.equal(result.ok, false);
     }
-    console.log('[contract] PASS event-schema-registry (8 cases)');
+    console.log('[contract] PASS event-schema-registry (10 cases)');
 }
 run();

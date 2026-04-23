@@ -6,16 +6,25 @@ import asyncio
 import json
 import time
 from collections.abc import Callable
+from pathlib import Path
 
 from ds_agent.agent.callbacks import NullCallbacks
 from ds_agent.agent.core import DSAgent
-from ds_agent.agent.factory import build_hook_registry
+from ds_agent.agent.factory import _verifier_auto_run_mode, build_hook_registry
 from ds_agent.agent.prompt_builder import PromptBuilder
 from ds_agent.application.services.subagent_orchestrator import SubagentResult
 from ds_agent.domain.interfaces.llm_provider import AgentCallbacks, LLMProvider
 from ds_agent.domain.interfaces.tool_registry import ToolRegistry
 from ds_agent.domain.value_objects.budget import BudgetPolicy
 from ds_agent.domain.value_objects.subagent import SubagentSpec
+from ds_agent.infrastructure.persistence.certification_store import SqliteCertificationStore
+from ds_agent.infrastructure.task_contract_container import build_task_contract_container
+from ds_agent.infrastructure.verifier_container import build_verifier_container
+from ds_agent.runtime.policy_store import JsonPolicyStore
+from ds_agent.skills.mission_pack_loader import MissionPackLoader
+from ds_agent.tools.path_utils import set_active_workspace
+from ds_agent.tools.task_contract_tools import set_task_contract_container
+from ds_agent.tools.verifier_tool import set_verifier_container
 
 
 class ProcessSubagent:
@@ -60,19 +69,12 @@ class ProcessSubagent:
         budget_policy = spec.build_budget_policy(self._default_budget_policy)
         scoped_tools = _ScopedToolRegistry(self._tool_registry, spec.tools)
         model_name = self._resolve_model_name(provider, requested_model)
-        agent = DSAgent(
+        agent = self._build_agent(
             provider=provider,
-            tool_registry=scoped_tools,
-            budget_policy=budget_policy,
             callbacks=callbacks,
-            prompt_builder=PromptBuilder(
-                tool_registry=scoped_tools,
-                model_name=model_name,
-                workspace_dir=self._workspace_dir,
-                session_id=session_id,
-            ),
-            hook_registry=build_hook_registry(max_cost_usd=budget_policy.max_cost_usd),
-            mode=self._mode,
+            budget_policy=budget_policy,
+            scoped_tools=scoped_tools,
+            model_name=model_name,
             session_id=session_id,
         )
         agent.set_runtime_context(run_id=run_id, surface="subagent")
@@ -133,6 +135,60 @@ class ProcessSubagent:
             return provider.get_model_info().model_id
         except Exception:
             return "unknown"
+
+    def _build_agent(
+        self,
+        *,
+        provider: LLMProvider,
+        callbacks: AgentCallbacks,
+        budget_policy: BudgetPolicy,
+        scoped_tools: _ScopedToolRegistry,
+        model_name: str,
+        session_id: str,
+    ) -> DSAgent:
+        mission_loader = MissionPackLoader()
+        task_contract_container = build_task_contract_container(
+            self._workspace_dir,
+            llm_provider=provider,
+        )
+        verifier_container = build_verifier_container(
+            self._workspace_dir,
+            llm_provider=provider,
+            mission_loader=mission_loader,
+        )
+        set_task_contract_container(task_contract_container)
+        set_verifier_container(verifier_container)
+        if self._workspace_dir:
+            set_active_workspace(Path(self._workspace_dir).expanduser().resolve())
+
+        return DSAgent(
+            provider=provider,
+            tool_registry=scoped_tools,
+            budget_policy=budget_policy,
+            callbacks=callbacks,
+            prompt_builder=PromptBuilder(
+                tool_registry=scoped_tools,
+                model_name=model_name,
+                workspace_dir=self._workspace_dir,
+                session_id=session_id,
+                task_contract_store=task_contract_container.store,
+                legacy_agent_mode=self._mode,
+                mission_loader=mission_loader,
+            ),
+            hook_registry=build_hook_registry(
+                max_cost_usd=budget_policy.max_cost_usd,
+                workspace_dir=self._workspace_dir,
+                task_contract_store=task_contract_container.store,
+                mission_loader=mission_loader,
+                certification_store=SqliteCertificationStore.for_workspace(self._workspace_dir),
+                policy_store=JsonPolicyStore(self._workspace_dir),
+                verifier_orchestrator=verifier_container.orchestrator,
+                record_review_verdict=task_contract_container.record_review_verdict,
+                auto_verifier_mode=_verifier_auto_run_mode(),
+            ),
+            mode=self._mode,
+            session_id=session_id,
+        )
 
 
 class _ScopedToolRegistry:

@@ -247,6 +247,7 @@ scripts/
 - **TDD**: Red-Green-Refactor. Tests before implementation.
 - **Lint**: `ruff check . && ruff format --check .` — zero violations
 - **Type Check**: `mypy src/ds_agent/` — **0 errors**
+- **Backend Baseline Gate**: `python scripts/check_backend_quality_gate.py` — import contracts + architecture + DS semantic contracts
 - **Test**: `pytest tests/unit tests/smoke` — **current baseline: 1382 passed**
 - **Security**: Regex + AST code scanning, `Path.is_relative_to()` boundary check, `validate_assignment` config protection, one-time WebSocket token (SEC-01), sandbox preamble injection
 - **Secrets**: KeyringSecretStorage with automatic chunking for payloads >1024 chars (Windows Credential Manager 2560-byte cap workaround). In-memory fallback with degraded-UX surface.
@@ -259,6 +260,7 @@ scripts/
 
 ```bash
 # Python
+python scripts/check_backend_quality_gate.py
 pytest tests/unit tests/smoke      # 1382 passed baseline
 ruff check . && ruff format --check .
 mypy src/ds_agent/

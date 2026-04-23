@@ -44,6 +44,54 @@ export interface GoalBriefView {
   expected_effort: string;
 }
 
+export interface GoalBriefDraftInput {
+  business_question: string;
+  ds_problem_statement: string;
+  comparison_baseline: string;
+  decision_to_make: string;
+  hypothesis?: string | null;
+  expected_effort: string;
+}
+
+export interface TaskContractCreatePayload {
+  session_id: string;
+  contract_type: string;
+  business_goal: string;
+  goal_brief: GoalBriefDraftInput;
+  required_deliverables: DeliverableSpec[];
+  allowed_data_sources?: Record<string, unknown>[];
+  forbidden_data_patterns?: string[];
+  budget?: Record<string, unknown>;
+  autonomy?: Record<string, unknown>;
+  decision_owner?: string | null;
+  decision_deadline?: string | null;
+  definition_of_done?: Record<string, unknown> | null;
+  authority?: string | null;
+  audience?: string | null;
+  mission?: string | null;
+  created_by?: string;
+}
+
+export interface TaskContractCreateResultView {
+  task_id: string;
+  status: TaskContractStatus;
+  goal_brief_id: string;
+  new_version: number;
+  next_suggested_action?: string | null;
+}
+
+export interface TaskContractErrorDetailView {
+  message: string;
+  error_code?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TaskContractIpcErrorResult {
+  ok: false;
+  error: string;
+  errorDetail?: TaskContractErrorDetailView;
+}
+
 export interface AssumptionEntry {
   entry_id: string;
   statement: string;

@@ -6,6 +6,7 @@ import { Sidebar } from './Sidebar';
 import { StatusBar } from './StatusBar';
 import { ChatPanel } from '../chat/ChatPanel';
 import { RunDetailDrawer } from '../runtime/RunDetailDrawer';
+import type { UploadedFileResult } from '../../domain/workspace/uploadedFile';
 import type { ModelGroup } from '../../hooks/useModels';
 import type { SimpleQualityPreset } from '../../utils/qualityPreset';
 
@@ -16,7 +17,7 @@ interface Props {
   onChangeModel: (model: string) => void;
   onChangeQualityPreset: (preset: SimpleQualityPreset) => void;
   onChangeMode: (mode: 'auto' | 'supervised' | 'step-by-step') => void;
-  onUploadFile: (file: File) => Promise<string | null>;
+  onUploadFile: (file: File) => Promise<UploadedFileResult>;
   onOpenSettings: () => void;
   disabled?: boolean;
   modelGroups: ModelGroup[];

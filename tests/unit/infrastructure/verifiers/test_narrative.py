@@ -104,6 +104,124 @@ async def test_metric_citation_accuracy_fails_on_mismatched_numbers() -> None:
 
 
 @pytest.mark.asyncio
+async def test_metric_definition_confirmed_passes_when_definition_language_is_present() -> None:
+    result = await NarrativeVerifier().run(
+        _ctx(
+            narrative=(
+                "The retention metric is defined as customers active in week 4 divided by "
+                "customers active in week 0."
+            ),
+            evidence_refs=[
+                EvidenceRef(
+                    artifact_id="artifact://notes",
+                    excerpt="Retention metric definition uses week 4 active users over week 0.",
+                )
+            ],
+        )
+    )
+
+    check = _find_check(result, "metric_definition_confirmed")
+
+    assert check.status == "pass"
+
+
+@pytest.mark.asyncio
+async def test_metric_definition_confirmed_passes_from_semantic_metric_artifact() -> None:
+    result = await NarrativeVerifier().run(
+        _ctx(
+            narrative="Retention improved.",
+            artifacts={
+                "semantic_metric": {
+                    "metric_id": "weekly_retention",
+                    "definition": "Weekly retained users / weekly active users",
+                    "grain": "weekly",
+                }
+            },
+        )
+    )
+
+    check = _find_check(result, "metric_definition_confirmed")
+
+    assert check.status == "pass"
+
+
+@pytest.mark.asyncio
+async def test_business_question_confirmed_passes_when_goal_language_is_reflected() -> None:
+    result = await NarrativeVerifier().run(
+        _ctx(
+            narrative="This analysis answers how we reduce churn by showing which segment drives the loss.",
+            evidence_refs=[
+                EvidenceRef(
+                    artifact_id="artifact://notes",
+                    excerpt="Business question: how do we reduce churn in the at-risk segment?",
+                )
+            ],
+        )
+    )
+
+    check = _find_check(result, "business_question_confirmed")
+
+    assert check.status == "pass"
+
+
+@pytest.mark.asyncio
+async def test_business_question_confirmed_fails_when_narrative_drifts_from_goal() -> None:
+    result = await NarrativeVerifier().run(
+        _ctx(
+            narrative="The report only summarizes dashboard colors and layout polish.",
+            evidence_refs=[],
+        )
+    )
+
+    check = _find_check(result, "business_question_confirmed")
+
+    assert check.status == "fail"
+
+
+@pytest.mark.asyncio
+async def test_query_grain_confirmed_fails_for_sql_exploration_without_grain_signal() -> None:
+    result = await NarrativeVerifier().run(
+        _ctx(
+            narrative="The SQL query compares conversion across cohorts.",
+            task_type="sql_exploration",
+        )
+    )
+
+    check = _find_check(result, "query_grain_confirmed")
+
+    assert check.status == "fail"
+
+
+@pytest.mark.asyncio
+async def test_query_grain_confirmed_passes_from_required_grain_artifact() -> None:
+    result = await NarrativeVerifier().run(
+        _ctx(
+            narrative="The SQL query compares conversion across cohorts.",
+            task_type="sql_exploration",
+            artifacts={"required_grain": "weekly"},
+        )
+    )
+
+    check = _find_check(result, "query_grain_confirmed")
+
+    assert check.status == "pass"
+
+
+@pytest.mark.asyncio
+async def test_query_grain_confirmed_passes_when_grain_is_stated() -> None:
+    result = await NarrativeVerifier().run(
+        _ctx(
+            narrative="The SQL query is grouped by day and reported at a daily grain.",
+            task_type="sql_exploration",
+        )
+    )
+
+    check = _find_check(result, "query_grain_confirmed")
+
+    assert check.status == "pass"
+
+
+@pytest.mark.asyncio
 async def test_recommendation_feasibility_fails_when_recommendation_is_out_of_scope() -> None:
     result = await NarrativeVerifier().run(
         _ctx(

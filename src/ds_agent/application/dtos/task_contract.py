@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ds_agent.domain.entities.assumption_log import AssumptionLog
 from ds_agent.domain.entities.dataset_manifest import DatasetManifest
@@ -74,11 +74,14 @@ class TaskContractDraftDTO(BaseModel):
 class TaskContractUpdateDTO(BaseModel):
     """Patch + transition request for an existing contract."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     task_id: str
     expected_version: int = Field(ge=1)
     patch: dict[str, Any] = Field(default_factory=dict)
     transition_to: TaskContractStatus | None = None
     reason: str | None = None
+    run_id: str | None = Field(default=None, alias="runId")
 
 
 class AssumptionInputDTO(BaseModel):

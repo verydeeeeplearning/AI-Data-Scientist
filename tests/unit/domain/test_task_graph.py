@@ -170,7 +170,7 @@ class TestTaskGraphRewind:
 
         # Rewind to 'b' (index 1)
         b_id = nodes[1].id
-        reset = g.rewind_to(b_id)
+        g.rewind_to(b_id)
 
         assert g.nodes[nodes[0].id].status == TaskStatus.COMPLETED  # a preserved
         assert g.nodes[nodes[1].id].status == TaskStatus.PENDING  # b reset

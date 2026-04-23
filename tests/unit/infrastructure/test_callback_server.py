@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import urllib.request
 
 import pytest
-import urllib.request
 
 from ds_agent.infrastructure.auth.callback_server import OAuthCallbackServer
 
@@ -51,10 +52,8 @@ class TestCallbackServer:
         async def send_bad_callback():
             await asyncio.sleep(0.3)
             url = f"http://localhost:{unused_tcp_port}/oauth2callback?code=abc&state=wrong-state"
-            try:
+            with contextlib.suppress(urllib.error.HTTPError):
                 await asyncio.to_thread(urllib.request.urlopen, url)
-            except urllib.error.HTTPError:
-                pass  # Expected 400
 
         task = asyncio.create_task(send_bad_callback())
         result = await server.wait_for_callback()
@@ -71,10 +70,8 @@ class TestCallbackServer:
         async def send_error_callback():
             await asyncio.sleep(0.3)
             url = f"http://localhost:{unused_tcp_port}/oauth2callback?error=access_denied"
-            try:
+            with contextlib.suppress(urllib.error.HTTPError):
                 await asyncio.to_thread(urllib.request.urlopen, url)
-            except urllib.error.HTTPError:
-                pass
 
         task = asyncio.create_task(send_error_callback())
         result = await server.wait_for_callback()
@@ -97,10 +94,8 @@ class TestCallbackServer:
         async def send_incomplete():
             await asyncio.sleep(0.3)
             url = f"http://localhost:{unused_tcp_port}/oauth2callback?state=s"
-            try:
+            with contextlib.suppress(urllib.error.HTTPError):
                 await asyncio.to_thread(urllib.request.urlopen, url)
-            except urllib.error.HTTPError:
-                pass
 
         task = asyncio.create_task(send_incomplete())
         result = await server.wait_for_callback()

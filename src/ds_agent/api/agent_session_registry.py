@@ -44,6 +44,7 @@ class AgentSessionRegistry:
         token_store: AuthProfileStore | None = None,
         transcript_store: TranscriptStore | None = None,
         checkpoint_store: CheckpointStore | None = None,
+        result_card_store: object | None = None,
         approval_store: object | None = None,
         skill_hub: SkillHub | None = None,
         org_policy_supplier: object | None = None,
@@ -52,6 +53,7 @@ class AgentSessionRegistry:
         self._token_store = token_store
         self._transcript_store = transcript_store
         self._checkpoint_store = checkpoint_store
+        self._result_card_store = result_card_store
         self._approval_store = approval_store
         self._skill_hub = skill_hub
         self._org_policy_supplier = org_policy_supplier
@@ -180,6 +182,7 @@ class AgentSessionRegistry:
             use_case_context=self._config.agent.use_case_context,
             transcript_store=self._transcript_store,
             checkpoint_store=self._checkpoint_store,
+            result_card_store=self._result_card_store,
             approval_store=self._approval_store,
             authority_mode=authority_mode,
             connector_configs={

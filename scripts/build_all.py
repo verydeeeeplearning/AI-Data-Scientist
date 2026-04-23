@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Unified build script — builds everything for distribution.
+"""Unified build script for distribution packaging.
 
 Steps:
-  1. Run Python tests
-  2. PyInstaller → build/ds-agent-backend/
-  3. npm build (renderer + main)
-  4. electron-builder → electron/release/
+  1. Run backend baseline gate
+  2. Run Python tests
+  3. Build the backend with PyInstaller
+  4. Build the Electron frontend
+  5. Package with electron-builder
 
 Usage:
     python scripts/build_all.py [--skip-tests] [--skip-backend] [--platform win|mac|linux]
@@ -23,7 +24,8 @@ ELECTRON_DIR = ROOT / "electron"
 
 
 def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> int:
-    """Run a command, print it, return exit code."""
+    """Run a command, print it, and return the exit code."""
+
     print(f"\n{'=' * 60}")
     print(f"  {' '.join(cmd)}")
     print(f"  cwd: {cwd or ROOT}")
@@ -44,27 +46,26 @@ def main() -> None:
 
     py = sys.executable
 
-    # Step 1: Tests
     if not args.skip_tests:
-        print("\n[1/4] Running Python tests...")
+        print("\n[1/5] Running backend baseline gate...")
+        run([py, "scripts/check_backend_quality_gate.py"])
+        print("\n[2/5] Running Python tests...")
         run([py, "-m", "pytest", "tests/", "-q", "--tb=short"])
     else:
-        print("\n[1/4] Skipping tests")
+        print("\n[1/5] Skipping backend baseline gate")
+        print("\n[2/5] Skipping tests")
 
-    # Step 2: PyInstaller backend
     if not args.skip_backend:
-        print("\n[2/4] Building Python backend with PyInstaller...")
+        print("\n[3/5] Building Python backend with PyInstaller...")
         run([py, "scripts/build_backend.py", "--clean"])
     else:
-        print("\n[2/4] Skipping backend build")
+        print("\n[3/5] Skipping backend build")
 
-    # Step 3: Electron frontend build
-    print("\n[3/4] Building Electron frontend...")
+    print("\n[4/5] Building Electron frontend...")
     npm = "npm.cmd" if sys.platform == "win32" else "npm"
     run([npm, "run", "build"], cwd=ELECTRON_DIR)
 
-    # Step 4: electron-builder
-    print("\n[4/4] Packaging with electron-builder...")
+    print("\n[5/5] Packaging with electron-builder...")
     dist_cmd = [npm, "run"]
     if args.platform:
         dist_cmd.append(f"dist:{args.platform}")
@@ -72,19 +73,18 @@ def main() -> None:
         dist_cmd.append("dist")
     run(dist_cmd, cwd=ELECTRON_DIR)
 
-    # Summary
     release_dir = ELECTRON_DIR / "release"
     if release_dir.exists():
         print("\n" + "=" * 60)
         print("  BUILD COMPLETE")
         print("=" * 60)
         print(f"\nOutput: {release_dir}")
-        for f in sorted(release_dir.iterdir()):
-            if f.is_file():
-                size_mb = f.stat().st_size / (1024 * 1024)
-                print(f"  {f.name}  ({size_mb:.1f} MB)")
+        for path in sorted(release_dir.iterdir()):
+            if path.is_file():
+                size_mb = path.stat().st_size / (1024 * 1024)
+                print(f"  {path.name}  ({size_mb:.1f} MB)")
     else:
-        print("\n[!] Release directory not found — check electron-builder output")
+        print("\n[!] Release directory not found; check electron-builder output")
 
 
 if __name__ == "__main__":

@@ -170,3 +170,79 @@ class TestContextManager:
         prompt = captured_text[0]
         assert "train_model" in prompt
         assert "evaluate_model" in prompt
+
+    @pytest.mark.asyncio
+    async def test_compress_re_emits_continuity_block_from_previous_summary(self):
+        provider = MagicMock()
+        provider.chat = AsyncMock(
+            return_value=MagicMock(
+                content="Compressed summary body",
+                usage=Usage(input_tokens=20, output_tokens=10),
+            )
+        )
+        provider.get_model_info = MagicMock(return_value=MagicMock(max_context_tokens=100_000))
+
+        cm = ContextManager(provider=provider, keep_recent=2)
+        messages = [
+            ChatMessage(role=Role.SYSTEM, content="System"),
+            ChatMessage(
+                role=Role.ASSISTANT,
+                content=(
+                    "[Conversation Summary]\n\n"
+                    "[Continuity State]\n"
+                    "- Current stage: profiling\n"
+                    "- Blocker: Which target column should be used?\n"
+                    "- Next step: Inspect missingness by column.\n\n"
+                    "Older compressed details."
+                ),
+            ),
+            ChatMessage(role=Role.USER, content="Recent 1"),
+            ChatMessage(role=Role.ASSISTANT, content="Recent 2"),
+        ]
+
+        compressed = await cm.compress(messages)
+
+        summary = compressed[1].content or ""
+        assert "[Continuity State]" in summary
+        assert "- Current stage: profiling" in summary
+        assert "Which target column should be used?" in summary
+        assert "Inspect missingness by column" in summary
+
+    @pytest.mark.asyncio
+    async def test_compress_passes_explicit_continuity_state_to_summary_prompt(self):
+        captured_text: list[str] = []
+
+        async def capture_chat(messages, **kwargs):
+            captured_text.append(messages[0].content or "")
+            return MagicMock(
+                content="Summary",
+                usage=Usage(input_tokens=10, output_tokens=5),
+            )
+
+        provider = MagicMock()
+        provider.chat = capture_chat
+        provider.get_model_info = MagicMock(return_value=MagicMock(max_context_tokens=100_000))
+
+        cm = ContextManager(provider=provider, keep_recent=2)
+        messages = [
+            ChatMessage(role=Role.SYSTEM, content="System"),
+            ChatMessage(
+                role=Role.ASSISTANT,
+                content=(
+                    "# Execution Continuity\n"
+                    "- Current stage: profiling\n"
+                    "- Active blocker: Which target column should be used?\n"
+                    "- Next step: Inspect missingness by column."
+                ),
+            ),
+            ChatMessage(role=Role.USER, content="Recent 1"),
+            ChatMessage(role=Role.ASSISTANT, content="Recent 2"),
+        ]
+
+        await cm.compress(messages)
+
+        prompt = captured_text[0]
+        assert "Known continuity state that must survive verbatim if present:" in prompt
+        assert "- Current stage: profiling" in prompt
+        assert "- Blocker: Which target column should be used?" in prompt
+        assert "- Next step: Inspect missingness by column" in prompt

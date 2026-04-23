@@ -110,6 +110,41 @@ interface TaskContractGetParams {
   include?: string[];
 }
 
+interface TaskContractGoalBriefParams {
+  business_question?: string;
+  ds_problem_statement?: string;
+  comparison_baseline?: string;
+  decision_to_make?: string;
+  hypothesis?: string | null;
+  expected_effort?: string;
+}
+
+interface TaskContractDeliverableParams {
+  type?: string;
+  audience?: string;
+  format?: string;
+  count?: number | null;
+}
+
+interface TaskContractCreateParams {
+  session_id?: string;
+  contract_type?: string;
+  business_goal?: string;
+  goal_brief?: TaskContractGoalBriefParams;
+  required_deliverables?: TaskContractDeliverableParams[];
+  allowed_data_sources?: Record<string, unknown>[];
+  forbidden_data_patterns?: string[];
+  budget?: Record<string, unknown>;
+  autonomy?: Record<string, unknown>;
+  decision_owner?: string | null;
+  decision_deadline?: string | null;
+  definition_of_done?: Record<string, unknown> | null;
+  authority?: string | null;
+  audience?: string | null;
+  mission?: string | null;
+  created_by?: string;
+}
+
 interface TaskContractUpdateParams {
   taskId?: string;
   expectedVersion?: number;
@@ -190,6 +225,26 @@ interface PreviewLocalArtifactParams {
   targetPath?: string;
 }
 
+interface WebPushRegisterParams {
+  endpoint?: string;
+  p256dhKey?: string;
+  authKey?: string;
+}
+
+interface WebPushUnregisterParams {
+  endpoint?: string;
+}
+
+interface WebPushSubjectPayload {
+  subject?: string;
+}
+
+interface BackendErrorDetail {
+  message?: string;
+  error_code?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
 const EXPORT_FORMAT_FILTERS: Record<string, { name: string; extensions: string[] }> = {
   pdf: { name: 'PDF', extensions: ['pdf'] },
   docx: { name: 'Word Document', extensions: ['docx'] },
@@ -219,6 +274,7 @@ export function registerMainIpcHandlers(): void {
   ipcMain.removeHandler('taskContract:list');
   ipcMain.removeHandler('taskContract:active');
   ipcMain.removeHandler('taskContract:get');
+  ipcMain.removeHandler('taskContract:create');
   ipcMain.removeHandler('taskContract:update');
   ipcMain.removeHandler('taskContract:close');
   ipcMain.removeHandler('taskContract:verifyAssumption');
@@ -229,6 +285,11 @@ export function registerMainIpcHandlers(): void {
   ipcMain.removeHandler('taskContract:listDeliveryLog');
   ipcMain.removeHandler('taskContract:listShadowComparisons');
   ipcMain.removeHandler('taskContract:getShadowComparison');
+  ipcMain.removeHandler('webPush:getPublicKey');
+  ipcMain.removeHandler('webPush:getSubject');
+  ipcMain.removeHandler('webPush:setSubject');
+  ipcMain.removeHandler('webPush:registerSubscription');
+  ipcMain.removeHandler('webPush:unregisterSubscription');
   ipcMain.removeAllListeners('window:minimize');
   ipcMain.removeAllListeners('window:maximize');
   ipcMain.removeAllListeners('window:close');
@@ -827,8 +888,7 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, contracts: response.contracts };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to list task contracts.';
-      return { ok: false, error: message };
+      return buildTaskContractIpcError(error, 'Failed to list task contracts.');
     }
   });
 
@@ -857,9 +917,7 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, contract: response.contract };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to load the active task contract.';
-      return { ok: false, error: message };
+      return buildTaskContractIpcError(error, 'Failed to load the active task contract.');
     }
   });
 
@@ -889,8 +947,78 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, contract: response.contract };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load the task contract.';
-      return { ok: false, error: message };
+      return buildTaskContractIpcError(error, 'Failed to load the task contract.');
+    }
+  });
+
+  ipcMain.handle('taskContract:create', async (_event, params: TaskContractCreateParams = {}) => {
+    const connection = getBackendConnection();
+    const sessionId = typeof params.session_id === 'string' ? params.session_id.trim() : '';
+    const contractType =
+      typeof params.contract_type === 'string' ? params.contract_type.trim() : '';
+    const businessGoal =
+      typeof params.business_goal === 'string' ? params.business_goal.trim() : '';
+    const goalBrief =
+      params.goal_brief && typeof params.goal_brief === 'object' ? params.goal_brief : null;
+    const requiredDeliverables = Array.isArray(params.required_deliverables)
+      ? params.required_deliverables
+      : [];
+
+    if (!connection) {
+      return { ok: false, error: 'Backend is not connected.' };
+    }
+    if (!sessionId || !contractType || !businessGoal || !goalBrief || requiredDeliverables.length === 0) {
+      return {
+        ok: false,
+        error: 'session_id, contract_type, business_goal, goal_brief, and required_deliverables are required.',
+      };
+    }
+
+    try {
+      const response = await postBackendJson<{ result: unknown }>(
+        connection.port,
+        '/api/task-contracts',
+        {
+          session_id: sessionId,
+          contract_type: contractType,
+          business_goal: businessGoal,
+          goal_brief: goalBrief,
+          required_deliverables: requiredDeliverables,
+          allowed_data_sources: Array.isArray(params.allowed_data_sources)
+            ? params.allowed_data_sources
+            : [],
+          forbidden_data_patterns: Array.isArray(params.forbidden_data_patterns)
+            ? params.forbidden_data_patterns
+            : [],
+          budget:
+            params.budget && typeof params.budget === 'object'
+              ? params.budget
+              : {},
+          autonomy:
+            params.autonomy && typeof params.autonomy === 'object'
+              ? params.autonomy
+              : {},
+          decision_owner:
+            typeof params.decision_owner === 'string' ? params.decision_owner.trim() : params.decision_owner,
+          decision_deadline:
+            typeof params.decision_deadline === 'string' ? params.decision_deadline.trim() : params.decision_deadline,
+          definition_of_done:
+            params.definition_of_done && typeof params.definition_of_done === 'object'
+              ? params.definition_of_done
+              : params.definition_of_done ?? undefined,
+          authority:
+            typeof params.authority === 'string' ? params.authority.trim() : params.authority,
+          audience:
+            typeof params.audience === 'string' ? params.audience.trim() : params.audience,
+          mission:
+            typeof params.mission === 'string' ? params.mission.trim() : params.mission,
+          created_by:
+            typeof params.created_by === 'string' ? params.created_by.trim() : params.created_by,
+        }
+      );
+      return { ok: true, result: response.result };
+    } catch (error) {
+      return buildTaskContractIpcError(error, 'Failed to create the task contract.');
     }
   });
 
@@ -917,8 +1045,7 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, result: response.result };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update the task contract.';
-      return { ok: false, error: message };
+      return buildTaskContractIpcError(error, 'Failed to update the task contract.');
     }
   });
 
@@ -945,8 +1072,7 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, result: response.result };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to close the task contract.';
-      return { ok: false, error: message };
+      return buildTaskContractIpcError(error, 'Failed to close the task contract.');
     }
   });
 
@@ -974,9 +1100,7 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, result: response.result };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to verify the assumption.';
-        return { ok: false, error: message };
+        return buildTaskContractIpcError(error, 'Failed to verify the assumption.');
       }
     }
   );
@@ -1022,9 +1146,7 @@ export function registerMainIpcHandlers(): void {
           );
         return { ok: true, result: response.result };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to build the delivery pack.';
-        return { ok: false, error: message };
+        return buildTaskContractIpcError(error, 'Failed to build the delivery pack.');
       }
     }
   );
@@ -1069,9 +1191,7 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, result: response.result };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to render the delivery artifact.';
-        return { ok: false, error: message };
+        return buildTaskContractIpcError(error, 'Failed to render the delivery artifact.');
       }
     }
   );
@@ -1125,9 +1245,7 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, result: response.result };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to dispatch the delivery pack.';
-        return { ok: false, error: message };
+        return buildTaskContractIpcError(error, 'Failed to dispatch the delivery pack.');
       }
     }
   );
@@ -1173,9 +1291,7 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, result: response.result };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to load delivery log records.';
-        return { ok: false, error: message };
+        return buildTaskContractIpcError(error, 'Failed to load delivery log records.');
       }
     }
   );
@@ -1210,9 +1326,7 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, comparisons: response.comparisons };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to load shadow comparison records.';
-        return { ok: false, error: message };
+        return buildTaskContractIpcError(error, 'Failed to load shadow comparison records.');
       }
     }
   );
@@ -1240,11 +1354,138 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, comparison: response.comparison };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to load the shadow comparison.';
-        return { ok: false, error: message };
+        return buildTaskContractIpcError(error, 'Failed to load the shadow comparison.');
       }
     }
+  );
+
+  // ------------------------------------------------------------------
+  // Mobile web push (Wave 4 PLAN_06b)
+  //
+  // Backend RPCs are mounted under /api/web-push/* by the gateway. The
+  // public key endpoint is unauthenticated by design (it's literally a
+  // public key) so the renderer can request it before a user gesture.
+  // ------------------------------------------------------------------
+
+  ipcMain.handle('webPush:getPublicKey', async () => {
+    const connection = getBackendConnection();
+    if (!connection) {
+      return { ok: false, reason: 'backend_offline' };
+    }
+    try {
+      const response = await getBackendJson<{ publicKey: string | null; reason?: string }>(
+        connection.port,
+        '/api/web-push/public-key',
+      );
+      if (!response.publicKey) {
+        return { ok: false, reason: response.reason ?? 'vapid_keys_missing' };
+      }
+      return { ok: true, publicKey: response.publicKey };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'public-key fetch failed';
+      return { ok: false, reason: message };
+    }
+  });
+
+  ipcMain.handle('webPush:getSubject', async () => {
+    const connection = getBackendConnection();
+    if (!connection) {
+      return { ok: false, reason: 'backend_offline' };
+    }
+    try {
+      const response = await getBackendJson<{
+        subject: string | null;
+        source: 'config' | 'env' | null;
+      }>(connection.port, '/api/web-push/subject');
+      return {
+        ok: true,
+        subject: response.subject ?? null,
+        source: response.source ?? null,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'subject fetch failed';
+      return { ok: false, reason: message };
+    }
+  });
+
+  ipcMain.handle('webPush:setSubject', async (_event, params: WebPushSubjectPayload = {}) => {
+    const connection = getBackendConnection();
+    if (!connection) {
+      return { ok: false, error: 'Backend is not connected.' };
+    }
+    const subject = typeof params.subject === 'string' ? params.subject.trim() : '';
+    if (!subject) {
+      return { ok: false, error: 'subject is required.' };
+    }
+    try {
+      const response = await postBackendJson<{
+        ok: boolean;
+        subject?: string | null;
+        source?: 'config' | 'env' | null;
+      }>(connection.port, '/api/web-push/subject', { subject });
+      return {
+        ok: response.ok === true,
+        subject: response.subject ?? subject,
+        source: response.source ?? 'config',
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save subject.';
+      return { ok: false, error: message };
+    }
+  });
+
+  ipcMain.handle(
+    'webPush:registerSubscription',
+    async (_event, params: WebPushRegisterParams = {}) => {
+      const connection = getBackendConnection();
+      if (!connection) {
+        return { ok: false, error: 'Backend is not connected.' };
+      }
+      const endpoint = typeof params.endpoint === 'string' ? params.endpoint.trim() : '';
+      const p256dhKey = typeof params.p256dhKey === 'string' ? params.p256dhKey.trim() : '';
+      const authKey = typeof params.authKey === 'string' ? params.authKey.trim() : '';
+      if (!endpoint || !p256dhKey || !authKey) {
+        return { ok: false, error: 'endpoint, p256dhKey, and authKey are required.' };
+      }
+      try {
+        await postBackendJson<{ ok: boolean }>(
+          connection.port,
+          '/api/web-push/subscriptions',
+          { endpoint, p256dhKey, authKey },
+        );
+        return { ok: true };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to register subscription.';
+        return { ok: false, error: message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'webPush:unregisterSubscription',
+    async (_event, params: WebPushUnregisterParams = {}) => {
+      const connection = getBackendConnection();
+      if (!connection) {
+        return { ok: false, error: 'Backend is not connected.' };
+      }
+      const endpoint = typeof params.endpoint === 'string' ? params.endpoint.trim() : '';
+      if (!endpoint) {
+        return { ok: false, error: 'endpoint is required.' };
+      }
+      try {
+        await postBackendJson<{ ok: boolean }>(
+          connection.port,
+          '/api/web-push/subscriptions/unregister',
+          { endpoint },
+        );
+        return { ok: true };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to unregister subscription.';
+        return { ok: false, error: message };
+      }
+    },
   );
 }
 
@@ -1444,6 +1685,29 @@ function postBackendJson<T>(
   return requestBackendJson<T>(port, requestPath, 'POST', payload);
 }
 
+function buildTaskContractIpcError(
+  error: unknown,
+  fallbackMessage: string
+): { ok: false; error: string; errorDetail?: BackendErrorDetail } {
+  const message = error instanceof Error ? error.message : fallbackMessage;
+  const detail = getBackendErrorDetail(error);
+  return detail
+    ? { ok: false, error: message, errorDetail: detail }
+    : { ok: false, error: message };
+}
+
+function getBackendErrorDetail(error: unknown): BackendErrorDetail | undefined {
+  if (!(error instanceof Error) || !('detail' in error)) {
+    return undefined;
+  }
+  const detail = (error as Error & { detail?: unknown }).detail;
+  return isBackendErrorDetail(detail) ? detail : undefined;
+}
+
+function isBackendErrorDetail(value: unknown): value is BackendErrorDetail {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 function requestBackendJson<T>(
   port: number,
   requestPath: string,
@@ -1484,11 +1748,26 @@ function requestBackendJson<T>(
               parsed
               && typeof parsed === 'object'
               && 'detail' in parsed
-              && typeof parsed.detail === 'string'
             )
               ? parsed.detail
-              : raw || `Backend request failed (${statusCode})`;
-            reject(new Error(detail));
+              : null;
+            if (isBackendErrorDetail(detail)) {
+              const message =
+                typeof detail.message === 'string' && detail.message.trim()
+                  ? detail.message
+                  : raw || `Backend request failed (${statusCode})`;
+              const error = new Error(message) as Error & { detail?: BackendErrorDetail };
+              error.detail = detail;
+              reject(error);
+              return;
+            }
+            reject(
+              new Error(
+                typeof detail === 'string'
+                  ? detail
+                  : raw || `Backend request failed (${statusCode})`
+              )
+            );
             return;
           }
           if (parsed === null) {

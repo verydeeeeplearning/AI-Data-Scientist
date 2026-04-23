@@ -4,17 +4,16 @@
  *
  * Two checks (both must pass for exit 0):
  *  1. ko/en/ja JSON files share identical key sets per namespace.
- *  2. No CJK (Korean) string literals remain in renderer/components, hooks,
- *     or stores under src/renderer (i18n migration completeness).
+ *  2. No CJK (Korean) string literals remain in renderer/mobile TS/TSX
+ *     surfaces that should already be backed by locale keys.
  *
  * Implementation note: avoids running i18next-parser in CI because dynamic
- * keys (variable arguments to `t()`) are intentionally used in some flows
- * — running --fail-on-update would yield false positives. The structural
- * checks below cover the spirit of the gate.
+ * keys (variable arguments to `t()`) are intentionally used in some flows.
+ * The structural checks below cover the spirit of the gate.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -22,6 +21,7 @@ const ROOT = resolve(__dirname, '..');
 const LOCALES_DIR = resolve(ROOT, 'public/locales');
 const NAMESPACES = [
   'common',
+  'area',
   'mission',
   'workspace',
   'execution',
@@ -31,14 +31,19 @@ const NAMESPACES = [
   'settings',
   'approval',
   'trust',
+  'run',
   'cards',
   'chat',
+  'mobile',
+  'share',
 ];
 const LOCALES = ['ko', 'en', 'ja'];
 
 const SCAN_ROOTS = [
   resolve(ROOT, 'src/renderer/components'),
   resolve(ROOT, 'src/renderer/hooks'),
+  resolve(ROOT, 'src/mobile/components'),
+  resolve(ROOT, 'src/mobile/pages'),
 ];
 const SKIP_FILE_BASENAMES = new Set([
   // generated or test files exempt from CJK literal check
@@ -61,7 +66,7 @@ function flatten(obj, prefix, out) {
 function loadFlat(lng, ns) {
   const file = join(LOCALES_DIR, lng, `${ns}.json`);
   const raw = readFileSync(file, 'utf8');
-  const data = JSON.parse(raw);
+  const data = JSON.parse(raw.replace(/^\uFEFF/, ''));
   const out = new Map();
   flatten(data, '', out);
   return out;
@@ -88,7 +93,7 @@ function checkNamespaceConsistency() {
       }
       if (missingInLng.length || extraInLng.length) {
         errors.push(
-          `[${ns}] ${lng} differs from en — missing=${missingInLng.length}, extra=${extraInLng.length}\n  ` +
+          `[${ns}] ${lng} differs from en (missing=${missingInLng.length}, extra=${extraInLng.length})\n  ` +
             [
               ...missingInLng.slice(0, 5).map((k) => `- ${k}`),
               ...extraInLng.slice(0, 5).map((k) => `+ ${k}`),
@@ -135,11 +140,11 @@ function checkNoHangulLiterals() {
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i];
       stringLiteralRe.lastIndex = 0;
-      let m;
-      while ((m = stringLiteralRe.exec(line)) !== null) {
-        const literal = m[2];
+      let match;
+      while ((match = stringLiteralRe.exec(line)) !== null) {
+        const literal = match[2];
         if (HANGUL_REGEX.test(literal)) {
-          violations.push(`${file}:${i + 1} — '${literal.slice(0, 40)}...'`);
+          violations.push(`${file}:${i + 1} '${literal.slice(0, 40)}...'`);
           if (violations.length > 50) return violations;
         }
       }
@@ -154,18 +159,18 @@ function main() {
 
   if (nsErrors.length === 0 && cjkErrors.length === 0) {
     console.log(
-      `[lint:i18n] OK — 12 namespaces × 3 locales key sets identical, 0 Hangul literals in components/hooks`,
+      `[lint:i18n] OK - ${NAMESPACES.length} namespaces x ${LOCALES.length} locales key sets identical, 0 Hangul literals in renderer/mobile surfaces`,
     );
     process.exit(0);
   }
 
   if (nsErrors.length) {
-    console.error(`[lint:i18n] namespace key-set mismatches:`);
+    console.error('[lint:i18n] namespace key-set mismatches:');
     for (const err of nsErrors) console.error(err);
   }
   if (cjkErrors.length) {
-    console.error(`\n[lint:i18n] Hangul string literals (use i18n keys instead):`);
-    for (const v of cjkErrors) console.error(`  ${v}`);
+    console.error('\n[lint:i18n] Hangul string literals (use i18n keys instead):');
+    for (const violation of cjkErrors) console.error(`  ${violation}`);
   }
   process.exit(1);
 }

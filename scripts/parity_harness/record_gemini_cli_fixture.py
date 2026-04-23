@@ -29,8 +29,8 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "src"))
 
-from ds_agent.domain.entities.messages import ChatMessage, Role  # noqa: E402
-from ds_agent.providers.gemini_cli import (  # noqa: E402
+from ds_agent.domain.entities.messages import ChatMessage, Role
+from ds_agent.providers.gemini_cli import (
     GeminiCliProvider,
     gemini_cli_available,
     gemini_oauth_creds_path,

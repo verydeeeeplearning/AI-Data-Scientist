@@ -410,6 +410,78 @@ async def test_multiple_testing_status_matrix(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    ("srm_payload", "expected_status"),
+    [
+        (
+            {
+                "p_value": 0.20,
+                "is_valid": True,
+                "expected_counts": [5000, 5000],
+                "observed_counts": [4975, 5025],
+            },
+            "pass",
+        ),
+        (
+            {
+                "p_value": 0.07,
+                "is_valid": True,
+                "expected_counts": [5000, 5000],
+                "observed_counts": [4900, 5100],
+            },
+            "warn",
+        ),
+        (
+            {
+                "p_value": 0.01,
+                "is_valid": False,
+                "expected_counts": [5000, 5000],
+                "observed_counts": [4700, 5300],
+            },
+            "fail",
+        ),
+    ],
+)
+async def test_sample_ratio_mismatch_status_matrix(
+    srm_payload: dict[str, object],
+    expected_status: str,
+) -> None:
+    result = await StatisticalVerifier().run(_ctx({"srm": srm_payload}))
+    check = _find_check(result, "sample_ratio_mismatch")
+
+    assert check.status == expected_status
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("ci_low", "ci_high", "effect_size", "expected_status"),
+    [
+        (0.05, 0.18, 0.10, "pass"),
+        (-0.02, 0.12, 0.04, "fail"),
+        (0.01, 0.41, 0.10, "warn"),
+    ],
+)
+async def test_confidence_interval_review_status_matrix(
+    ci_low: float,
+    ci_high: float,
+    effect_size: float,
+    expected_status: str,
+) -> None:
+    result = await StatisticalVerifier().run(
+        _ctx(
+            {
+                "ci_low": ci_low,
+                "ci_high": ci_high,
+                "effect_size": effect_size,
+            }
+        )
+    )
+    check = _find_check(result, "confidence_interval_review")
+
+    assert check.status == expected_status
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     ("effect_size", "min_practical_effect", "expected_status"),
     [
         (0.25, 0.10, "pass"),

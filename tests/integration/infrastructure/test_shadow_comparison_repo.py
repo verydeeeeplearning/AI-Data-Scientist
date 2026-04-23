@@ -43,3 +43,4 @@ def test_shadow_comparison_repo_round_trip(tmp_path) -> None:
     assert loaded.comparison_id == record.comparison_id
     assert repo.list_for_task(record.task_id)[0].comparison_id == record.comparison_id
     assert repo.list_for_verdict(record.verdict_id)[0].comparison_id == record.comparison_id
+    assert repo.list_recent(limit=1)[0].comparison_id == record.comparison_id

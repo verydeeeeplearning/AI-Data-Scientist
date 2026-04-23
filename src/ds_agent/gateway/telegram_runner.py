@@ -15,7 +15,27 @@ from ds_agent.agent.core import DSAgent
 from ds_agent.agent.factory import create_agent
 from ds_agent.api.workspace_service import WorkspaceService
 from ds_agent.application.dtos.task_contract import TaskContractUpdateDTO, TaskContractViewDTO
+from ds_agent.application.learning.harness_warning_ingestor import HarnessWarningIngestor
+from ds_agent.application.use_cases.check_quiet_hours_usecase import (
+    CheckQuietHoursUseCase,
+    QuietHoursPolicyPort,
+)
+from ds_agent.application.use_cases.send_notification_usecase import (
+    NotificationTransportPort,
+    SendNotificationUseCase,
+)
 from ds_agent.channels.base import OutboundMessage
+from ds_agent.channels.bundled.telegram.callback_handler import (
+    CALLBACK_PREFIX,
+    ApprovalSubmitOutcome,
+    CallbackParseError,
+    TelegramApprovalCallbackHandler,
+    parse_approval_callback,
+)
+from ds_agent.channels.bundled.telegram.message_builder import (
+    BuiltMessage,
+    TelegramMessageBuilder,
+)
 from ds_agent.channels.bundled.telegram.plugin import TelegramPlugin
 from ds_agent.config.loader import get_default_config_path, save_config
 from ds_agent.config.schema import DSAgentConfig
@@ -29,11 +49,19 @@ from ds_agent.domain.entities.shadow_comparison import ShadowComparisonRecord
 from ds_agent.domain.entities.task_contract import TaskContractStatus
 from ds_agent.domain.entities.working_memory import SessionWorkingMemory
 from ds_agent.domain.errors.task_contract_errors import TaskContractError, TaskContractNotFoundError
+from ds_agent.domain.notification import (
+    InlineButton,
+    Notification,
+    NotificationCategory,
+    QuietHours,
+    QuietHoursPolicy,
+)
 from ds_agent.gateway.session_manager import SessionManager
 from ds_agent.infrastructure.task_contract_container import (
     TaskContractContainer,
     build_task_contract_container,
 )
+from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
 from ds_agent.infrastructure.verifier_container import VerifierContainer, build_verifier_container
 from ds_agent.presentation.certification_presenters import (
     render_certification_status,
@@ -61,6 +89,7 @@ from ds_agent.runtime.action_token import (
 from ds_agent.runtime.approval_store import JsonApprovalStore
 from ds_agent.runtime.channel_identity import parse_telegram_session_id, telegram_session_id
 from ds_agent.runtime.checkpoint_store import JsonCheckpointStore
+from ds_agent.runtime.deferred_notification_store import JsonDeferredNotificationStore
 from ds_agent.runtime.delivery_policy_store import DeliveryPolicy, JsonDeliveryPolicyStore
 from ds_agent.runtime.delivery_rate_limiter import DeliveryRateLimiter, QuietHoursWindow
 from ds_agent.runtime.delivery_settings import (
@@ -101,6 +130,7 @@ _MAX_ALERT_LIMIT = 10
 _ALERT_POLL_INTERVAL_SECONDS = 5.0
 _ACK_ACTION_MUTE_WINDOW = "30m"
 _SEVERITY_ORDER = ("info", "warning", "error", "critical")
+_DEFAULT_DEEP_LINK_WORKSPACE_ID = "default"
 _NOTIFICATION_CATEGORY_LABELS: dict[str, str] = {
     "approval": "Approvals",
     "recovery": "Recoveries",
@@ -139,6 +169,77 @@ class TelegramDeliveryTarget:
     thread_id: str | None = None
 
 
+class _TelegramApprovalSubmitter:
+    """Adapter that bridges Telegram callback handler to the approval use case."""
+
+    def __init__(self, runner: TelegramGatewayRunner) -> None:
+        self._runner = runner
+
+    async def submit(
+        self,
+        *,
+        approval_id: str,
+        decision: str,
+        operator_id: str,
+        reason: str | None,
+    ) -> ApprovalSubmitOutcome:
+        return await self._runner._submit_approval_callback(
+            approval_id=approval_id,
+            decision=decision,
+            operator_id=operator_id,
+            reason=reason,
+        )
+
+
+class _DeliveryPolicyQuietHoursPort(QuietHoursPolicyPort):
+    """Adapter: read quiet-hours window from the runtime delivery policy.
+
+    Translates the wire-level :class:`DeliveryPolicy` (string hours / tz)
+    into the domain :class:`QuietHoursPolicy` consumed by the use case.
+    Operator-specific overrides are not yet wired through delivery policy,
+    so the same window applies to every operator until per-chat overrides
+    land in PLAN_04 follow-up.
+    """
+
+    def __init__(self, policy_store: JsonDeliveryPolicyStore) -> None:
+        self._policy_store = policy_store
+
+    def load(self, *, operator_id: str) -> QuietHoursPolicy:
+        policy = self._policy_store.get()
+        start = TelegramGatewayRunner._parse_quiet_hour(policy.quiet_hours_start)
+        end = TelegramGatewayRunner._parse_quiet_hour(policy.quiet_hours_end)
+        if start is None or end is None:
+            return QuietHoursPolicy(
+                window=QuietHours(
+                    timezone_name=policy.quiet_hours_timezone or "UTC",
+                    start_hour=0,
+                    end_hour=0,
+                    enabled=False,
+                )
+            )
+        return QuietHoursPolicy(
+            window=QuietHours(
+                timezone_name=policy.quiet_hours_timezone or "UTC",
+                start_hour=start,
+                end_hour=end,
+                enabled=True,
+            )
+        )
+
+
+class _NullNotificationTransport(NotificationTransportPort):
+    """Sync no-op transport used purely to satisfy the use case port.
+
+    The actual async Telegram I/O lives on the runner; this adapter only
+    exists so the use case stays framework-free.  ``dispatch_notification``
+    inspects :class:`SendNotificationResult` and performs the live send
+    itself when ``delivered=True``.
+    """
+
+    def deliver(self, *, operator_id: str, notification: Notification) -> str:
+        return f"deferred-decision:{operator_id}"
+
+
 class TelegramCallbacks(NullCallbacks):
     """Callbacks that send lightweight progress updates to Telegram."""
 
@@ -149,6 +250,8 @@ class TelegramCallbacks(NullCallbacks):
         thread_id: str | None = None,
         approval_store: JsonApprovalStore | None = None,
         action_tokens: ActionTokenStore | None = None,
+        workspace_dir: str | None = None,
+        warning_ingestor: HarnessWarningIngestor | None = None,
     ) -> None:
         self._plugin = plugin
         self._chat_id = chat_id
@@ -157,6 +260,14 @@ class TelegramCallbacks(NullCallbacks):
         self._action_tokens = action_tokens
         self._tool_count = 0
         self._background_tasks: set[asyncio.Task[None]] = set()
+        self._warning_ingestor = warning_ingestor
+        if self._warning_ingestor is None and workspace_dir is not None:
+            self._warning_ingestor = HarnessWarningIngestor(
+                SqliteLearningStore.for_workspace(workspace_dir)
+            )
+        self._current_session_id = telegram_session_id(chat_id, thread_id)
+        self._current_run_id: str | None = None
+        self._surface = "telegram"
 
     async def on_tool_start(self, tool_name: str, arguments: dict) -> None:
         self._tool_count += 1
@@ -173,6 +284,8 @@ class TelegramCallbacks(NullCallbacks):
             )
 
     def emit_event(self, event: str, payload: dict) -> None:
+        self._remember_runtime_context(payload)
+        self._ingest_warning_if_needed(event, payload)
         if event not in {"approval.requested", "approval.resolved"}:
             return
 
@@ -203,22 +316,18 @@ class TelegramCallbacks(NullCallbacks):
                 )
                 text = "\n".join(lines)
                 markup = None
-                if self._action_tokens is not None and approval_id:
-                    ap_tok = self._action_tokens.create(
-                        ACTION_APPROVE,
-                        approval_id,
-                        chat_id=self._chat_id,
-                    )
-                    rj_tok = self._action_tokens.create(
-                        ACTION_REJECT,
-                        approval_id,
-                        chat_id=self._chat_id,
-                    )
+                if approval_id:
                     markup = {
                         "inline_keyboard": [
                             [
-                                {"text": "Approve", "callback_data": ap_tok},
-                                {"text": "Reject", "callback_data": rj_tok},
+                                {
+                                    "text": "Approve",
+                                    "callback_data": f"{CALLBACK_PREFIX}:approve:{approval_id}",
+                                },
+                                {
+                                    "text": "Reject",
+                                    "callback_data": f"{CALLBACK_PREFIX}:reject:{approval_id}",
+                                },
                             ],
                         ],
                     }
@@ -252,6 +361,34 @@ class TelegramCallbacks(NullCallbacks):
         except RuntimeError:
             logger.debug("telegram_emit_event_no_loop", event=event)
 
+    def _remember_runtime_context(self, payload: dict) -> None:
+        session_id = payload.get("sessionId")
+        run_id = payload.get("runId")
+        if isinstance(session_id, str) and session_id.strip():
+            self._current_session_id = session_id
+        if isinstance(run_id, str) and run_id.strip():
+            self._current_run_id = run_id
+        surface = payload.get("surface")
+        if isinstance(surface, str) and surface.strip():
+            self._surface = surface
+
+    def _ingest_warning_if_needed(self, event: str, payload: dict) -> None:
+        if event != "harness.warning" or self._warning_ingestor is None:
+            return
+        try:
+            self._warning_ingestor.ingest(
+                payload,
+                session_id=_first_non_empty_string(
+                    payload.get("sessionId"),
+                    self._current_session_id,
+                ),
+                run_id=_first_non_empty_string(payload.get("runId"), self._current_run_id),
+                surface=_first_non_empty_string(payload.get("surface"), self._surface)
+                or "telegram",
+            )
+        except Exception as exc:
+            logger.warning("telegram_harness_warning_ingest_failed", error=str(exc))
+
     def _queue_text(self, approval_id: str) -> str:
         if self._approval_store is None or not approval_id:
             return ""
@@ -273,6 +410,13 @@ class TelegramCallbacks(NullCallbacks):
                 return f"chat {conv_id} / topic {thread_id}"
             return f"chat {conv_id}"
         return session_id or "-"
+
+
+def _first_non_empty_string(*values: object) -> str | None:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
 
 
 class TelegramGatewayRunner:
@@ -307,6 +451,22 @@ class TelegramGatewayRunner:
         self._operator_chats: set[str] = set()
         self._delivery_targets: dict[str, TelegramDeliveryTarget] = {}
         self._seen_runtime_event_ids: set[str] = set()
+        # PLAN_04 §4.5: lazy adapter for Notification → Telegram payload.
+        self._message_builder = TelegramMessageBuilder()
+        # PLAN_04 close-out: persist quiet-hours-suppressed notifications so
+        # they survive process restarts.  Composition (transport + quiet
+        # hours port + persistent deferred store) lives at the gateway
+        # layer to honour the dependency rule.
+        self._deferred_notification_store = JsonDeferredNotificationStore(
+            str(config.agent.workspace_dir)
+        )
+        self._send_notification_use_case = SendNotificationUseCase(
+            transport=_NullNotificationTransport(),
+            quiet_hours=CheckQuietHoursUseCase(
+                _DeliveryPolicyQuietHoursPort(self._delivery_policy_store)
+            ),
+            deferred_store=self._deferred_notification_store,
+        )
 
     _BOT_COMMANDS: typing.ClassVar[list[tuple[str, str]]] = [
         ("status", "Runtime summary"),
@@ -493,8 +653,7 @@ class TelegramGatewayRunner:
                 outcome="Live alerts resumed.",
             )
             text = (
-                "Unmuted. Live alerts will resume. "
-                "Use /digest now to review anything you missed."
+                "Unmuted. Live alerts will resume. Use /digest now to review anything you missed."
             )
         else:
             text = "Unknown command. Use /start to see available commands."
@@ -534,6 +693,7 @@ class TelegramGatewayRunner:
                     thread_id=message.thread_id,
                     approval_store=self._approval_store,
                     action_tokens=self._action_tokens,
+                    workspace_dir=str(self._config.agent.workspace_dir),
                 )
             )
 
@@ -1540,11 +1700,7 @@ class TelegramGatewayRunner:
             if not project_id:
                 continue
             files = self._enriched_project_files(project_id)
-            recent = [
-                entry
-                for entry in files
-                if int(entry.get("modifiedAt", 0)) >= threshold_ms
-            ]
+            recent = [entry for entry in files if int(entry.get("modifiedAt", 0)) >= threshold_ms]
             if not recent:
                 continue
             newest = max(int(entry.get("modifiedAt", 0)) for entry in recent)
@@ -1614,9 +1770,7 @@ class TelegramGatewayRunner:
             metadata={
                 "projectId": project_id,
                 "deliverableKinds": [
-                    getattr(item, "kind", "")
-                    for item in deliverables
-                    if getattr(item, "kind", "")
+                    getattr(item, "kind", "") for item in deliverables if getattr(item, "kind", "")
                 ],
             },
         )
@@ -1838,7 +1992,6 @@ class TelegramGatewayRunner:
             if not self._should_route_runtime_event(event, classified):
                 continue
             is_escalation = self._should_escalate_runtime_event(event, classified)
-            text = self._format_runtime_alert(event)
             throttle_checked = False
             throttle_allowed = False
             throttle_reason = "rate_limited"
@@ -1855,7 +2008,7 @@ class TelegramGatewayRunner:
                             conversation_id,
                             event.event_id,
                             suppress_reason,
-                    )
+                        )
                     continue
                 if not throttle_checked:
                     throttle_allowed = self._passes_alert_throttle(
@@ -1877,14 +2030,15 @@ class TelegramGatewayRunner:
                     )
                     continue
                 target = self._delivery_target_for_event(conversation_id, event)
-                await self._send_text(
-                    text,
+                notification = self._build_runtime_event_notification(
+                    event,
+                    classified=classified,
+                    chat_id=conversation_id,
+                )
+                await self.dispatch_notification(
+                    notification,
                     target.conversation_id,
                     thread_id=target.thread_id,
-                    reply_markup=self._build_alert_markup(
-                        event,
-                        chat_id=conversation_id,
-                    ),
                 )
         await self._send_due_digests()
         self._trim_seen_runtime_events()
@@ -2147,13 +2301,16 @@ class TelegramGatewayRunner:
             ):
                 return None
 
-        digest_text, delivered_event_ids = self._build_chat_digest(conversation_id, suppressed)
-        if not delivered_event_ids:
+        digest_notification, delivered_event_ids = self._build_chat_digest(
+            conversation_id,
+            suppressed,
+        )
+        if digest_notification is None or not delivered_event_ids:
             self._alert_state.mark_digest_sent(conversation_id)
             return "No digestible alerts remain." if force else None
 
-        await self._send_text(
-            digest_text,
+        built = await self.dispatch_notification(
+            digest_notification,
             conversation_id,
             thread_id=thread_id,
         )
@@ -2161,13 +2318,13 @@ class TelegramGatewayRunner:
             conversation_id,
             delivered_event_ids=delivered_event_ids,
         )
-        return digest_text
+        return built.text
 
     def _build_chat_digest(
         self,
         conversation_id: str,
         suppressed: list[object],
-    ) -> tuple[str, list[str]]:
+    ) -> tuple[Notification | None, list[str]]:
         items: list[tuple[RuntimeEventRecord, str]] = []
         for record in suppressed:
             event_id = getattr(record, "event_id", "")
@@ -2178,7 +2335,7 @@ class TelegramGatewayRunner:
             items.append((event, reason))
 
         if not items:
-            return ("No digestible alerts remain.", [])
+            return (None, [])
 
         items.sort(key=lambda item: item[0].created_at, reverse=True)
         digest = build_digest_from_events([event for event, _reason in items])
@@ -2193,7 +2350,19 @@ class TelegramGatewayRunner:
         if len(items) > 5:
             lines.append(f"- + {len(items) - 5} more suppressed alerts")
         lines.append("Use /alerts 10 to inspect full history.")
-        return ("\n".join(lines), [event.event_id for event, _reason in items])
+        text = "\n".join(lines)
+        title, body = self._split_notification_text(text)
+        return (
+            Notification(
+                category=NotificationCategory.DIGEST,
+                title=title,
+                body=body,
+                deep_link=self._deep_link_for_events([event for event, _reason in items]),
+                workspace_id=self._deep_link_workspace_id(),
+                run_id=next((event.run_id for event, _reason in items if event.run_id), None),
+            ),
+            [event.event_id for event, _reason in items],
+        )
 
     @staticmethod
     def _should_bypass_soft_controls(event: RuntimeEventRecord) -> bool:
@@ -2258,10 +2427,7 @@ class TelegramGatewayRunner:
                 return f"Cannot {sub} proposal {proposal_id}: {exc}"
             repo.update(updated)
             action_label_text = "Approved" if sub == "approve" else "Rejected"
-            return (
-                f"{action_label_text} proposal {proposal_id}.\n"
-                f"{format_proposal_detail(updated)}"
-            )
+            return f"{action_label_text} proposal {proposal_id}.\n{format_proposal_detail(updated)}"
 
         if sub == "diff" and len(args) >= 2:
             proposal_id = args[1]
@@ -2307,13 +2473,16 @@ class TelegramGatewayRunner:
         token = msg.callback_data or ""
         query_id = msg.callback_query_id or ""
 
+        if token.startswith(f"{CALLBACK_PREFIX}:"):
+            await self._handle_approval_callback_query(msg)
+            return
+
         ctx = self._action_tokens.resolve(token)
         if ctx is None:
             await self._plugin.answer_callback_query(
                 query_id,
                 text=(
-                    "This action has expired. "
-                    "Use /approvals or /runs to inspect the current state."
+                    "This action has expired. Use /approvals or /runs to inspect the current state."
                 ),
                 show_alert=True,
             )
@@ -2382,9 +2551,7 @@ class TelegramGatewayRunner:
         elif ctx.action == ACTION_STOP:
             active = self._runs.get(ctx.target_id) if hasattr(self, "_runs") else None
             if active is None:
-                reply_text = (
-                    f"Unknown run id: {ctx.target_id}. Use /runs to inspect recent runs."
-                )
+                reply_text = f"Unknown run id: {ctx.target_id}. Use /runs to inspect recent runs."
             elif active.status == RuntimeStatus.RUNNING:
                 self._task_ledger.cancel_for_run(ctx.target_id)
                 reply_text = f"Stopped run {ctx.target_id}."
@@ -2438,6 +2605,186 @@ class TelegramGatewayRunner:
                 thread_id=msg.thread_id,
             )
 
+    async def _handle_approval_callback_query(self, inbound: object) -> None:
+        from ds_agent.channels.base import InboundMessage
+
+        msg: InboundMessage = inbound  # type: ignore[assignment]
+        token = msg.callback_data or ""
+        query_id = msg.callback_query_id or ""
+
+        try:
+            parsed = parse_approval_callback(token)
+        except CallbackParseError as exc:
+            await self._plugin.answer_callback_query(
+                query_id,
+                text=f"Bad action: {exc}",
+                show_alert=True,
+            )
+            return
+
+        approval = self._approval_store.get(parsed.approval_id)
+        if approval is None:
+            await self._plugin.answer_callback_query(
+                query_id,
+                text=(
+                    f"Unknown approval id: {parsed.approval_id}. "
+                    "Use /approvals to inspect the queue."
+                ),
+                show_alert=True,
+            )
+            return
+
+        scope_error = self._validate_approval_callback_scope(msg, approval)
+        if scope_error is not None:
+            await self._plugin.answer_callback_query(
+                query_id,
+                text=scope_error,
+                show_alert=True,
+            )
+            return
+
+        handler = TelegramApprovalCallbackHandler(_TelegramApprovalSubmitter(self))
+        result = await handler.handle(
+            callback_data=token,
+            operator_id=msg.sender_id,
+        )
+        await self._plugin.answer_callback_query(
+            query_id,
+            text=result.user_visible_text,
+            show_alert=not result.handled,
+        )
+
+        if msg.source_message_id and result.handled:
+            await self._plugin.edit_message_reply_markup(
+                msg.conversation_id,
+                msg.source_message_id,
+                reply_markup=None,
+            )
+
+        if result.outcome is None or not result.outcome.success:
+            return
+
+        resolved = self._approval_store.get(parsed.approval_id)
+        if resolved is None:
+            return
+        reply_text = self._format_approval_resolution_summary(resolved)
+        self._record_operator_action(
+            action="Approve" if parsed.decision == "approve" else "Reject",
+            target_id=resolved.approval_id,
+            actor=msg.sender_id,
+            chat_id=msg.conversation_id,
+            thread_id=msg.thread_id,
+            outcome=reply_text,
+        )
+        await self._send_text(
+            reply_text,
+            msg.conversation_id,
+            thread_id=msg.thread_id,
+        )
+
+    async def _submit_approval_callback(
+        self,
+        *,
+        approval_id: str,
+        decision: str,
+        operator_id: str,
+        reason: str | None,
+    ) -> ApprovalSubmitOutcome:
+        from ds_agent.application.use_cases.submit_approval_usecase import (
+            SubmitApprovalUseCase,
+        )
+
+        decision_value = "allow" if decision == "approve" else "deny"
+        try:
+            result = SubmitApprovalUseCase(self._approval_store).execute(
+                {
+                    "approvalId": approval_id,
+                    "decision": decision_value,
+                    "denyReason": reason if decision_value == "deny" else None,
+                    "response": reason if decision_value == "allow" else None,
+                    "actor": operator_id,
+                    "source": "telegram_inline_callback",
+                }
+            )
+        except ValueError as exc:
+            return ApprovalSubmitOutcome(success=False, message=str(exc))
+
+        approval = result.approval
+        if approval is not None:
+            self._finalize_submitted_approval(
+                approval=approval,
+                operator_id=operator_id,
+            )
+
+        return ApprovalSubmitOutcome(
+            success=True,
+            message=result.status,
+            new_status=result.status,
+        )
+
+    def _finalize_submitted_approval(
+        self,
+        *,
+        approval: ApprovalRequest,
+        operator_id: str,
+    ) -> None:
+        if approval.kind != "semantic_proposal":
+            return
+
+        from ds_agent.runtime.semantic_proposal_router import (
+            resolve_semantic_proposal_approval,
+        )
+
+        reviewer = operator_id.strip() or "operator"
+        outcome = resolve_semantic_proposal_approval(
+            approval,
+            workspace_dir=self._config.agent.workspace_dir,
+            reviewer=reviewer,
+        )
+        metadata = dict(approval.metadata or {})
+        metadata["semanticProposalOutcome"] = {
+            "proposalId": outcome.proposal_id,
+            "proposalStatus": outcome.proposal_status,
+            "action": outcome.action,
+            "applied": outcome.applied,
+            "appliedTarget": outcome.applied_target,
+        }
+        approval.metadata = metadata
+        self._approval_store.replace(approval)
+        self._runtime_event_log.record(
+            category="approval",
+            kind=("semantic.proposal.applied" if outcome.applied else "semantic.proposal.reviewed"),
+            severity="success" if approval.status == ApprovalStatus.APPROVED else "warning",
+            message=(
+                f"Semantic proposal {outcome.action}d: {outcome.proposal_id}"
+                if outcome.action != "apply"
+                else f"Semantic proposal applied: {outcome.proposal_id}"
+            ),
+            session_id=approval.session_id,
+            run_id=approval.run_id,
+            surface=approval.surface,
+            source="telegram_runner",
+            metadata=metadata,
+        )
+
+    def _validate_approval_callback_scope(
+        self,
+        message: object,
+        approval: ApprovalRequest,
+    ) -> str | None:
+        from ds_agent.channels.base import InboundMessage
+
+        inbound: InboundMessage = message  # type: ignore[assignment]
+        session_id = approval.session_id
+        if not session_id.startswith("telegram:"):
+            return None
+        target_chat_id, target_thread = parse_telegram_session_id(session_id)
+        if target_chat_id != inbound.conversation_id:
+            return "This approval belongs to another chat. Use /approvals there instead."
+        if target_thread is not None and target_thread != inbound.thread_id:
+            return "This approval belongs to another topic. Use /approvals in that topic."
+        return None
+
     def _validate_callback_scope(
         self,
         message: object,
@@ -2452,8 +2799,7 @@ class TelegramGatewayRunner:
             return "This button belongs to another chat. Use commands in the current chat instead."
         if actor and actor != inbound.sender_id:
             return (
-                "This button is limited to the original operator. "
-                "Use a text command to take over."
+                "This button is limited to the original operator. Use a text command to take over."
             )
         if target_id.startswith("telegram:"):
             target_chat_id, target_thread = parse_telegram_session_id(target_id)
@@ -2490,8 +2836,7 @@ class TelegramGatewayRunner:
             target_chat_id, target_thread = parse_telegram_session_id(target_session_id)
             if target_chat_id != inbound.conversation_id:
                 return (
-                    "Recovery state moved to another chat. "
-                    "Use /session in that chat to inspect it."
+                    "Recovery state moved to another chat. Use /session in that chat to inspect it."
                 )
             if target_thread is not None and target_thread != inbound.thread_id:
                 return (
@@ -2511,23 +2856,18 @@ class TelegramGatewayRunner:
         chat_id: str = "",
     ) -> dict:
         """Build an InlineKeyboardMarkup dict for an approval request."""
-        approve_token = self._action_tokens.create(
-            ACTION_APPROVE,
-            approval_id,
-            actor=actor,
-            chat_id=chat_id,
-        )
-        reject_token = self._action_tokens.create(
-            ACTION_REJECT,
-            approval_id,
-            actor=actor,
-            chat_id=chat_id,
-        )
+        _ = actor, chat_id
         return {
             "inline_keyboard": [
                 [
-                    {"text": "Approve", "callback_data": approve_token},
-                    {"text": "Reject", "callback_data": reject_token},
+                    {
+                        "text": "Approve",
+                        "callback_data": f"{CALLBACK_PREFIX}:approve:{approval_id}",
+                    },
+                    {
+                        "text": "Reject",
+                        "callback_data": f"{CALLBACK_PREFIX}:reject:{approval_id}",
+                    },
                 ],
             ],
         }
@@ -2559,30 +2899,27 @@ class TelegramGatewayRunner:
             buttons.append({"text": "Stop", "callback_data": stop_token})
         return {"inline_keyboard": [buttons]}
 
-    def _build_alert_markup(
+    def _build_alert_buttons(
         self,
         event: RuntimeEventRecord,
         *,
         chat_id: str,
-    ) -> dict | None:
-        rows: list[list[dict[str, str]]] = []
-        primary: list[dict[str, str]] = []
+    ) -> tuple[InlineButton, ...]:
+        buttons: list[InlineButton] = []
         if event.kind == "recovery.resume_recommended" and event.session_id:
             resume_token = self._action_tokens.create(
                 ACTION_RESUME,
                 event.session_id,
                 chat_id=chat_id,
             )
-            primary.append({"text": "Resume", "callback_data": resume_token})
+            buttons.append(InlineButton(text="Resume", callback_data=resume_token))
         if event.run_id:
             inspect_token = self._action_tokens.create(
                 ACTION_INSPECT,
                 event.run_id,
                 chat_id=chat_id,
             )
-            primary.append({"text": "Inspect", "callback_data": inspect_token})
-        if primary:
-            rows.append(primary)
+            buttons.append(InlineButton(text="Inspect", callback_data=inspect_token))
 
         ack_token = self._action_tokens.create(
             ACTION_ACK,
@@ -2594,13 +2931,37 @@ class TelegramGatewayRunner:
             _ACK_ACTION_MUTE_WINDOW,
             chat_id=chat_id,
         )
-        rows.append(
-            [
-                {"text": "Ack", "callback_data": ack_token},
-                {"text": "Mute 30m", "callback_data": mute_token},
-            ]
+        buttons.append(InlineButton(text="Ack", callback_data=ack_token))
+        buttons.append(InlineButton(text="Mute 30m", callback_data=mute_token))
+        return tuple(buttons)
+
+    @staticmethod
+    def _deep_link_workspace_id() -> str:
+        return _DEFAULT_DEEP_LINK_WORKSPACE_ID
+
+    def _deep_link_for_events(self, events: list[RuntimeEventRecord]) -> str | None:
+        for event in events:
+            link = self._deep_link_for_event(event)
+            if link is not None:
+                return link
+        return None
+
+    def _deep_link_for_event(self, event: RuntimeEventRecord) -> str | None:
+        run_id = event.run_id
+        if not run_id:
+            return None
+        try:
+            from ds_agent.domain.value_objects.deep_link import DeepLink, build_deep_link_uri
+        except ImportError:
+            workspace_id = self._deep_link_workspace_id()
+            return f"ds-agent://workspace/{workspace_id}/run/{run_id}"
+        return build_deep_link_uri(
+            DeepLink(
+                workspace_id=self._deep_link_workspace_id(),
+                resource_type="run",
+                resource_id=run_id,
+            )
         )
-        return {"inline_keyboard": rows} if rows else None
 
     # ------------------------------------------------------------------
     # Notification preference commands (PLAN_13 Phase 00)
@@ -2662,8 +3023,7 @@ class TelegramGatewayRunner:
             categories = self._parse_notification_categories(args[1:])
             if categories is None:
                 return (
-                    "Unknown category. "
-                    f"Available: {self._available_notification_categories_text()}"
+                    f"Unknown category. Available: {self._available_notification_categories_text()}"
                 )
             pref = self._preferences.get(conversation_id)
             current = set(pref.subscribed_categories)
@@ -2766,10 +3126,7 @@ class TelegramGatewayRunner:
                 pref.digest_cadence,
                 pref.digest_interval_seconds,
             )
-            outcome = (
-                "Digest enabled "
-                f"({digest_label}, {pref.timezone})."
-            )
+            outcome = f"Digest enabled ({digest_label}, {pref.timezone})."
             self._record_operator_action(
                 action="Digest",
                 target_id=conversation_id,
@@ -2837,10 +3194,7 @@ class TelegramGatewayRunner:
                 pref.digest_cadence,
                 pref.digest_interval_seconds,
             )
-            outcome = (
-                "Digest enabled "
-                f"({digest_label}, {pref.timezone})."
-            )
+            outcome = f"Digest enabled ({digest_label}, {pref.timezone})."
             self._record_operator_action(
                 action="Digest",
                 target_id=conversation_id,
@@ -2864,10 +3218,7 @@ class TelegramGatewayRunner:
                 pref.digest_cadence,
                 pref.digest_interval_seconds,
             )
-            outcome = (
-                "Digest enabled "
-                f"({digest_label}, {pref.timezone})."
-            )
+            outcome = f"Digest enabled ({digest_label}, {pref.timezone})."
             self._record_operator_action(
                 action="Digest",
                 target_id=conversation_id,
@@ -2986,8 +3337,7 @@ class TelegramGatewayRunner:
         if not categories:
             return "none"
         labels = [
-            _NOTIFICATION_CATEGORY_LABELS.get(category, category.title())
-            for category in categories
+            _NOTIFICATION_CATEGORY_LABELS.get(category, category.title()) for category in categories
         ]
         labels.sort()
         return ", ".join(labels)
@@ -2995,9 +3345,7 @@ class TelegramGatewayRunner:
     @staticmethod
     def _available_notification_categories_text() -> str:
         keys = sorted(
-            category
-            for category in _NOTIFICATION_CATEGORY_LABELS
-            if category != "operator_action"
+            category for category in _NOTIFICATION_CATEGORY_LABELS if category != "operator_action"
         )
         return ", ".join(keys)
 
@@ -3114,6 +3462,47 @@ class TelegramGatewayRunner:
         lines.append("Use /alerts 10 to inspect full history.")
         lines.append(f"Alert ID: {event.event_id}")
         return "\n".join(lines)
+
+    def _build_runtime_event_notification(
+        self,
+        event: RuntimeEventRecord,
+        *,
+        classified: ClassifiedEvent,
+        chat_id: str,
+    ) -> Notification:
+        title, body = self._split_notification_text(self._format_runtime_alert(event))
+        return Notification(
+            category=self._notification_category_for_event(event, classified),
+            title=title,
+            body=body,
+            deep_link=self._deep_link_for_event(event),
+            inline_keyboard=self._build_alert_buttons(event, chat_id=chat_id),
+            workspace_id=self._deep_link_workspace_id(),
+            run_id=event.run_id,
+        )
+
+    @staticmethod
+    def _split_notification_text(text: str) -> tuple[str, str]:
+        stripped = text.strip()
+        if not stripped:
+            return ("Notification", "")
+        title, separator, body = stripped.partition("\n")
+        if not separator:
+            return (title, "")
+        return (title, body.lstrip())
+
+    @staticmethod
+    def _notification_category_for_event(
+        event: RuntimeEventRecord,
+        classified: ClassifiedEvent,
+    ) -> NotificationCategory:
+        if classified.category == "approval" or event.kind == "recovery.awaiting_approval":
+            return NotificationCategory.APPROVAL
+        if event.kind == "run.outcome.succeeded" or event.kind == "system.resource.normal":
+            return NotificationCategory.MILESTONE
+        if classified.severity in {"error", "critical"}:
+            return NotificationCategory.ERROR
+        return NotificationCategory.INFO
 
     def _format_alert_digest_line(self, conversation_id: str, event: RuntimeEventRecord) -> str:
         status = "new"
@@ -3255,6 +3644,70 @@ class TelegramGatewayRunner:
                 )
             )
 
+    async def dispatch_notification(
+        self,
+        notification: object,
+        conversation_id: str,
+        *,
+        thread_id: str | None = None,
+    ) -> BuiltMessage:
+        """Render *notification* via the PLAN_04 message builder and send it.
+
+        Domain :class:`Notification` flows through the boundary (truncation,
+        PII masking, deep-link insertion) before reaching Telegram.  Returns
+        the :class:`BuiltMessage` for callers that want to inspect the
+        truncation / masking outcome.
+
+        Quiet-hours suppression is enforced via
+        :class:`SendNotificationUseCase`; suppressed notifications are
+        persisted by :class:`JsonDeferredNotificationStore` so they survive
+        process restarts.
+        """
+        from datetime import UTC, datetime
+
+        from ds_agent.domain.notification import Notification as _Notification
+
+        if not isinstance(notification, _Notification):
+            raise TypeError("notification must be a domain Notification")
+
+        builder = getattr(self, "_message_builder", None)
+        if not isinstance(builder, TelegramMessageBuilder):
+            builder = TelegramMessageBuilder()
+            self._message_builder = builder
+
+        built = builder.build(notification)
+
+        send_uc = getattr(self, "_send_notification_use_case", None)
+        # DIGEST itself is the quiet-hours release mechanism, so we don't
+        # re-suppress it.  All other categories flow through the use case
+        # so quiet-hours-suppressed alerts get persisted to disk and
+        # survive process restarts.
+        if (
+            isinstance(send_uc, SendNotificationUseCase)
+            and notification.category is not NotificationCategory.DIGEST
+        ):
+            decision = send_uc.execute(
+                operator_id=conversation_id,
+                notification=notification,
+                now=datetime.now(tz=UTC),
+            )
+            if decision.deferred:
+                logger.info(
+                    "telegram_notification_deferred_persisted",
+                    conversation_id=conversation_id,
+                    category=notification.category.value,
+                    reason=decision.reason,
+                )
+                return built
+
+        await self._send_text(
+            built.text,
+            conversation_id,
+            thread_id=thread_id,
+            reply_markup=built.reply_markup,
+        )
+        return built
+
     def _persist_runtime_config(self) -> None:
         config_path = getattr(self, "_config_path", None)
         path = config_path if isinstance(config_path, Path) else get_default_config_path()
@@ -3328,6 +3781,7 @@ class TelegramGatewayRunner:
             thread_id=thread_id,
             approval_store=self._approval_store,
             action_tokens=self._action_tokens,
+            workspace_dir=str(self._config.agent.workspace_dir),
         )
         model_str = self._config.provider.default_model
         provider = create_provider_router(

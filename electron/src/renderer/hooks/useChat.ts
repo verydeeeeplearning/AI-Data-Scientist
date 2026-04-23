@@ -7,7 +7,10 @@
 
 import { useCallback, useEffect } from 'react';
 import { useWs } from './WsProvider';
-import { useChatStore } from '../stores/chatStore';
+import {
+  normalizeStreamDonePayload,
+  useChatStore,
+} from '../stores/chatStore';
 import { useAgentStore } from '../stores/agentStore';
 
 export function useChat() {
@@ -25,6 +28,7 @@ export function useChat() {
   const appendStreamDelta = useChatStore((s) => s.appendStreamDelta);
   const finalizeStream = useChatStore((s) => s.finalizeStream);
   const setStreaming = useChatStore((s) => s.setStreaming);
+  const upsertCards = useChatStore((s) => s.upsertCards);
   const addToolActivity = useChatStore((s) => s.addToolActivity);
   const completeToolActivity = useChatStore((s) => s.completeToolActivity);
   const clearToolActivities = useChatStore((s) => s.clearToolActivities);
@@ -53,10 +57,12 @@ export function useChat() {
       }),
 
       on('stream.done', (payload) => {
-        finalizeStream((payload.content as string) ?? '');
+        const normalized = normalizeStreamDonePayload(payload);
+        finalizeStream(normalized.content, normalized.messageId ?? null);
+        upsertCards(normalized.cards);
         setStreaming(false);
-        if (typeof payload.cost === 'number') {
-          setCost(payload.cost);
+        if (typeof normalized.cost === 'number') {
+          setCost(normalized.cost);
         }
       }),
 
@@ -72,6 +78,7 @@ export function useChat() {
           (payload.name as string) ?? 'unknown',
           (payload.success as boolean) ?? true,
           payload.elapsed as number | undefined,
+          payload.result as string | undefined,
         );
       }),
 
@@ -84,7 +91,17 @@ export function useChat() {
     ];
 
     return () => { unsubs.forEach((fn) => fn()); };
-  }, [on, appendStreamDelta, finalizeStream, setStreaming, setCost, addToolActivity, completeToolActivity, setStep]);
+  }, [
+    on,
+    appendStreamDelta,
+    finalizeStream,
+    upsertCards,
+    setStreaming,
+    setCost,
+    addToolActivity,
+    completeToolActivity,
+    setStep,
+  ]);
 
   // Send message
   const sendMessage = useCallback(async (message: string) => {

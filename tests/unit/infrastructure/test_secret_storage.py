@@ -202,7 +202,7 @@ class TestKeyringChunking:
         assert "oauth:test__part0" in delete_calls
 
     def test_delete_removes_chunks_and_header(self):
-        storage, fake = self._make_storage()
+        storage, _fake = self._make_storage()
         storage.store("oauth:test", "y" * 3000)
         assert storage.delete("oauth:test") is True
         assert storage.retrieve("oauth:test") is None

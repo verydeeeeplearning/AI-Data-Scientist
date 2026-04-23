@@ -21,6 +21,7 @@ const LOCALES_DIR = join(ELECTRON_ROOT, 'public', 'locales');
 
 const NAMESPACES = [
   'common',
+  'area',
   'mission',
   'workspace',
   'execution',
@@ -30,8 +31,10 @@ const NAMESPACES = [
   'settings',
   'approval',
   'trust',
+  'run',
   'cards',
   'chat',
+  'share',
 ] as const;
 
 const LOCALES = ['ko', 'en', 'ja'] as const;
@@ -236,9 +239,26 @@ test('common namespace contains baseline shared vocabulary', () => {
   }
 });
 
-test('approval / trust / cards / chat namespaces exist (placeholder ok)', () => {
+test('area namespace preserves Wave 2 IA keys', () => {
+  const ns = 'area';
+  const required = [
+    'mission.label',
+    'runs.label',
+    'artifacts.views.files',
+    'admin.models',
+    'migration.notice',
+  ];
   for (const lng of LOCALES) {
-    for (const ns of ['approval', 'trust', 'cards', 'chat']) {
+    const flat = loadFlat(lng, ns);
+    for (const key of required) {
+      assert.ok(flat.has(key), `[${ns}/${lng}] missing W2-A key: ${key}`);
+    }
+  }
+});
+
+test('approval / trust / run / cards / chat / share namespaces exist (placeholder ok)', () => {
+  for (const lng of LOCALES) {
+    for (const ns of ['approval', 'trust', 'run', 'cards', 'chat', 'share']) {
       const flat = loadFlat(lng, ns);
       assert.ok(flat instanceof Map, `${lng}/${ns}.json failed to load`);
     }

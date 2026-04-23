@@ -3,6 +3,7 @@
  */
 
 import { Settings } from 'lucide-react';
+import { Card, Radio } from '../../design-system/primitives';
 import { useAgentStore } from '../../stores/agentStore';
 
 interface Props {
@@ -20,42 +21,26 @@ export function ModeSelector({ onChange }: Props) {
 
   return (
     <div className="px-3 py-1.5">
-      <div className="flex items-center gap-1.5 mb-1.5 text-xs font-medium text-ds-muted uppercase tracking-wider">
-        <Settings size={12} />
-        Mode
-      </div>
-
-      <div className="space-y-0.5">
-        {MODES.map((m) => (
-          <button
-            key={m.value}
-            onClick={() => onChange(m.value)}
-            className={`
-              w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs
-              transition-colors text-left
-              ${mode === m.value
-                ? 'bg-ds-accent/10 text-ds-accent'
-                : 'text-ds-text/70 hover:bg-ds-bg hover:text-ds-text'}
-            `}
-          >
-            {/* Radio indicator */}
-            <div className={`
-              w-3 h-3 rounded-full border flex-shrink-0
-              flex items-center justify-center
-              ${mode === m.value ? 'border-ds-accent' : 'border-ds-muted/40'}
-            `}>
-              {mode === m.value && (
-                <div className="w-1.5 h-1.5 rounded-full bg-ds-accent" />
-              )}
-            </div>
-
-            <div>
-              <div className="font-medium">{m.label}</div>
-              <div className="text-[10px] text-ds-muted leading-tight">{m.desc}</div>
-            </div>
-          </button>
-        ))}
-      </div>
+      <fieldset className="space-y-ds-3" aria-label="Execution mode">
+        <legend className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-ds-muted">
+          <Settings size={12} aria-hidden="true" />
+          Mode
+        </legend>
+        <Card className="space-y-ds-2 bg-ds-bg/40 px-ds-3 py-ds-3 shadow-none">
+          {MODES.map((m) => (
+            <Radio
+              key={m.value}
+              name="sidebar-execution-mode"
+              value={m.value}
+              checked={mode === m.value}
+              onChange={() => onChange(m.value)}
+              label={m.label}
+              description={m.desc}
+              className="rounded-ds-lg px-ds-2 py-ds-2 hover:bg-ds-bg/60"
+            />
+          ))}
+        </Card>
+      </fieldset>
     </div>
   );
 }
