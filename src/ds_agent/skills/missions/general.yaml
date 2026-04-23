@@ -1,0 +1,48 @@
+name: general
+version: 1
+summary: General discovery mission for ambiguous requests that need scoping, a safe first-pass analysis, and a recommended next step.
+authority_default: supervised
+audience_default: senior_staff
+skills_required:
+  - scoping
+  - data-profiling
+  - eda
+boundary:
+  allowed_data_domains:
+    - product
+    - growth
+    - operations
+    - finance
+  required_semantic_metrics:
+    - business_question_confirmed
+    - source_trust_confirmed
+    - baseline_available
+  allowed_action_classes:
+    - read_sql_gold
+    - read_sql_bronze
+    - artifact_draft
+required_checks:
+  - schema_drift
+  - business_question_confirmed
+  - baseline_compare
+  - sensitive_column_review
+required_artifacts:
+  - ds_appendix
+auto_escalate_when:
+  - ambiguous_metric_definition
+  - sensitive_data_detected
+  - write_access_requested
+success_criteria:
+  - question_scoped
+  - first_pass_findings_documented
+  - next_step_recommended
+  - caveats_logged
+certification:
+  current_level: supervised
+  next_target: autopilot
+  autopilot_requirements:
+    shadow_runs_passed: 6
+    critical_violations: 0
+    verifier_avg_score: 0.8
+    rollback_rehearsal: passed
+    owner_approvals: 1

@@ -1,0 +1,9 @@
+{
+    "empty.title": "DS Agent",
+    "empty.desc": "AI Data Scientist ready to help.",
+    "empty.hint": "Send a message to start a data science session.",
+    "input.placeholder": "Send a message... (Enter to send, Shift+Enter for newline)",
+    "you": "You",
+    "agent": "DS Agent",
+    "toolActivity": "Tool Activity"
+}

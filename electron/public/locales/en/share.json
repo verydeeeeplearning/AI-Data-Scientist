@@ -1,0 +1,44 @@
+{
+  "button": {
+    "copy": "Copy share link",
+    "copied": "Share link copied"
+  },
+  "banner": {
+    "viewerOnly": "Read-only access",
+    "ownerLabel": "Owner: {owner}",
+    "readOnlyTooltip": "Read-only - owner controls this resource"
+  },
+  "error": {
+    "forbidden": "You do not have permission to perform this action."
+  },
+  "accessLog": {
+    "title": "Access log",
+    "description": "Review the latest access attempts for shared resources. Only the owner can view this surface.",
+    "loading": "Loading access log...",
+    "empty": "No access attempts match the current filters.",
+    "refresh": "Refresh",
+    "applyFilters": "Apply filters",
+    "resetFilters": "Reset",
+    "summary": "Showing {count} record(s).",
+    "filters": {
+      "resourceType": "Resource type",
+      "resourceTypePlaceholder": "run, artifact, session",
+      "since": "Since",
+      "until": "Until",
+      "limit": "Limit"
+    },
+    "columns": {
+      "timestamp": "Timestamp",
+      "action": "Action",
+      "resource": "Resource",
+      "outcome": "Outcome",
+      "reason": "Reason",
+      "actor": "Actor"
+    },
+    "outcome": {
+      "allowed": "allowed",
+      "denied": "denied"
+    },
+    "error": "Unable to load the access log. {message}"
+  }
+}

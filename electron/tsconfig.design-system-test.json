@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "outDir": "tests/.compiled-contract",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "types": ["node"]
+  },
+  "include": [
+    "tests/contract/designSystem*.spec.ts",
+    "src/renderer/vite-env.d.ts",
+    "src/renderer/design-system/**/*.ts",
+    "src/renderer/design-system/**/*.tsx",
+    "src/renderer/components/providers/**/*.tsx"
+  ]
+}
+

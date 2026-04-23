@@ -1,0 +1,23 @@
+{
+    "metricSource.suggested.churnRate": "Churn rate",
+    "metricSource.suggested.mau": "MAU",
+    "metricSource.suggested.ltv": "LTV",
+    "metricSource.placeholder": "Hover a metric header or type MAU / Churn rate / LTV",
+    "promoteDialog.title": "Promote artifact",
+    "promoteDialog.description": "Promote this result card to an audience-specific artifact.",
+    "promoteDialog.audienceLabel": "Audience",
+    "promoteDialog.audience.ds": "DS",
+    "promoteDialog.audience.exec": "Exec",
+    "promoteDialog.audience.ml": "ML",
+    "promoteDialog.titleLabel": "Title",
+    "promoteDialog.titlePlaceholder": "Leave blank to use the card id",
+    "promoteDialog.cancel": "Cancel",
+    "promoteDialog.confirm": "Promote",
+    "promoteDialog.confirmBusy": "Promoting...",
+    "promoteDialog.validation.audienceRequired": "Choose an audience.",
+    "promoteDialog.status.success": "Promoted to {audience} as {artifactId}.",
+    "promoteDialog.status.failed": "Promote failed: {reason}",
+    "promotedBadge.label": "Promoted",
+    "promotedBadge.entry": "Promoted to {audience} at {timestamp}",
+    "promotedBadge.more": "+{count} more"
+}

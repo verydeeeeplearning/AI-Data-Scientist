@@ -1,0 +1,49 @@
+name: sql_exploration
+version: 1
+summary: SQL-first exploration mission for onboarding users who need trustworthy query answers and follow-up investigation paths.
+authority_default: delegate
+audience_default: peer_ds
+skills_required:
+  - scoping
+  - data-profiling
+  - hypothesis-ranking
+  - reporting
+boundary:
+  allowed_data_domains:
+    - finance
+    - product
+    - operations
+  required_semantic_metrics:
+    - query_grain_confirmed
+    - freshness_window
+    - join_key_coverage
+  allowed_action_classes:
+    - read_sql_gold
+    - read_sql_bronze
+    - artifact_draft
+required_checks:
+  - schema_drift
+  - query_grain_confirmed
+  - join_key_validation
+  - sensitive_column_review
+required_artifacts:
+  - sql_notes
+  - ds_appendix
+auto_escalate_when:
+  - pii_detected
+  - write_access_requested
+  - ambiguous_metric_definition
+success_criteria:
+  - question_answered
+  - reproducible_query_saved
+  - caveats_logged
+  - followup_queries_ranked
+certification:
+  current_level: delegate
+  next_target: autopilot
+  autopilot_requirements:
+    shadow_runs_passed: 6
+    critical_violations: 0
+    verifier_avg_score: 0.82
+    rollback_rehearsal: passed
+    owner_approvals: 1

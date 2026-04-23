@@ -1,0 +1,60 @@
+{
+    "title": "Command Palette",
+    "description": "Jump across DS Agent surfaces, runs, models, and policy tools.",
+    "shortcutHint": "Ctrl/Cmd + K",
+    "searchLabel": "Search commands",
+    "searchPlaceholder": "Search navigation, runs, models, or policies",
+    "recentHint": "Recent commands are ranked first",
+    "section": {
+        "navigation": "Navigation",
+        "run": "Runs",
+        "model": "Models",
+        "policy": "Policies"
+    },
+    "empty": {
+        "title": "No commands found",
+        "description": "Try a broader search term or clear the query."
+    },
+    "slash": {
+        "help": {
+            "label": "/help",
+            "description": "Ask for the most useful operator shortcuts and next actions"
+        },
+        "status": {
+            "label": "/status",
+            "description": "Ask for the current project status, cost, and active step"
+        },
+        "files": {
+            "label": "/files",
+            "description": "Ask for the current artifact and workspace file summary"
+        },
+        "budget": {
+            "label": "/budget",
+            "description": "Ask for the current budget summary and burn rate"
+        },
+        "contract": {
+            "label": "/contract",
+            "description": "Ask for the active task contract and operating constraints"
+        },
+        "verdict": {
+            "label": "/verdict",
+            "description": "Ask for the latest verifier or shadow-comparison verdict"
+        },
+        "mode": {
+            "label": "/mode",
+            "description": "Ask the agent to summarize the current execution mode and recommend a switch"
+        },
+        "model": {
+            "label": "/model",
+            "description": "Ask the agent to report the active model and suggest a better fit"
+        },
+        "certification": {
+            "label": "/certification",
+            "description": "Ask the agent to summarize mission certification status and remaining gates"
+        }
+    },
+    "announce": {
+        "sentToChat": "Sent {slash} to chat",
+        "agentSentToChat": "Sent {label} to chat"
+    }
+}

@@ -1,0 +1,60 @@
+{
+    "title": "명령 팔레트",
+    "description": "DS Agent의 화면, 런, 모델, 정책 도구로 빠르게 이동합니다.",
+    "shortcutHint": "Ctrl/Cmd + K",
+    "searchLabel": "명령 검색",
+    "searchPlaceholder": "화면, 런, 모델, 정책을 검색하세요",
+    "recentHint": "최근 사용 명령이 먼저 표시됩니다",
+    "section": {
+        "navigation": "이동",
+        "run": "런",
+        "model": "모델",
+        "policy": "정책"
+    },
+    "empty": {
+        "title": "명령을 찾을 수 없습니다",
+        "description": "더 넓은 검색어를 쓰거나 검색어를 비워 보세요."
+    },
+    "slash": {
+        "help": {
+            "label": "/help",
+            "description": "가장 유용한 운영자 단축 명령과 다음 액션을 요청합니다"
+        },
+        "status": {
+            "label": "/status",
+            "description": "현재 프로젝트 상태, 비용, 진행 단계를 요청합니다"
+        },
+        "files": {
+            "label": "/files",
+            "description": "현재 산출물 및 워크스페이스 파일 요약을 요청합니다"
+        },
+        "budget": {
+            "label": "/budget",
+            "description": "현재 예산 요약과 소진률을 요청합니다"
+        },
+        "contract": {
+            "label": "/contract",
+            "description": "활성 태스크 계약과 운영 제약을 요청합니다"
+        },
+        "verdict": {
+            "label": "/verdict",
+            "description": "최신 검증자 평결 또는 섀도우 비교 결과를 요청합니다"
+        },
+        "mode": {
+            "label": "/mode",
+            "description": "현재 실행 모드를 요약하고 변경을 권고하도록 요청합니다"
+        },
+        "model": {
+            "label": "/model",
+            "description": "활성 모델을 보고하고 더 적합한 대안을 제안하도록 요청합니다"
+        },
+        "certification": {
+            "label": "/certification",
+            "description": "미션 인증 상태와 남은 게이트를 요약하도록 요청합니다"
+        }
+    },
+    "announce": {
+        "sentToChat": "채팅에 {slash} 전송됨",
+        "agentSentToChat": "채팅에 {label} 전송됨"
+    }
+}

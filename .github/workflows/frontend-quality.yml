@@ -1,0 +1,81 @@
+name: Frontend Quality Gate
+
+# Wave 0–2 finalization: lightweight CI lane that gates renderer quality
+# without depending on the heavy backend binary build (smoke.yml / a11y.yml).
+# Runs in <5 min on a typical workflow runner so PRs get fast feedback on:
+#   - TypeScript typecheck (main + renderer projects)
+#   - Clean Architecture import boundaries (lint:arch)
+#   - i18n key parity across en/ko/ja namespaces (lint:i18n:ci)
+#   - Wave 2 contract gates (workspace / cards / trust / onboarding / approval / export wizard / highlighter)
+#   - Wave 3 contract gates (resume-from-checkpoint use case)
+#   - Wave 4 (W4-A) gates: design-system token lint, adoption audit,
+#     primitives/theme/a11y contract specs, and Storybook build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  frontend-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: electron
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install renderer deps
+        run: npm ci
+
+      - name: TypeScript typecheck (main + renderer)
+        run: npm run typecheck
+
+      - name: Lint — Clean Architecture layer rules
+        run: npm run lint:arch
+
+      - name: Lint — i18n key parity (13 × 3 namespaces)
+        run: npm run lint:i18n:ci
+
+      - name: Lint — Design system token discipline (W4-A)
+        run: npm run lint:design-system
+
+      - name: Audit — Design system adoption coverage (W4-A)
+        run: npm run audit:design-system
+
+      - name: Audit — Density-mode touch targets (WCAG 2.5.5, W4-B)
+        run: npm run audit:density-a11y
+
+      - name: Contract — Wave 2 surfaces (workspace / cards / trust / onboarding / approval)
+        run: npm run test:contract:wave2
+
+      - name: Contract — Wave 3 surfaces (resume-from-checkpoint)
+        run: npm run test:contract:wave3
+
+      - name: Contract — Wave 4 surfaces (density / deep-link)
+        run: npm run test:contract:wave4
+
+      - name: Contract — Design system primitives / theme / a11y (W4-A)
+        run: npm run test:contract:design-system
+
+      - name: Storybook — build (W4-A)
+        run: npm run build-storybook
+
+      - name: Upload compiled contract logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-quality-contract-logs
+          path: |
+            electron/tests/.compiled-contract/**/*.js
+          if-no-files-found: ignore
+          retention-days: 7

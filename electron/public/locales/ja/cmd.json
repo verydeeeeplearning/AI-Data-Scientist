@@ -1,0 +1,60 @@
+{
+  "title": "コマンドパレット",
+  "description": "DS Agent の画面、run、モデル、ポリシーツールへ素早く移動します。",
+  "shortcutHint": "Ctrl/Cmd + K",
+  "searchLabel": "コマンドを検索",
+  "searchPlaceholder": "画面、run、モデル、ポリシーを検索",
+  "recentHint": "最近使ったコマンドが優先表示されます",
+  "section": {
+    "navigation": "ナビゲーション",
+    "run": "Run",
+    "model": "モデル",
+    "policy": "ポリシー"
+  },
+  "empty": {
+    "title": "コマンドが見つかりません",
+    "description": "より広い語句で検索するか、検索語をクリアしてください。"
+  },
+  "slash": {
+    "help": {
+      "label": "/help",
+      "description": "最も有用なオペレーター向けショートカットと次のアクションを尋ねます"
+    },
+    "status": {
+      "label": "/status",
+      "description": "現在のプロジェクト状況、コスト、進行ステップを尋ねます"
+    },
+    "files": {
+      "label": "/files",
+      "description": "現在の成果物とワークスペースファイルの要約を尋ねます"
+    },
+    "budget": {
+      "label": "/budget",
+      "description": "現在の予算サマリと消費率を尋ねます"
+    },
+    "contract": {
+      "label": "/contract",
+      "description": "アクティブなタスク契約と運用制約を尋ねます"
+    },
+    "verdict": {
+      "label": "/verdict",
+      "description": "最新の検証者評定またはシャドウ比較結果を尋ねます"
+    },
+    "mode": {
+      "label": "/mode",
+      "description": "現在の実行モードを要約し、切替を推奨してもらいます"
+    },
+    "model": {
+      "label": "/model",
+      "description": "アクティブなモデルを報告し、より適した代替を提案してもらいます"
+    },
+    "certification": {
+      "label": "/certification",
+      "description": "ミッション認証ステータスと残ゲートの要約を依頼します"
+    }
+  },
+  "announce": {
+    "sentToChat": "チャットへ {slash} を送信しました",
+    "agentSentToChat": "チャットへ {label} を送信しました"
+  }
+}

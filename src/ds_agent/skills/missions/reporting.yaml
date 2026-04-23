@@ -1,0 +1,48 @@
+name: reporting
+version: 1
+summary: Executive reporting mission for recurring KPI readouts, trend interpretation, and decision-ready narrative synthesis.
+authority_default: supervised
+audience_default: executive
+skills_required:
+  - scoping
+  - eda
+  - reporting
+boundary:
+  allowed_data_domains:
+    - finance
+    - growth
+    - operations
+  required_semantic_metrics:
+    - metric_definition_confirmed
+    - freshness_window
+    - variance_to_plan
+  allowed_action_classes:
+    - read_sql_gold
+    - read_sql_bronze
+    - artifact_draft
+required_checks:
+  - schema_drift
+  - metric_definition_confirmed
+  - baseline_compare
+  - executive_narrative_review
+required_artifacts:
+  - ds_appendix
+  - exec_brief
+auto_escalate_when:
+  - sensitive_data_detected
+  - source_data_untrusted
+  - recommendation_conflict
+success_criteria:
+  - trends_summarized
+  - decision_ready_narrative_delivered
+  - limitations_disclosed
+  - owner_followups_defined
+certification:
+  current_level: supervised
+  next_target: autopilot
+  autopilot_requirements:
+    shadow_runs_passed: 8
+    critical_violations: 0
+    verifier_avg_score: 0.84
+    rollback_rehearsal: passed
+    owner_approvals: 1

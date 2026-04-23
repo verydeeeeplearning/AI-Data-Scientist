@@ -1,0 +1,48 @@
+name: dashboard
+version: 1
+summary: Dashboard design mission for KPI selection, slice definition, and trustable decision-surface delivery.
+authority_default: supervised
+audience_default: senior_staff
+skills_required:
+  - scoping
+  - data-profiling
+  - reporting
+boundary:
+  allowed_data_domains:
+    - product
+    - growth
+    - operations
+  required_semantic_metrics:
+    - metric_definition_confirmed
+    - slice_coverage
+    - refresh_cadence
+  allowed_action_classes:
+    - read_sql_gold
+    - read_sql_bronze
+    - artifact_draft
+required_checks:
+  - schema_drift
+  - metric_definition_confirmed
+  - dashboard_grain_confirmed
+  - baseline_compare
+required_artifacts:
+  - dashboard
+  - exec_brief
+auto_escalate_when:
+  - metric_definition_conflict
+  - source_data_untrusted
+  - stakeholder_decision_blocked
+success_criteria:
+  - dashboard_views_prioritized
+  - metric_definitions_documented
+  - caveats_visible
+  - rollout_recommendation_ready
+certification:
+  current_level: supervised
+  next_target: autopilot
+  autopilot_requirements:
+    shadow_runs_passed: 7
+    critical_violations: 0
+    verifier_avg_score: 0.83
+    rollback_rehearsal: passed
+    owner_approvals: 1

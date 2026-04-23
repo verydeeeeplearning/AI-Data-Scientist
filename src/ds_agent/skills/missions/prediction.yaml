@@ -1,0 +1,55 @@
+name: prediction
+version: 1
+summary: Supervised prediction mission for onboarding users who want a baseline-backed model recommendation.
+authority_default: supervised
+audience_default: peer_ds
+skills_required:
+  - scoping
+  - feature-engineering
+  - modeling
+  - evaluation
+  - uncertainty-quantification
+boundary:
+  allowed_data_domains:
+    - customer
+    - subscription
+    - growth
+  required_semantic_metrics:
+    - target_definition_confirmed
+    - holdout_metric
+    - business_cost_metric
+  allowed_action_classes:
+    - read_sql_gold
+    - read_sql_bronze
+    - artifact_draft
+    - model_training
+    - train_model
+required_checks:
+  - schema_drift
+  - label_leakage
+  - temporal_leakage
+  - baseline_compare
+  - subgroup_stability
+required_artifacts:
+  - ds_appendix
+  - model_card
+  - evaluation_report
+auto_escalate_when:
+  - baseline_not_beaten
+  - fairness_risk_detected
+  - deployment_requested
+  - sensitive_data_detected
+success_criteria:
+  - target_defined
+  - baseline_beaten
+  - holdout_metrics_reported
+  - recommendation_delivered
+certification:
+  current_level: supervised
+  next_target: autopilot
+  autopilot_requirements:
+    shadow_runs_passed: 12
+    critical_violations: 0
+    verifier_avg_score: 0.88
+    rollback_rehearsal: passed
+    owner_approvals: 2

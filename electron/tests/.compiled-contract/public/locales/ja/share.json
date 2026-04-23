@@ -1,0 +1,44 @@
+{
+    "button": {
+        "copy": "共有リンクをコピー",
+        "copied": "共有リンクをコピーしました"
+    },
+    "banner": {
+        "viewerOnly": "読み取り専用アクセス",
+        "ownerLabel": "オーナー: {owner}",
+        "readOnlyTooltip": "読み取り専用 - オーナーがこのリソースを管理しています"
+    },
+    "error": {
+        "forbidden": "この操作を実行する権限がありません。"
+    },
+    "accessLog": {
+        "title": "アクセスログ",
+        "description": "共有リソースへの最新のアクセス試行を確認します。この画面はオーナーのみが表示できます。",
+        "loading": "アクセスログを読み込んでいます...",
+        "empty": "現在のフィルターに一致するアクセス試行はありません。",
+        "refresh": "更新",
+        "applyFilters": "フィルターを適用",
+        "resetFilters": "リセット",
+        "summary": "{count}件の記録を表示しています。",
+        "filters": {
+            "resourceType": "リソース種別",
+            "resourceTypePlaceholder": "run, artifact, session",
+            "since": "開始日",
+            "until": "終了日",
+            "limit": "件数"
+        },
+        "columns": {
+            "timestamp": "日時",
+            "action": "操作",
+            "resource": "リソース",
+            "outcome": "結果",
+            "reason": "理由",
+            "actor": "実行者"
+        },
+        "outcome": {
+            "allowed": "許可",
+            "denied": "拒否"
+        },
+        "error": "アクセスログを読み込めません。{message}"
+    }
+}

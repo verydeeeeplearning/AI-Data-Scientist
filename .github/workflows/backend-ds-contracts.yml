@@ -1,0 +1,39 @@
+name: DS Contract Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install backend quality gate deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pydantic>=2.0.0" "pyyaml>=6.0" "pytest>=8.0" "pytest-asyncio>=0.24.0"
+
+      - name: Run backend baseline gate
+        run: python scripts/check_backend_quality_gate.py
+
+      - name: Upload backend quality gate artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-quality-gate
+          path: |
+            .tmp/pytest-architecture-gate/**
+            .tmp/pytest-contract/**
+          if-no-files-found: ignore
+          retention-days: 7

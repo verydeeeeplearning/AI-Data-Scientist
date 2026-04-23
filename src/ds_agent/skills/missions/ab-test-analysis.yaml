@@ -1,0 +1,49 @@
+name: ab-test-analysis
+version: 1
+summary: Experiment readout mission for A/B test validity, effect sizing, and ship-or-hold recommendations.
+authority_default: supervised
+audience_default: executive
+skills_required:
+  - scoping
+  - evaluation
+  - uncertainty-quantification
+  - reporting
+boundary:
+  allowed_data_domains:
+    - product
+    - growth
+    - marketing
+  required_semantic_metrics:
+    - primary_metric_confirmed
+    - assignment_integrity
+    - practical_significance
+  allowed_action_classes:
+    - read_sql_gold
+    - read_sql_bronze
+    - artifact_draft
+required_checks:
+  - sample_ratio_mismatch
+  - baseline_compare
+  - confidence_interval_review
+  - multiple_testing_review
+required_artifacts:
+  - exec_brief
+  - ds_appendix
+auto_escalate_when:
+  - sample_ratio_mismatch_detected
+  - guardrail_metric_regressed
+  - rollout_requested_without_power
+success_criteria:
+  - experiment_validated
+  - effect_size_reported
+  - recommendation_delivered
+  - risks_disclosed
+certification:
+  current_level: supervised
+  next_target: autopilot
+  autopilot_requirements:
+    shadow_runs_passed: 9
+    critical_violations: 0
+    verifier_avg_score: 0.86
+    rollback_rehearsal: passed
+    owner_approvals: 2

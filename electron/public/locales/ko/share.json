@@ -1,0 +1,44 @@
+{
+  "button": {
+    "copy": "공유 링크 복사",
+    "copied": "공유 링크가 복사되었습니다"
+  },
+  "banner": {
+    "viewerOnly": "읽기 전용 액세스",
+    "ownerLabel": "소유자: {owner}",
+    "readOnlyTooltip": "읽기 전용 - 소유자만 이 리소스를 변경할 수 있습니다"
+  },
+  "error": {
+    "forbidden": "이 작업을 수행할 권한이 없습니다."
+  },
+  "accessLog": {
+    "title": "액세스 로그",
+    "description": "공유 리소스에 대한 최근 액세스 시도를 확인합니다. 이 화면은 소유자만 볼 수 있습니다.",
+    "loading": "액세스 로그를 불러오는 중...",
+    "empty": "현재 필터와 일치하는 액세스 시도가 없습니다.",
+    "refresh": "새로고침",
+    "applyFilters": "필터 적용",
+    "resetFilters": "초기화",
+    "summary": "{count}개 기록을 표시합니다.",
+    "filters": {
+      "resourceType": "리소스 유형",
+      "resourceTypePlaceholder": "run, artifact, session",
+      "since": "시작일",
+      "until": "종료일",
+      "limit": "개수"
+    },
+    "columns": {
+      "timestamp": "시간",
+      "action": "작업",
+      "resource": "리소스",
+      "outcome": "결과",
+      "reason": "사유",
+      "actor": "행위자"
+    },
+    "outcome": {
+      "allowed": "허용",
+      "denied": "거부"
+    },
+    "error": "액세스 로그를 불러올 수 없습니다. {message}"
+  }
+}
