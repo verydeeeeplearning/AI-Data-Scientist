@@ -104,6 +104,27 @@ async function waitForTextContains(page: Page, testId: string, needle: string): 
   );
 }
 
+async function clickTestId(page: Page, testId: string): Promise<void> {
+  const element = page.getByTestId(testId);
+  await element.waitFor({ state: 'visible', timeout: 30_000 });
+  await element.evaluate((node) => (node as HTMLElement).click());
+}
+
+async function openSeededSession(page: Page): Promise<void> {
+  const testId = `open-session-${SEEDED_SESSION_ID}`;
+  const button = page.getByTestId(testId);
+  await button.waitFor({ state: 'visible', timeout: 30_000 });
+  await button.evaluate((node) => (node as HTMLButtonElement).click());
+  await page.waitForFunction(
+    ({ currentTestId }) => {
+      const node = document.querySelector(`[data-testid="${currentTestId}"]`);
+      return Boolean(node?.textContent?.includes('Opened'));
+    },
+    { currentTestId: testId },
+    { timeout: 30_000 },
+  );
+}
+
 async function run(): Promise<void> {
   if (!fs.existsSync(BACKEND_BIN)) {
     throw new Error(
@@ -125,8 +146,10 @@ async function run(): Promise<void> {
       DS_AGENT_SENTRY_DSN: '',
       DS_AGENT_ERROR_REPORTING_ENABLED: '0',
       DS_AGENT_TELEMETRY_ENABLED: '0',
+      DS_AGENT_E2E_USER_DATA_DIR: path.join(paths.rootDir, 'userData'),
       DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
       DS_AGENT_E2E_SKIP_ONBOARDING: '1',
+      DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
     },
     timeout: 60_000,
   });
@@ -136,35 +159,31 @@ async function run(): Promise<void> {
     await page.waitForLoadState('domcontentloaded');
     await page.getByTestId('open-settings').waitFor({ state: 'visible', timeout: 60_000 });
 
-    await page.getByTestId('sidebar-tab-runtime').click();
-    await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).waitFor({
-      state: 'visible',
-      timeout: 30_000,
-    });
-    await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).click();
-    await page.getByTestId('sidebar-tab-workflow').click();
+    await clickTestId(page, 'sidebar-tab-runtime');
+    await openSeededSession(page);
+    await clickTestId(page, 'sidebar-tab-workflow');
 
     await page.getByTestId('mission-brief-panel').waitFor({ state: 'visible', timeout: 30_000 });
     await waitForTextContains(page, 'mission-brief-authority', 'delegate');
     await waitForTextContains(page, 'mission-brief-audience', 'senior_staff');
     await waitForTextContains(page, 'mission-brief-status-badge', 'draft');
 
-    await page.getByTestId('mission-brief-action-agree').click();
+    await clickTestId(page, 'mission-brief-action-agree');
     await waitForTextContains(page, 'mission-brief-status-badge', 'agreed');
 
-    await page.getByTestId('mission-brief-action-start-work').click();
+    await clickTestId(page, 'mission-brief-action-start-work');
     await waitForTextContains(page, 'mission-brief-status-badge', 'in_progress');
 
-    await page.getByTestId('mission-brief-action-send-review').click();
+    await clickTestId(page, 'mission-brief-action-send-review');
     await waitForTextContains(page, 'mission-brief-status-badge', 'review');
 
-    await page.getByTestId('mission-brief-action-reopen').click();
+    await clickTestId(page, 'mission-brief-action-reopen');
     await waitForTextContains(page, 'mission-brief-status-badge', 'in_progress');
 
-    await page.getByTestId('mission-brief-action-send-review').click();
+    await clickTestId(page, 'mission-brief-action-send-review');
     await waitForTextContains(page, 'mission-brief-status-badge', 'review');
 
-    await page.getByTestId('mission-brief-action-abandon').click();
+    await clickTestId(page, 'mission-brief-action-abandon');
     await waitForTextContains(page, 'mission-brief-status-badge', 'abandoned');
 
     console.log('[e2e] PASS task-contract governance flow.');

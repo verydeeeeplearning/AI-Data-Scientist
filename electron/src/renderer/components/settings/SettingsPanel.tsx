@@ -12,6 +12,7 @@ import { useAgentStore } from '../../stores/agentStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useConfigStore } from '../../stores/configStore';
 import { getLocaleOption, useI18n, type Locale } from '../../stores/i18nStore';
+import { resolveMainIpcErrorMessage } from '../../utils/mainIpcErrors';
 import { useProjectStore } from '../../stores/projectStore';
 import { fetchAuthSnapshot } from '../../hooks/useProviderAuth';
 import { PROVIDER_LABELS, describeModelAccess } from '../../utils/modelAuth';
@@ -196,7 +197,9 @@ export function SettingsPanel({
       if (window.electronAPI?.setApiKey) {
         const result = await window.electronAPI.setApiKey(provider, newKey.trim());
         if (!result.ok) {
-          throw new Error(result.error ?? 'Failed to save API key.');
+          throw new Error(
+            resolveMainIpcErrorMessage(result, 'settings.apiKeys.saveFailedDefault'),
+          );
         }
       } else {
         await rpc('config.setApiKey', { provider, key: newKey.trim() });

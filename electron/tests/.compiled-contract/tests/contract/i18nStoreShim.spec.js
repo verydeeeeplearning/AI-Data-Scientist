@@ -7,6 +7,7 @@ const strict_1 = __importDefault(require("node:assert/strict"));
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const i18next_1 = __importDefault(require("i18next"));
+const meta_1 = require("../../src/shared/i18n/meta");
 function findElectronRoot(start) {
     let dir = start;
     for (let i = 0; i < 8; i += 1) {
@@ -22,30 +23,15 @@ function findElectronRoot(start) {
 }
 const ELECTRON_ROOT = findElectronRoot(__dirname);
 const LOCALES_DIR = (0, node_path_1.join)(ELECTRON_ROOT, 'public', 'locales');
-const NAMESPACES = [
-    'common',
-    'mission',
-    'workspace',
-    'execution',
-    'llm',
-    'sidebar',
-    'onboarding',
-    'settings',
-    'approval',
-    'trust',
-    'run',
-    'cards',
-    'chat',
-    'share',
-];
-const LOCALES = ['ko', 'en', 'ja'];
+const NAMESPACES = meta_1.DESKTOP_I18N_NAMESPACES;
+const LOCALES = meta_1.SHARED_I18N_LOCALES;
 function loadResources() {
     const out = {};
     for (const lng of LOCALES) {
         out[lng] = {};
         for (const ns of NAMESPACES) {
             const filePath = (0, node_path_1.join)(LOCALES_DIR, lng, `${ns}.json`);
-            out[lng][ns] = JSON.parse((0, node_fs_1.readFileSync)(filePath, 'utf8'));
+            out[lng][ns] = JSON.parse((0, node_fs_1.readFileSync)(filePath, 'utf8').replace(/^\uFEFF/, ''));
         }
     }
     return out;
@@ -85,6 +71,14 @@ test('namespace inference: prefix matches a registered namespace and is stripped
         ns: 'execution',
         key: 'stage.eda',
     });
+    strict_1.default.deepEqual(resolveNamespaceAndKey('area.mission.label'), {
+        ns: 'area',
+        key: 'mission.label',
+    });
+    strict_1.default.deepEqual(resolveNamespaceAndKey('cmd.palette.title'), {
+        ns: 'cmd',
+        key: 'palette.title',
+    });
 });
 test('namespace inference: unknown prefix falls back to common, key kept whole', () => {
     strict_1.default.deepEqual(resolveNamespaceAndKey('alert.leakage'), {
@@ -105,7 +99,7 @@ test('namespace inference: explicit ns:key syntax wins over dot prefix', () => {
 test('namespace inference: bare key without dot uses common', () => {
     strict_1.default.deepEqual(resolveNamespaceAndKey('save'), { ns: 'common', key: 'save' });
 });
-test('i18next init: 3 locales x 14 namespaces resources load', async () => {
+test('i18next init: 3 locales x shared desktop namespaces resources load', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await i18next_1.default.init({
         resources: loadResources(),

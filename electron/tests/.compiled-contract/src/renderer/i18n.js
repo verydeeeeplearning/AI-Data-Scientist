@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.I18N_RESOURCES = exports.LEGACY_LOCALE_KEY = exports.I18N_LANGUAGE_KEY = exports.I18N_NAMESPACES = exports.SUPPORTED_LNGS = void 0;
 const i18next_1 = __importDefault(require("i18next"));
 const react_i18next_1 = require("react-i18next");
+const meta_1 = require("../shared/i18n/meta");
 const common_json_1 = __importDefault(require("../../public/locales/ko/common.json"));
 const area_json_1 = __importDefault(require("../../public/locales/ko/area.json"));
 const mission_json_1 = __importDefault(require("../../public/locales/ko/mission.json"));
@@ -54,25 +55,8 @@ const cards_json_3 = __importDefault(require("../../public/locales/ja/cards.json
 const chat_json_3 = __importDefault(require("../../public/locales/ja/chat.json"));
 const cmd_json_3 = __importDefault(require("../../public/locales/ja/cmd.json"));
 const share_json_3 = __importDefault(require("../../public/locales/ja/share.json"));
-exports.SUPPORTED_LNGS = ['ko', 'en', 'ja'];
-exports.I18N_NAMESPACES = [
-    'common',
-    'area',
-    'mission',
-    'workspace',
-    'execution',
-    'llm',
-    'sidebar',
-    'onboarding',
-    'settings',
-    'approval',
-    'trust',
-    'run',
-    'cards',
-    'chat',
-    'cmd',
-    'share',
-];
+exports.SUPPORTED_LNGS = meta_1.SHARED_I18N_LOCALES;
+exports.I18N_NAMESPACES = meta_1.DESKTOP_I18N_NAMESPACES;
 exports.I18N_LANGUAGE_KEY = 'i18nextLng';
 exports.LEGACY_LOCALE_KEY = 'ds-agent-locale';
 exports.I18N_RESOURCES = {

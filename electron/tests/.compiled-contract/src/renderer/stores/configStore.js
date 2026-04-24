@@ -215,6 +215,10 @@ function parseIaV2Enabled(value) {
 }
 function loadIaV2Enabled() {
     try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('e2e_force_legacy_ia') === '1') {
+            return false;
+        }
         return parseIaV2Enabled(localStorage.getItem(exports.IA_V2_FLAG_STORAGE_KEY));
     }
     catch {

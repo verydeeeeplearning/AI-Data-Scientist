@@ -9,6 +9,7 @@ import {
   DrawerShell,
   Textarea,
 } from '../../design-system/primitives';
+import { useI18n } from '../../stores/i18nStore';
 import type { AssumptionEntry } from '../../types/taskContract';
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function AssumptionDrawer({ open, entries, verifying, onVerify, onClose }: Props) {
+  const { t } = useI18n();
   const [verificationNotes, setVerificationNotes] = useState<Record<string, string>>({});
 
   const toneForRisk = (riskLevel: AssumptionEntry['risk_level']) => {
@@ -32,22 +34,22 @@ export function AssumptionDrawer({ open, entries, verifying, onVerify, onClose }
     return 'neutral';
   };
 
-  const description = 'Unverified assumptions captured in the current contract.';
+  const description = t('mission.brief.assumptions.drawer.description');
 
   return (
     <DrawerShell
       open={open}
       size="lg"
-      title="Open Assumptions"
+      title={t('mission.brief.assumptions.drawer.title')}
       description={description}
-      dismissLabel="Close assumptions drawer"
+      dismissLabel={t('mission.brief.assumptions.drawer.dismiss')}
       onDismiss={onClose}
       data-testid="assumption-drawer"
     >
       <div className="space-y-ds-3">
         {entries.length === 0 && (
           <DrawerSurfaceSection data-testid="assumption-empty-state">
-            <p className="text-ds-sm text-ds-muted">No open assumptions.</p>
+            <p className="text-ds-sm text-ds-muted">{t('mission.brief.assumptions.drawer.empty')}</p>
           </DrawerSurfaceSection>
         )}
 
@@ -68,7 +70,9 @@ export function AssumptionDrawer({ open, entries, verifying, onVerify, onClose }
             <p className="mt-ds-2 text-ds-sm leading-6 text-ds-muted">{entry.rationale}</p>
 
             <div className="mt-ds-4 space-y-ds-3">
-              <DrawerSurfaceSectionTitle>Verification Note</DrawerSurfaceSectionTitle>
+              <DrawerSurfaceSectionTitle>
+                {t('mission.brief.assumptions.drawer.note_title')}
+              </DrawerSurfaceSectionTitle>
               <Textarea
                 value={verificationNotes[entry.entry_id] ?? ''}
                 onChange={(event) =>
@@ -78,7 +82,7 @@ export function AssumptionDrawer({ open, entries, verifying, onVerify, onClose }
                   }))
                 }
                 rows={3}
-                placeholder="Verification note (optional)"
+                placeholder={t('mission.brief.assumptions.drawer.note_placeholder')}
                 resize="none"
                 data-testid={`assumption-note-${entry.entry_id}`}
               />
@@ -92,7 +96,7 @@ export function AssumptionDrawer({ open, entries, verifying, onVerify, onClose }
                 }
                 data-testid={`assumption-verify-${entry.entry_id}`}
               >
-                Mark Verified
+                {t('mission.brief.assumptions.drawer.mark_verified')}
               </Button>
             </div>
           </DrawerSurfaceSection>

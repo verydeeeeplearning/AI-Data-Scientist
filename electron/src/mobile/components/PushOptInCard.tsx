@@ -9,6 +9,11 @@ import {
   type PushPermissionState,
   type PushSubscriptionPayload,
 } from '../push/pushAdapter';
+import {
+  getPushErrorKey,
+  getPushMetricsErrorKey,
+  resolvePushErrorCode,
+} from '../errors/mobileError';
 import { getBackendBase } from '../../renderer/utils/backendUrl';
 import { VapidSubjectField } from './VapidSubjectField';
 
@@ -62,21 +67,25 @@ export function PushOptInCard(): ReactElement {
       : initialPermission === 'denied' ? 'denied'
       : 'inactive',
   );
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<WebPushMetricsSummary | null>(null);
-  const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [metricsErrorKey, setMetricsErrorKey] = useState<string | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
 
   const refreshMetrics = useCallback(async () => {
     setMetricsLoading(true);
-    setMetricsError(null);
+    setMetricsErrorKey(null);
     try {
       const url = new URL('/api/web-push/metrics', getBackendBase());
       url.searchParams.set('windowHours', '24');
       const response = await fetch(url.toString(), { cache: 'no-store' });
       if (!response.ok) {
-        throw new Error(`metrics request failed (${response.status})`);
+        const errorCode =
+          response.status === 400 ? 'push_metrics_invalid_request' : 'push_metrics_load_failed';
+        setMetricsErrorKey(getPushMetricsErrorKey(errorCode));
+        setMetrics(null);
+        return;
       }
       const payload = (await response.json()) as Partial<WebPushMetricsSummary>;
       setMetrics({
@@ -86,14 +95,12 @@ export function PushOptInCard(): ReactElement {
         uniqueEndpoints: typeof payload.uniqueEndpoints === 'number' ? payload.uniqueEndpoints : 0,
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t('mobile.push.metrics.error');
-      setMetricsError(message);
+      setMetricsErrorKey(getPushMetricsErrorKey(resolvePushErrorCode(error)));
       setMetrics(null);
     } finally {
       setMetricsLoading(false);
     }
-  }, [t]);
+  }, []);
 
   // On mount, detect whether a subscription already exists so the card
   // renders the correct CTA (enable vs disable).
@@ -105,11 +112,17 @@ export function PushOptInCard(): ReactElement {
     (async () => {
       const registration = await getRegistration();
       if (!registration || cancelled) return;
-      const current = await getCurrentSubscription(registration);
-      if (cancelled) return;
-      if (current) {
-        setEndpoint(current.endpoint);
-        setStatus('active');
+      try {
+        const current = await getCurrentSubscription(registration);
+        if (cancelled) return;
+        if (current) {
+          setEndpoint(current.endpoint);
+          setStatus('active');
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setErrorKey(getPushErrorKey(resolvePushErrorCode(error)));
+        setStatus('error');
       }
     })();
     return () => {
@@ -123,12 +136,12 @@ export function PushOptInCard(): ReactElement {
 
   const handleEnable = useCallback(async () => {
     if (!bridge) {
-      setErrorMessage(t('mobile.push.error.bridgeMissing'));
+      setErrorKey('mobile.push.error.bridgeMissing');
       setStatus('error');
       return;
     }
     setStatus('loading');
-    setErrorMessage(null);
+    setErrorKey(null);
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
@@ -137,20 +150,20 @@ export function PushOptInCard(): ReactElement {
       }
       const keyResp = await bridge.getPublicKey();
       if (!keyResp.ok || !keyResp.publicKey) {
-        setErrorMessage(t('mobile.push.error.keyMissing'));
+        setErrorKey(getPushErrorKey(resolvePushErrorCode(keyResp.reason ?? 'push_vapid_public_key_missing')));
         setStatus('error');
         return;
       }
       const registration = await getRegistration();
       if (!registration) {
-        setErrorMessage(t('mobile.push.error.swMissing'));
+        setErrorKey('mobile.push.error.swMissing');
         setStatus('error');
         return;
       }
       const payload = await subscribeToWebPush(registration, keyResp.publicKey);
       const reg = await bridge.registerSubscription(payload);
       if (!reg.ok) {
-        setErrorMessage(reg.error ?? t('mobile.push.error.register'));
+        setErrorKey(getPushErrorKey(resolvePushErrorCode(reg.error)));
         setStatus('error');
         return;
       }
@@ -158,30 +171,35 @@ export function PushOptInCard(): ReactElement {
       setStatus('active');
       void refreshMetrics();
     } catch (err) {
-      setErrorMessage((err as Error).message ?? t('mobile.push.error.generic'));
+      setErrorKey(getPushErrorKey(resolvePushErrorCode(err)));
       setStatus('error');
     }
-  }, [bridge, refreshMetrics, t]);
+  }, [bridge, refreshMetrics]);
 
   const handleDisable = useCallback(async () => {
     setStatus('loading');
-    setErrorMessage(null);
+    setErrorKey(null);
     try {
       const registration = await getRegistration();
       if (registration) {
         await unsubscribeFromWebPush(registration);
       }
       if (bridge && endpoint) {
-        await bridge.unregisterSubscription({ endpoint });
+        const response = await bridge.unregisterSubscription({ endpoint });
+        if (!response.ok) {
+          setErrorKey(getPushErrorKey(resolvePushErrorCode(response.error)));
+          setStatus('error');
+          return;
+        }
       }
       setEndpoint(null);
       setStatus('inactive');
       void refreshMetrics();
     } catch (err) {
-      setErrorMessage((err as Error).message ?? t('mobile.push.error.generic'));
+      setErrorKey(getPushErrorKey(resolvePushErrorCode(err)));
       setStatus('error');
     }
-  }, [bridge, endpoint, refreshMetrics, t]);
+  }, [bridge, endpoint, refreshMetrics]);
 
   const statusLabelKey =
     status === 'unsupported' ? 'mobile.push.status.unsupported'
@@ -214,9 +232,9 @@ export function PushOptInCard(): ReactElement {
       <p className="mt-3 text-xs uppercase tracking-[0.16em] text-ds-muted">
         {t(statusLabelKey)}
       </p>
-      {errorMessage ? (
+      {errorKey ? (
         <p className="mt-2 text-xs text-rose-300" role="alert">
-          {errorMessage}
+          {t(errorKey)}
         </p>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
@@ -258,9 +276,9 @@ export function PushOptInCard(): ReactElement {
             {metricsLoading ? t('mobile.push.status.loading') : '24h'}
           </span>
         </div>
-        {metricsError ? (
+        {metricsErrorKey ? (
           <p className="mt-3 text-xs text-rose-300" role="alert">
-            {metricsError}
+            {t(metricsErrorKey)}
           </p>
         ) : null}
         {metrics ? (

@@ -4,6 +4,10 @@ import enMobile from '../../public/locales/en/mobile.json';
 import koMobile from '../../public/locales/ko/mobile.json';
 import jaMobile from '../../public/locales/ja/mobile.json';
 import {
+  MOBILE_I18N_NAMESPACES as SHARED_MOBILE_I18N_NAMESPACES,
+  SHARED_I18N_LOCALES,
+} from '../../src/shared/i18n/meta';
+import {
   MOBILE_I18N_LANGUAGE_KEY,
   MOBILE_I18N_NAMESPACES,
   MOBILE_SUPPORTED_LNGS,
@@ -59,8 +63,8 @@ function test(name: string, fn: () => void | Promise<void>): void {
 }
 
 test('mobile locale registry stays bounded to the 3 shared locales', () => {
-  assert.deepEqual([...MOBILE_SUPPORTED_LNGS], ['ko', 'en', 'ja']);
-  assert.deepEqual([...MOBILE_I18N_NAMESPACES], ['mobile']);
+  assert.deepEqual([...MOBILE_SUPPORTED_LNGS], [...SHARED_I18N_LOCALES]);
+  assert.deepEqual([...MOBILE_I18N_NAMESPACES], [...SHARED_MOBILE_I18N_NAMESPACES]);
 });
 
 test('resolveInitialMobileLocale prefers saved locale over browser language', () => {

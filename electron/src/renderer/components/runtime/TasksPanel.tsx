@@ -3,7 +3,9 @@
  */
 
 import { TimerReset } from 'lucide-react';
+import { useI18n } from '../../stores/i18nStore';
 import { useRuntimeStore } from '../../stores/runtimeStore';
+import { translateRuntimeRunStatus } from './runtimeI18n';
 
 const STATUS_STYLES: Record<string, string> = {
   running: 'text-ds-accent',
@@ -13,6 +15,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export function TasksPanel() {
+  const { t } = useI18n();
   const tasks = useRuntimeStore((s) => s.tasks);
   const selectedRunId = useRuntimeStore((s) => s.selectedRunId);
   const selectRun = useRuntimeStore((s) => s.selectRun);
@@ -21,12 +24,12 @@ export function TasksPanel() {
     <div className="px-3 py-2">
       <div className="flex items-center gap-2 text-[10px] font-semibold text-ds-muted uppercase tracking-wider mb-2">
         <TimerReset size={12} />
-        Tasks
+        {t('run.runtime.tasks.title')}
         <span className="ml-auto text-ds-text normal-case text-xs">{tasks.length}</span>
       </div>
 
       {tasks.length === 0 ? (
-        <div className="text-xs text-ds-muted">No tracked tasks.</div>
+        <div className="text-xs text-ds-muted">{t('run.runtime.tasks.empty')}</div>
       ) : (
         <div className="space-y-2">
           {tasks.map((task) => (
@@ -43,11 +46,11 @@ export function TasksPanel() {
                 <span
                   className={`ml-auto text-[10px] uppercase ${STATUS_STYLES[task.status] ?? 'text-ds-muted'}`}
                 >
-                  {task.status}
+                  {translateRuntimeRunStatus(task.status, t)}
                 </span>
               </div>
               <div className="mt-1 text-[10px] font-mono text-ds-muted truncate">
-                run {task.runId}
+                {t('run.runtime.tasks.run', { runId: task.runId })}
               </div>
               {task.error && (
                 <div className="mt-1 text-[10px] text-ds-error line-clamp-2">{task.error}</div>
@@ -57,7 +60,7 @@ export function TasksPanel() {
                   onClick={() => selectRun(task.runId)}
                   className="rounded border border-ds-border px-2 py-1 text-[10px] text-ds-muted hover:text-ds-text"
                 >
-                  Inspect run
+                  {t('run.runtime.tasks.inspectRun')}
                 </button>
               </div>
             </div>

@@ -7,6 +7,7 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { Badge, Button, Card, Textarea } from '../../design-system/primitives';
 import { useWs } from '../../hooks/WsProvider';
 import { fetchPolicySnapshot } from '../../hooks/usePolicy';
+import { useI18n } from '../../stores/i18nStore';
 import { usePolicyStore } from '../../stores/policyStore';
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -24,6 +25,7 @@ function normalizeOrders(text: string): string[] {
 }
 
 export function StandingOrdersPanel() {
+  const { t } = useI18n();
   const headingId = useId();
   const { rpc } = useWs();
   const snapshot = usePolicyStore((s) => s.snapshot);
@@ -44,7 +46,7 @@ export function StandingOrdersPanel() {
   const normalizedDraft = useMemo(() => normalizeOrders(draft), [draft]);
   const normalizedCurrent = useMemo(() => normalizeOrders(standingOrders.join('\n')), [standingOrders]);
   const hasChanges = dirty || normalizedDraft.join('\n') !== normalizedCurrent.join('\n');
-  const helperText = 'One standing order per line. Duplicate and empty lines are removed on save.';
+  const helperText = t('run.runtime.policy.standingOrders.helper');
 
   const save = async () => {
     setSaveState('saving');
@@ -57,7 +59,7 @@ export function StandingOrdersPanel() {
       setSaveState('saved');
     } catch (err) {
       setSaveState('error');
-      setErrorMessage((err as Error)?.message ?? 'Failed to save standing orders.');
+      setErrorMessage((err as Error)?.message ?? t('run.runtime.policy.standingOrders.errorSave'));
     }
   };
 
@@ -70,7 +72,7 @@ export function StandingOrdersPanel() {
             className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-ds-muted"
           >
             <ListTree size={12} aria-hidden="true" />
-            Standing Orders
+            {t('run.runtime.policy.standingOrders.title')}
           </div>
           <Badge compact>{standingOrders.length}</Badge>
         </header>
@@ -85,15 +87,15 @@ export function StandingOrdersPanel() {
           }}
           rows={5}
           resize="none"
-          label="Orders"
+          label={t('run.runtime.policy.standingOrders.field.orders')}
           description={helperText}
           errorMessage={errorMessage ?? undefined}
-          placeholder="One standing order per line"
+          placeholder={t('run.runtime.policy.standingOrders.placeholder')}
         />
 
         {saveState === 'saved' ? (
           <p role="status" className="text-xs text-ds-success">
-            Standing orders saved.
+            {t('run.runtime.policy.standingOrders.saved')}
           </p>
         ) : null}
 
@@ -106,7 +108,7 @@ export function StandingOrdersPanel() {
             size="sm"
             leadingIcon={<Save size={14} aria-hidden="true" />}
           >
-            Save orders
+            {t('run.runtime.policy.standingOrders.action.save')}
           </Button>
           <Button
             onClick={() => {
@@ -119,7 +121,7 @@ export function StandingOrdersPanel() {
             variant="secondary"
             size="sm"
           >
-            Reset
+            {t('run.runtime.policy.standingOrders.action.reset')}
           </Button>
         </div>
       </Card>

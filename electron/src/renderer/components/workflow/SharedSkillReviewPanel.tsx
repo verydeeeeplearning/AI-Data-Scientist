@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useI18n } from '../../stores/i18nStore';
 import { StatusLine } from './DecisionOsReviewPrimitives';
 import {
   EXPECTED_REVIEW_SKILLS,
@@ -7,16 +8,21 @@ import {
   ReviewArtifactRecord,
   ReviewRun,
   ReviewSkillName,
-  reviewSkillLabel,
   runOptionLabel,
   severityClass,
 } from './decisionOsReviewModel';
+import {
+  translateReviewArtifactType,
+  translateReviewSkillLabel,
+  translateReviewStatus,
+} from './reviewI18n';
 
 interface Props {
   runs: ReviewRun[];
 }
 
 export function SharedSkillReviewPanel({ runs }: Props) {
+  const { t } = useI18n();
   const [artifactRunId, setArtifactRunId] = useState('');
 
   useEffect(() => {
@@ -38,16 +44,16 @@ export function SharedSkillReviewPanel({ runs }: Props) {
     >
       <div className="flex items-center gap-2 text-xs font-semibold text-ds-text">
         <ShieldCheck size={14} />
-        Shared Skill Review
+        {t('workspace.workflow.review.sharedSkills.title')}
       </div>
       <select
         value={artifactRunId}
         onChange={(event) => setArtifactRunId(event.target.value)}
-        aria-label="Run selected for shared skill review"
+        aria-label={t('workspace.workflow.review.sharedSkills.runAria')}
         data-testid="decision-os-artifact-run"
         className="w-full rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text"
       >
-        <option value="">Select run</option>
+        <option value="">{t('workspace.workflow.review.sharedSkills.selectRun')}</option>
         {runs.map((run) => (
           <option key={run.run_id} value={run.run_id}>
             {runOptionLabel(run)}
@@ -55,15 +61,17 @@ export function SharedSkillReviewPanel({ runs }: Props) {
         ))}
       </select>
       {selectedArtifactRun === null ? (
-        <div className="text-xs text-ds-muted">No runs available yet.</div>
+        <div className="text-xs text-ds-muted">{t('workspace.workflow.review.sharedSkills.noRuns')}</div>
       ) : (
         <div className="space-y-2">
           <div
             data-testid="decision-os-artifact-summary"
             className="rounded border border-ds-border/70 bg-ds-surface/60 p-2 text-[10px] text-ds-muted"
           >
-            {selectedArtifactRun.run_id} / {selectedArtifactRun.review_artifacts.length} stored
-            review artifacts
+            {t('workspace.workflow.review.sharedSkills.summary', {
+              runId: selectedArtifactRun.run_id,
+              count: selectedArtifactRun.review_artifacts.length,
+            })}
           </div>
           {EXPECTED_REVIEW_SKILLS.map((skill) => {
             const artifact =
@@ -81,6 +89,7 @@ export function SharedSkillReviewPanel({ runs }: Props) {
 }
 
 function ReviewArtifactCard({ artifact }: { artifact: ReviewArtifactRecord }) {
+  const { t } = useI18n();
   const [narrativeOpen, setNarrativeOpen] = useState(false);
 
   return (
@@ -89,7 +98,7 @@ function ReviewArtifactCard({ artifact }: { artifact: ReviewArtifactRecord }) {
       className="space-y-2 rounded border border-ds-border/70 bg-ds-surface/60 p-2"
     >
       <div className="flex flex-wrap items-center gap-2 text-xs text-ds-text">
-        <span className="font-medium">{reviewSkillLabel(artifact.skill_name)}</span>
+        <span className="font-medium">{translateReviewSkillLabel(artifact.skill_name, t)}</span>
         <span className="rounded border border-ds-border px-1.5 py-0.5 text-[10px] text-ds-muted">
           {formatDate(artifact.created_at)}
         </span>
@@ -108,7 +117,7 @@ function ReviewArtifactCard({ artifact }: { artifact: ReviewArtifactRecord }) {
                 : 'border-ds-border bg-ds-bg/70 text-ds-muted'
           }`}
         >
-          {artifact.artifact.artifact_type}
+          {translateReviewArtifactType(artifact.artifact.artifact_type, t)}
         </span>
       </div>
       <div className="rounded border border-ds-border bg-ds-bg/70 px-2 py-1.5 text-xs text-ds-text">
@@ -122,7 +131,11 @@ function ReviewArtifactCard({ artifact }: { artifact: ReviewArtifactRecord }) {
             data-testid={`decision-os-artifact-toggle-${artifact.skill_name}`}
             className="flex w-full items-center justify-between px-2 py-1.5 text-left text-[10px] text-ds-muted hover:text-ds-text"
           >
-            <span>{narrativeOpen ? 'Hide narrative' : 'Show narrative'}</span>
+            <span>
+              {narrativeOpen
+                ? t('workspace.workflow.review.sharedSkills.hideNarrative')
+                : t('workspace.workflow.review.sharedSkills.showNarrative')}
+            </span>
             {narrativeOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
           {narrativeOpen ? (
@@ -140,11 +153,13 @@ function ReviewArtifactCard({ artifact }: { artifact: ReviewArtifactRecord }) {
 }
 
 function ReviewArtifactBody({ artifact }: { artifact: ReviewArtifactRecord }) {
+  const { t } = useI18n();
+
   if (artifact.artifact.artifact_type === 'backtesting') {
     return (
       <div className="space-y-2">
         <StatusLine
-          label="Consistency"
+          label={t('workspace.workflow.review.sharedSkills.consistency')}
           value={artifact.artifact.consistency_score.toFixed(2)}
         />
         <div className="grid gap-2">
@@ -158,20 +173,25 @@ function ReviewArtifactBody({ artifact }: { artifact: ReviewArtifactRecord }) {
                   {fold.fold_label} / {fold.metric}
                 </span>
                 <span className={`rounded border px-1.5 py-0.5 ${severityClass(fold.status)}`}>
-                  {fold.status}
+                  {translateReviewStatus(fold.status, t)}
                 </span>
               </div>
               <div className="mt-1 text-ds-muted">
                 {fold.score.toFixed(3)}
                 {fold.baseline_score !== undefined && fold.baseline_score !== null
-                  ? ` vs baseline ${fold.baseline_score.toFixed(3)}`
+                  ? t('workspace.workflow.review.sharedSkills.vsBaseline', {
+                    value: fold.baseline_score.toFixed(3),
+                  })
                   : ''}
               </div>
             </div>
           ))}
         </div>
         {artifact.artifact.warnings.length > 0 ? (
-          <StatusLine label="Warnings" value={artifact.artifact.warnings.join(' | ')} />
+          <StatusLine
+            label={t('workspace.workflow.review.sharedSkills.warnings')}
+            value={artifact.artifact.warnings.join(' | ')}
+          />
         ) : null}
       </div>
     );
@@ -181,8 +201,10 @@ function ReviewArtifactBody({ artifact }: { artifact: ReviewArtifactRecord }) {
     return (
       <div className="space-y-2">
         <StatusLine
-          label="Causal interpretation"
-          value={artifact.artifact.is_causal ? 'Allowed' : 'Correlation only'}
+          label={t('workspace.workflow.review.sharedSkills.causalInterpretation')}
+          value={artifact.artifact.is_causal
+            ? t('workspace.workflow.review.sharedSkills.causalAllowed')
+            : t('workspace.workflow.review.sharedSkills.correlationOnly')}
         />
         {artifact.artifact.risks.map((risk) => (
           <div
@@ -192,14 +214,17 @@ function ReviewArtifactBody({ artifact }: { artifact: ReviewArtifactRecord }) {
             <div className="flex items-center justify-between">
               <span className="text-ds-text">{risk.assumption}</span>
               <span className={`rounded border px-1.5 py-0.5 ${severityClass(risk.severity)}`}>
-                {risk.severity}
+                {translateReviewStatus(risk.severity, t)}
               </span>
             </div>
             <div className="mt-1 text-ds-muted">{risk.detail}</div>
           </div>
         ))}
         {artifact.artifact.confounders.length > 0 ? (
-          <StatusLine label="Confounders" value={artifact.artifact.confounders.join(', ')} />
+          <StatusLine
+            label={t('workspace.workflow.review.sharedSkills.confounders')}
+            value={artifact.artifact.confounders.join(', ')}
+          />
         ) : null}
       </div>
     );
@@ -208,7 +233,10 @@ function ReviewArtifactBody({ artifact }: { artifact: ReviewArtifactRecord }) {
   if (artifact.artifact.artifact_type === 'uncertainty-quantification') {
     return (
       <div className="space-y-2">
-        <StatusLine label="Methodology" value={artifact.artifact.methodology} />
+        <StatusLine
+          label={t('workspace.workflow.review.sharedSkills.methodology')}
+          value={artifact.artifact.methodology}
+        />
         {artifact.artifact.intervals.map((interval) => (
           <div
             key={`${interval.metric}:${interval.lower}:${interval.upper}`}
@@ -224,7 +252,10 @@ function ReviewArtifactBody({ artifact }: { artifact: ReviewArtifactRecord }) {
           </div>
         ))}
         {artifact.artifact.warnings.length > 0 ? (
-          <StatusLine label="Warnings" value={artifact.artifact.warnings.join(' | ')} />
+          <StatusLine
+            label={t('workspace.workflow.review.sharedSkills.warnings')}
+            value={artifact.artifact.warnings.join(' | ')}
+          />
         ) : null}
       </div>
     );
@@ -232,22 +263,32 @@ function ReviewArtifactBody({ artifact }: { artifact: ReviewArtifactRecord }) {
 
   return (
     <div className="space-y-2">
-      <StatusLine label="Recommendation" value={artifact.artifact.recommendation} />
-      <StatusLine label="Rationale" value={artifact.artifact.rationale} />
+      <StatusLine
+        label={t('workspace.workflow.review.sharedSkills.recommendation')}
+        value={artifact.artifact.recommendation}
+      />
+      <StatusLine
+        label={t('workspace.workflow.review.sharedSkills.rationale')}
+        value={artifact.artifact.rationale}
+      />
       {artifact.artifact.evidence.length > 0 ? (
-        <StatusLine label="Evidence" value={artifact.artifact.evidence.join(' | ')} />
+        <StatusLine
+          label={t('workspace.workflow.review.sharedSkills.evidence')}
+          value={artifact.artifact.evidence.join(' | ')}
+        />
       ) : null}
     </div>
   );
 }
 
 function MissingReviewCard({ skill }: { skill: ReviewSkillName }) {
+  const { t } = useI18n();
+
   return (
     <div className="rounded border border-dashed border-ds-border bg-ds-bg/60 p-2 text-[10px]">
-      <div className="text-ds-text">{reviewSkillLabel(skill)}</div>
+      <div className="text-ds-text">{translateReviewSkillLabel(skill, t)}</div>
       <div className="mt-1 text-ds-muted">
-        No structured artifact is stored yet. This card will fill automatically when the agent
-        emits a hidden Decision OS review artifact for this run.
+        {t('workspace.workflow.review.sharedSkills.missingDescription')}
       </div>
     </div>
   );

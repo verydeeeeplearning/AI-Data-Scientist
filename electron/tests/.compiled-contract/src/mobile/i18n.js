@@ -43,11 +43,12 @@ exports.initializeMobileI18n = initializeMobileI18n;
 exports.createMobileI18nInstance = createMobileI18nInstance;
 const i18next_1 = __importStar(require("i18next"));
 const react_i18next_1 = require("react-i18next");
+const meta_1 = require("../shared/i18n/meta");
 const mobile_json_1 = __importDefault(require("../../public/locales/ko/mobile.json"));
 const mobile_json_2 = __importDefault(require("../../public/locales/en/mobile.json"));
 const mobile_json_3 = __importDefault(require("../../public/locales/ja/mobile.json"));
-exports.MOBILE_SUPPORTED_LNGS = ['ko', 'en', 'ja'];
-exports.MOBILE_I18N_NAMESPACES = ['mobile'];
+exports.MOBILE_SUPPORTED_LNGS = meta_1.SHARED_I18N_LOCALES;
+exports.MOBILE_I18N_NAMESPACES = meta_1.MOBILE_I18N_NAMESPACES;
 exports.MOBILE_I18N_LANGUAGE_KEY = 'i18nextLng';
 exports.MOBILE_I18N_RESOURCES = {
     ko: {

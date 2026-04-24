@@ -38,5 +38,8 @@
   "tab.runtime": "Runtime",
   "tab.experiments": "Experiments",
   "tab.portfolio": "Portfolio",
-  "tab.learning": "Learning"
+  "tab.learning": "Learning",
+  "primaryLabel": "??????????",
+  "cost": "???",
+  "openSettingsTitle": "?? ({shortcut})"
 }

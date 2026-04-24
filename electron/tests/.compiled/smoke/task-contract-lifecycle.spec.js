@@ -90,6 +90,21 @@ async function waitForClosedOrThrow(page) {
             + `actionNotice=${JSON.stringify(actionNotice)} original=${String(error)}`);
     }
 }
+async function clickTestId(page, testId) {
+    const element = page.getByTestId(testId);
+    await element.waitFor({ state: 'visible', timeout: 30000 });
+    await element.evaluate((node) => node.click());
+}
+async function openSeededSession(page) {
+    const testId = `open-session-${SEEDED_SESSION_ID}`;
+    const button = page.getByTestId(testId);
+    await button.waitFor({ state: 'visible', timeout: 30000 });
+    await button.evaluate((node) => node.click());
+    await page.waitForFunction(({ currentTestId }) => {
+        const node = document.querySelector(`[data-testid="${currentTestId}"]`);
+        return Boolean(node?.textContent?.includes('Opened'));
+    }, { currentTestId: testId }, { timeout: 30000 });
+}
 async function run() {
     if (!node_fs_1.default.existsSync(BACKEND_BIN)) {
         throw new Error(`Backend binary not found at ${BACKEND_BIN}. ` +
@@ -107,8 +122,10 @@ async function run() {
             DS_AGENT_SENTRY_DSN: '',
             DS_AGENT_ERROR_REPORTING_ENABLED: '0',
             DS_AGENT_TELEMETRY_ENABLED: '0',
+            DS_AGENT_E2E_USER_DATA_DIR: node_path_1.default.join(paths.rootDir, 'userData'),
             DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
             DS_AGENT_E2E_SKIP_ONBOARDING: '1',
+            DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
         },
         timeout: 60000,
     });
@@ -116,35 +133,31 @@ async function run() {
         const page = await app.firstWindow({ timeout: 60000 });
         await page.waitForLoadState('domcontentloaded');
         await page.getByTestId('open-settings').waitFor({ state: 'visible', timeout: 60000 });
-        await page.getByTestId('sidebar-tab-runtime').click();
-        await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).waitFor({
-            state: 'visible',
-            timeout: 30000,
-        });
-        await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).click();
-        await page.getByTestId('sidebar-tab-workflow').click();
+        await clickTestId(page, 'sidebar-tab-runtime');
+        await openSeededSession(page);
+        await clickTestId(page, 'sidebar-tab-workflow');
         await page.getByTestId('mission-brief-panel').waitFor({ state: 'visible', timeout: 30000 });
         await page.getByTestId('mission-brief-action-edit').waitFor({
             state: 'visible',
             timeout: 30000,
         });
         await waitForTextContains(page, 'mission-brief-status-badge', 'draft');
-        await page.getByTestId('mission-brief-action-edit').click();
+        await clickTestId(page, 'mission-brief-action-edit');
         await page.getByTestId('contract-editor').waitFor({ state: 'visible', timeout: 30000 });
         await page
             .getByTestId('contract-editor-business-goal')
             .fill('Prepare a retention-risk readout with explicit owner-ready next actions.');
         await page.getByTestId('contract-editor-decision-owner').fill('retention-lead@corp');
-        await page.getByTestId('contract-editor-save').click();
+        await clickTestId(page, 'contract-editor-save');
         await waitForTextContains(page, 'mission-brief-business-goal', 'Prepare a retention-risk readout with explicit owner-ready next actions.');
         await waitForTextContains(page, 'mission-brief-decision-owner', 'retention-lead@corp');
-        await page.getByTestId('mission-brief-action-agree').click();
+        await clickTestId(page, 'mission-brief-action-agree');
         await waitForTextContains(page, 'mission-brief-status-badge', 'agreed');
-        await page.getByTestId('mission-brief-action-start-work').click();
+        await clickTestId(page, 'mission-brief-action-start-work');
         await waitForTextContains(page, 'mission-brief-status-badge', 'in_progress');
-        await page.getByTestId('mission-brief-action-send-review').click();
+        await clickTestId(page, 'mission-brief-action-send-review');
         await waitForTextContains(page, 'mission-brief-status-badge', 'review');
-        await page.getByTestId('mission-brief-action-close').click();
+        await clickTestId(page, 'mission-brief-action-close');
         await page.getByTestId('mission-brief-close-dialog').waitFor({
             state: 'visible',
             timeout: 30000,
@@ -152,7 +165,7 @@ async function run() {
         await page
             .getByTestId('mission-brief-close-note')
             .fill('Operator verified all closure criteria.');
-        await page.getByTestId('mission-brief-close-confirm').click();
+        await clickTestId(page, 'mission-brief-close-confirm');
         await waitForClosedOrThrow(page);
         await page.getByText('DoD Summary').waitFor({ state: 'visible', timeout: 30000 });
         console.log('[e2e] PASS task-contract lifecycle flow.');

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { translateKey } from '../stores/i18nStore';
 import { useWs } from './WsProvider';
 import type { RegressionBoardView, RegressionFrozenBaselineView } from '../types/evaluation';
 
@@ -36,7 +37,11 @@ export function useRegressionBoard() {
       }
     } catch (err) {
       setBoard(null);
-      setError(err instanceof Error ? err.message : 'Regression board unavailable.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : translateKey('common.regression.boardUnavailable'),
+      );
     } finally {
       setLoading(false);
     }
@@ -58,7 +63,11 @@ export function useRegressionBoard() {
           setBoard(response.board);
         }
       } catch (err) {
-        setFreezeError(err instanceof Error ? err.message : 'Failed to freeze baseline.');
+        setFreezeError(
+          err instanceof Error
+            ? err.message
+            : translateKey('common.regression.freezeFailed'),
+        );
       } finally {
         setFreezeLoading(false);
       }

@@ -4,8 +4,7 @@
  *
  * Forces the backend launcher to point at a non-existent binary via the
  * `DS_AGENT_BACKEND_COMMAND` env override. The main process should classify
- * the failure as BINARY_NOT_FOUND and open the diagnostic window with a
- * reason-specific title rendered by `DiagnosticPanel`.
+ * the failure as BINARY_NOT_FOUND and open the diagnostic window.
  *
  * Runner: plain Node (no @playwright/test dependency). Exits non-zero on
  * failure for CI usability.
@@ -25,14 +24,19 @@ async function run() {
         extraEnv: { DS_AGENT_BACKEND_COMMAND: BAD_BINARY },
     });
     try {
-        const titleText = await page.locator('h1').first().textContent({ timeout: 30000 });
-        const ok = !!titleText && /Backend binary was not found/i.test(titleText);
-        if (!ok) {
+        const panel = page.locator('main[aria-labelledby="diagnostic-title"]').first();
+        await panel.waitFor({ state: 'visible', timeout: 30000 });
+        const titleText = await page.locator('#diagnostic-title').textContent();
+        const diagnosticJson = await page.locator('pre').first().textContent();
+        const hasTitle = !!titleText?.trim();
+        const hasBinaryNotFoundReason = diagnosticJson?.includes('"reason": "binary_not_found"') ?? false;
+        if (!hasTitle || !hasBinaryNotFoundReason) {
             const html = await page.content();
-            throw new Error(`Diagnostic title not rendered as expected. Got: ${JSON.stringify(titleText)}\n` +
+            throw new Error(`Diagnostic window did not render expected failure details. ` +
+                `Got title=${JSON.stringify(titleText)}, reasonHit=${hasBinaryNotFoundReason}\n` +
                 `--- HTML (first 2 KB) ---\n${html.slice(0, 2048)}`);
         }
-        console.log(`[smoke] PASS — diagnostic title: ${titleText}`);
+        console.log(`[smoke] PASS diagnostic title: ${titleText?.trim()}`);
     }
     catch (err) {
         await (0, artifacts_1.captureFailureArtifacts)(page, isolated.artifacts, 'diagnostic-window').catch(() => { });

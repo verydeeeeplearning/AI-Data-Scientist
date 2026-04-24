@@ -125,6 +125,27 @@ async function screenshot(page: Page, targetPath: string): Promise<void> {
   await page.screenshot({ path: targetPath, fullPage: true });
 }
 
+async function clickTestId(page: Page, testId: string): Promise<void> {
+  const element = page.getByTestId(testId);
+  await element.waitFor({ state: 'visible', timeout: 30_000 });
+  await element.evaluate((node) => (node as HTMLElement).click());
+}
+
+async function openSeededSession(page: Page): Promise<void> {
+  const testId = `open-session-${SEEDED_SESSION_ID}`;
+  const button = page.getByTestId(testId);
+  await button.waitFor({ state: 'visible', timeout: 30_000 });
+  await button.evaluate((node) => (node as HTMLButtonElement).click());
+  await page.waitForFunction(
+    ({ currentTestId }) => {
+      const node = document.querySelector(`[data-testid="${currentTestId}"]`);
+      return Boolean(node?.textContent?.includes('Opened'));
+    },
+    { currentTestId: testId },
+    { timeout: 30_000 },
+  );
+}
+
 async function run(): Promise<void> {
   if (!fs.existsSync(BACKEND_BIN)) {
     throw new Error(
@@ -148,8 +169,10 @@ async function run(): Promise<void> {
       DS_AGENT_SENTRY_DSN: '',
       DS_AGENT_ERROR_REPORTING_ENABLED: '0',
       DS_AGENT_TELEMETRY_ENABLED: '0',
+      DS_AGENT_E2E_USER_DATA_DIR: path.join(paths.rootDir, 'userData'),
       DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
       DS_AGENT_E2E_SKIP_ONBOARDING: '1',
+      DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
     },
     timeout: 60_000,
   });
@@ -160,7 +183,7 @@ async function run(): Promise<void> {
     await page.waitForLoadState('domcontentloaded');
     await page.getByTestId('open-settings').waitFor({ state: 'visible', timeout: 60_000 });
 
-    await page.getByTestId('sidebar-tab-runtime').click();
+    await clickTestId(page, 'sidebar-tab-runtime');
     await page.getByText('Runtime Console').waitFor({ state: 'visible', timeout: 30_000 });
     await page.getByTestId('certification-board').waitFor({ state: 'visible', timeout: 30_000 });
 
@@ -172,7 +195,7 @@ async function run(): Promise<void> {
     });
     await screenshot(page, path.join(artifactsDir, 'runtime-console-freeze.png'));
 
-    await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).click();
+    await openSeededSession(page);
     await page.getByTestId('open-settings').click();
 
     await page.getByTestId('policy-studio').waitFor({ state: 'visible', timeout: 30_000 });

@@ -97,6 +97,12 @@ async function waitForNumericTestIdAtLeast(
   );
 }
 
+async function clickTestId(page: Page, testId: string): Promise<void> {
+  const element = page.getByTestId(testId);
+  await element.waitFor({ state: 'visible', timeout: 30_000 });
+  await element.evaluate((node) => (node as HTMLElement).click());
+}
+
 async function run(): Promise<void> {
   if (!fs.existsSync(BACKEND_BIN)) {
     throw new Error(
@@ -119,8 +125,10 @@ async function run(): Promise<void> {
       DS_AGENT_SENTRY_DSN: '',
       DS_AGENT_ERROR_REPORTING_ENABLED: '0',
       DS_AGENT_TELEMETRY_ENABLED: '0',
+      DS_AGENT_E2E_USER_DATA_DIR: path.join(paths.rootDir, 'userData'),
       DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
       DS_AGENT_E2E_SKIP_ONBOARDING: '1',
+      DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
     },
     timeout: 60_000,
   });
@@ -131,7 +139,7 @@ async function run(): Promise<void> {
     await page.waitForLoadState('domcontentloaded');
     await page.getByTestId('open-settings').waitFor({ state: 'visible', timeout: 60_000 });
 
-    await page.getByTestId('sidebar-tab-review').click();
+    await clickTestId(page, 'sidebar-tab-review');
     await page.getByTestId('decision-os-overview').waitFor({ state: 'visible', timeout: 30_000 });
     await waitForNumericTestIdAtLeast(page, 'decision-os-overview-run-count', 2);
     await waitForNumericTestIdAtLeast(page, 'decision-os-overview-model-count', 2);
@@ -142,14 +150,14 @@ async function run(): Promise<void> {
     await page
       .getByTestId('decision-os-artifact-retrain-vs-rollback')
       .waitFor({ state: 'visible', timeout: 30_000 });
-    await page.getByTestId('decision-os-artifact-toggle-retrain-vs-rollback').click();
+    await clickTestId(page, 'decision-os-artifact-toggle-retrain-vs-rollback');
     await page
       .getByTestId('decision-os-artifact-narrative-retrain-vs-rollback')
       .waitFor({ state: 'visible', timeout: 30_000 });
 
     await page.getByTestId('decision-os-run-diff-base').selectOption('run-champion');
     await page.getByTestId('decision-os-run-diff-candidate').selectOption('run-candidate');
-    await page.getByTestId('decision-os-run-diff-compare').click();
+    await clickTestId(page, 'decision-os-run-diff-compare');
     await page
       .getByTestId('decision-os-run-diff-result')
       .waitFor({ state: 'visible', timeout: 30_000 });
@@ -159,12 +167,12 @@ async function run(): Promise<void> {
     });
     await screenshot(page, path.join(artifactsDir, 'review-run-diff.png'));
 
-    await page.getByTestId('decision-os-run-diff-open-promotion').click();
+    await clickTestId(page, 'decision-os-run-diff-open-promotion');
     await page
       .getByTestId('decision-os-promotion-gate-modal')
       .waitFor({ state: 'visible', timeout: 30_000 });
     await page.getByTestId('decision-os-promotion-stage').selectOption('staging');
-    await page.getByTestId('decision-os-promotion-submit').click();
+    await clickTestId(page, 'decision-os-promotion-submit');
     await page
       .getByTestId('decision-os-promotion-result')
       .waitFor({ state: 'visible', timeout: 30_000 });
@@ -173,12 +181,12 @@ async function run(): Promise<void> {
       .getByText('pending_DS')
       .waitFor({ state: 'visible', timeout: 30_000 });
     await screenshot(page, path.join(artifactsDir, 'review-promotion-gate.png'));
-    await page.getByTestId('decision-os-promotion-close').click();
+    await clickTestId(page, 'decision-os-promotion-close');
     await waitForNumericTestIdAtLeast(page, 'decision-os-overview-decision-count', 1);
 
     await page.getByTestId('decision-os-post-deploy-model').selectOption('m_churn_lightgbm');
     await page.getByTestId('decision-os-post-deploy-window').fill('7d');
-    await page.getByTestId('decision-os-post-deploy-load').click();
+    await clickTestId(page, 'decision-os-post-deploy-load');
     await page
       .getByTestId('decision-os-post-deploy-result')
       .waitFor({ state: 'visible', timeout: 30_000 });

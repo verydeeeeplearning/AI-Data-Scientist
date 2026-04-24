@@ -1,6 +1,7 @@
 import { Check, ShieldCheck, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWs } from '../../hooks/WsProvider';
+import { useI18n } from '../../stores/i18nStore';
 import { InlineError } from './DecisionOsReviewPrimitives';
 import {
   formatDate,
@@ -10,6 +11,7 @@ import {
   severityClass,
   promotionOptionLabel,
 } from './decisionOsReviewModel';
+import { translatePromotionStage, translateReviewStatus } from './reviewI18n';
 
 interface Props {
   open: boolean;
@@ -30,6 +32,7 @@ export function PromotionGateModal({
   onClose,
   onSubmitted,
 }: Props) {
+  const { t } = useI18n();
   const { rpc } = useWs();
   const [candidateRunId, setCandidateRunId] = useState('');
   const [targetStage, setTargetStage] = useState<'staging' | 'production' | 'canary'>('staging');
@@ -93,12 +96,12 @@ export function PromotionGateModal({
 
   const requestPromotion = async () => {
     if (!candidateRunId) {
-      setError('Select a candidate run.');
+      setError(t('workspace.workflow.review.promotionGate.selectCandidateError'));
       return;
     }
     const approvers = parseApprovers(approversText);
     if (approvers.length < 3) {
-      setError('Provide DS, Lead, and MLOps approvers.');
+      setError(t('workspace.workflow.review.promotionGate.approverError'));
       return;
     }
     setBusy(true);
@@ -136,15 +139,15 @@ export function PromotionGateModal({
           <ShieldCheck size={16} className="text-ds-accent" />
           <div>
             <h2 id="promotion-gate-modal-title" className="text-sm font-semibold text-ds-text">
-              Promotion Gate
+              {t('workspace.workflow.review.promotionGate.title')}
             </h2>
             <p className="mt-1 text-[10px] text-ds-muted">
-              Review policy checks and submit a Decision OS promotion request.
+              {t('workspace.workflow.review.promotionGate.description')}
             </p>
           </div>
           <button
             onClick={onClose}
-            aria-label="Close promotion gate"
+            aria-label={t('workspace.workflow.review.promotionGate.closeAria')}
             data-testid="decision-os-promotion-close"
             className="ml-auto rounded border border-ds-border px-2 py-1 text-[10px] text-ds-muted hover:border-ds-accent hover:text-ds-text"
           >
@@ -160,7 +163,7 @@ export function PromotionGateModal({
               data-testid="decision-os-promotion-candidate"
               className="rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text"
             >
-              <option value="">Select candidate run</option>
+              <option value="">{t('workspace.workflow.review.promotionGate.selectCandidate')}</option>
               {runs.map((run) => (
                 <option key={run.run_id} value={run.run_id}>
                   {promotionOptionLabel(run)}
@@ -175,21 +178,21 @@ export function PromotionGateModal({
               data-testid="decision-os-promotion-stage"
               className="rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text"
             >
-              <option value="staging">staging</option>
-              <option value="production">production</option>
-              <option value="canary">canary</option>
+              <option value="staging">{t('workspace.workflow.review.promotionGate.stage.staging')}</option>
+              <option value="production">{t('workspace.workflow.review.promotionGate.stage.production')}</option>
+              <option value="canary">{t('workspace.workflow.review.promotionGate.stage.canary')}</option>
             </select>
             <input
               value={approversText}
               onChange={(event) => setApproversText(event.target.value)}
-              placeholder="DS, Lead, MLOps"
+              placeholder={t('workspace.workflow.review.promotionGate.approversPlaceholder')}
               data-testid="decision-os-promotion-approvers"
               className="rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text md:col-span-2"
             />
             <input
               value={rollbackPlanRef}
               onChange={(event) => setRollbackPlanRef(event.target.value)}
-              placeholder="registry/rollback/example.yaml"
+              placeholder={t('workspace.workflow.review.promotionGate.rollbackPlaceholder')}
               data-testid="decision-os-promotion-rollback-plan"
               className="rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text md:col-span-2"
             />
@@ -202,16 +205,20 @@ export function PromotionGateModal({
                 <span
                   className={`rounded border px-1.5 py-0.5 text-[10px] ${severityClass(selectedRun.promotion_state)}`}
                 >
-                  {selectedRun.promotion_state}
+                  {translateReviewStatus(selectedRun.promotion_state, t)}
                 </span>
               </div>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 <div className="rounded border border-ds-border bg-ds-surface/60 px-2 py-1.5">
-                  <div className="text-[10px] text-ds-muted">Model family</div>
+                  <div className="text-[10px] text-ds-muted">
+                    {t('workspace.workflow.review.promotionGate.modelFamily')}
+                  </div>
                   <div className="mt-1 text-ds-text">{selectedRun.method.model_family}</div>
                 </div>
                 <div className="rounded border border-ds-border bg-ds-surface/60 px-2 py-1.5">
-                  <div className="text-[10px] text-ds-muted">Created</div>
+                  <div className="text-[10px] text-ds-muted">
+                    {t('workspace.workflow.review.promotionGate.created')}
+                  </div>
                   <div className="mt-1 text-ds-text">{formatDate(selectedRun.created_at)}</div>
                 </div>
               </div>
@@ -230,11 +237,11 @@ export function PromotionGateModal({
                 <span
                   className={`rounded border px-1.5 py-0.5 text-[10px] ${severityClass(result.chain_state)}`}
                 >
-                  {result.chain_state}
+                  {translateReviewStatus(result.chain_state, t)}
                 </span>
               </div>
               <div className="text-[10px] text-ds-muted">
-                {result.candidate_run_id} {'->'} {result.target_stage} / {result.candidate_model_id}
+                {result.candidate_run_id} {'->'} {translatePromotionStage(result.target_stage, t)} / {result.candidate_model_id}
               </div>
               <div className="space-y-2">
                 {result.policy_checks.map((check) => (
@@ -247,7 +254,7 @@ export function PromotionGateModal({
                       <span
                         className={`rounded border px-1.5 py-0.5 ${severityClass(check.status)}`}
                       >
-                        {check.status}
+                        {translateReviewStatus(check.status, t)}
                       </span>
                     </div>
                     <div className="mt-1 text-ds-muted">{check.detail}</div>
@@ -263,7 +270,7 @@ export function PromotionGateModal({
             onClick={onClose}
             className="rounded border border-ds-border px-3 py-1.5 text-xs text-ds-muted hover:border-ds-accent hover:text-ds-text"
           >
-            Close
+            {t('workspace.workflow.review.promotionGate.close')}
           </button>
           <button
             onClick={() => void requestPromotion()}
@@ -272,7 +279,9 @@ export function PromotionGateModal({
             className="inline-flex items-center gap-1 rounded bg-ds-accent px-3 py-1.5 text-xs text-white disabled:opacity-50"
           >
             <Check size={12} />
-            {busy ? 'Requesting...' : 'Request promotion'}
+            {busy
+              ? t('workspace.workflow.review.promotionGate.requesting')
+              : t('workspace.workflow.review.promotionGate.requestPromotion')}
           </button>
         </div>
       </div>

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useChatStore } from '../stores/chatStore';
+import { translateKey } from '../stores/i18nStore';
+import { resolveMainIpcErrorMessage } from '../utils/mainIpcErrors';
 import { useWs } from './WsProvider';
 import type {
   AssumptionVerificationResultView,
@@ -91,7 +93,7 @@ export function useTaskContract() {
       include: INCLUDE,
     });
     if (!result.ok) {
-      setError(result.error);
+      setError(resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.activeFailed'));
       setActiveContract(null);
       setDeliveryLog(null);
       setLoading(false);
@@ -148,7 +150,9 @@ export function useTaskContract() {
       limit: params?.limit,
     });
     if (!result.ok) {
-      setDeliveryLogError(result.error);
+      setDeliveryLogError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.deliveryLogFailed'),
+      );
       setDeliveryLogLoading(false);
       return null;
     }
@@ -185,7 +189,9 @@ export function useTaskContract() {
       comparisonId,
     });
     if (!result.ok) {
-      setShadowComparisonError(result.error);
+      setShadowComparisonError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.shadowGetFailed'),
+      );
       setShadowComparisonLoading(false);
       return null;
     }
@@ -257,7 +263,7 @@ export function useTaskContract() {
 
   const transition = useCallback(async (transitionTo: TaskContractStatus, reason: string) => {
     if (!activeContract || !window.electronAPI?.taskContract) {
-      throw new Error('No active task contract.');
+      throw new Error(translateKey('common.taskContract.noActive'));
     }
     const result = await window.electronAPI.taskContract.update({
       taskId: activeContract.contract.task_id,
@@ -267,7 +273,10 @@ export function useTaskContract() {
       reason,
     });
     if (!result.ok) {
-      throw buildTaskContractOperationError(result.error, result.errorDetail);
+      throw buildTaskContractOperationError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.updateFailed'),
+        result.errorDetail,
+      );
     }
     await refresh();
   }, [activeContract, refresh]);
@@ -276,11 +285,14 @@ export function useTaskContract() {
     payload: TaskContractCreatePayload,
   ): Promise<TaskContractCreateResultView> => {
     if (!window.electronAPI?.taskContract) {
-      throw new Error('Task contract IPC bridge is unavailable.');
+      throw new Error(translateKey('common.taskContract.ipcUnavailable'));
     }
     const result = await window.electronAPI.taskContract.create(payload);
     if (!result.ok) {
-      throw buildTaskContractOperationError(result.error, result.errorDetail);
+      throw buildTaskContractOperationError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.createFailed'),
+        result.errorDetail,
+      );
     }
     lastViewedTaskIdRef.current = result.result.task_id;
     await refresh();
@@ -289,7 +301,7 @@ export function useTaskContract() {
 
   const savePatch = useCallback(async (patch: Record<string, unknown>, reason: string) => {
     if (!activeContract || !window.electronAPI?.taskContract) {
-      throw new Error('No active task contract.');
+      throw new Error(translateKey('common.taskContract.noActive'));
     }
     const result = await window.electronAPI.taskContract.update({
       taskId: activeContract.contract.task_id,
@@ -298,14 +310,17 @@ export function useTaskContract() {
       reason,
     });
     if (!result.ok) {
-      throw buildTaskContractOperationError(result.error, result.errorDetail);
+      throw buildTaskContractOperationError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.updateFailed'),
+        result.errorDetail,
+      );
     }
     await refresh();
   }, [activeContract, refresh]);
 
   const closeContract = useCallback(async (closingNote: string) => {
     if (!activeContract || !window.electronAPI?.taskContract) {
-      throw new Error('No active task contract.');
+      throw new Error(translateKey('common.taskContract.noActive'));
     }
     const result = await window.electronAPI.taskContract.close({
       taskId: activeContract.contract.task_id,
@@ -313,7 +328,10 @@ export function useTaskContract() {
       closingNote,
     });
     if (!result.ok) {
-      throw buildTaskContractOperationError(result.error, result.errorDetail);
+      throw buildTaskContractOperationError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.closeFailed'),
+        result.errorDetail,
+      );
     }
     await refresh();
   }, [activeContract, refresh]);
@@ -323,7 +341,7 @@ export function useTaskContract() {
     verificationNote?: string;
   }): Promise<AssumptionVerificationResultView> => {
     if (!activeContract || !window.electronAPI?.taskContract) {
-      throw new Error('No active task contract.');
+      throw new Error(translateKey('common.taskContract.noActive'));
     }
 
     const result = await window.electronAPI.taskContract.verifyAssumption({
@@ -333,7 +351,10 @@ export function useTaskContract() {
       verificationNote: params.verificationNote,
     });
     if (!result.ok) {
-      throw buildTaskContractOperationError(result.error, result.errorDetail);
+      throw buildTaskContractOperationError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.verifyFailed'),
+        result.errorDetail,
+      );
     }
     await refresh();
     return result.result;
@@ -350,7 +371,7 @@ export function useTaskContract() {
     tenant?: string;
   }): Promise<DeliveryBuildResultView> => {
     if (!activeContract || !window.electronAPI?.taskContract) {
-      throw new Error('No active task contract.');
+      throw new Error(translateKey('common.taskContract.noActive'));
     }
 
     const result = await window.electronAPI.taskContract.buildDeliveryPack({
@@ -358,7 +379,10 @@ export function useTaskContract() {
       ...params,
     });
     if (!result.ok) {
-      throw buildTaskContractOperationError(result.error, result.errorDetail);
+      throw buildTaskContractOperationError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.buildDeliveryFailed'),
+        result.errorDetail,
+      );
     }
     await refresh();
     return result.result;
@@ -373,7 +397,7 @@ export function useTaskContract() {
     model?: string;
   }): Promise<DeliveryRenderResultView> => {
     if (!activeContract || !window.electronAPI?.taskContract) {
-      throw new Error('No active task contract.');
+      throw new Error(translateKey('common.taskContract.noActive'));
     }
 
     const result = await window.electronAPI.taskContract.renderArtifact({
@@ -386,7 +410,10 @@ export function useTaskContract() {
       model: params.model,
     });
     if (!result.ok) {
-      throw buildTaskContractOperationError(result.error, result.errorDetail);
+      throw buildTaskContractOperationError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.renderFailed'),
+        result.errorDetail,
+      );
     }
     await refresh();
     return result.result;
@@ -399,7 +426,7 @@ export function useTaskContract() {
     approveManualReview?: boolean;
   }): Promise<DeliveryDispatchResultView> => {
     if (!activeContract || !window.electronAPI?.taskContract) {
-      throw new Error('No active task contract.');
+      throw new Error(translateKey('common.taskContract.noActive'));
     }
 
     const result = await window.electronAPI.taskContract.dispatchDelivery({
@@ -410,7 +437,10 @@ export function useTaskContract() {
       approveManualReview: params.approveManualReview,
     });
     if (!result.ok) {
-      throw buildTaskContractOperationError(result.error, result.errorDetail);
+      throw buildTaskContractOperationError(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.dispatchFailed'),
+        result.errorDetail,
+      );
     }
     await refresh();
     return result.result;

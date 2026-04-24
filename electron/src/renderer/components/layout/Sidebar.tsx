@@ -40,6 +40,7 @@ import { ExperimentTable } from '../workflow/ExperimentTable';
 import { BudgetBar } from '../workflow/BudgetBar';
 import { ReviewTab } from '../workflow/ReviewTab';
 import { WorkObjectPanel } from '../workflow/WorkObjectPanel';
+import { IntegrationSettings } from '../workflow/IntegrationSettings';
 import { MetricSourcePanel } from '../semantic/MetricSourcePanel';
 import { MissionBriefPanel } from '../mission/MissionBriefPanel';
 import { GatewayStatusPanel } from '../runtime/GatewayStatusPanel';
@@ -142,7 +143,7 @@ export function Sidebar({
     <nav
       ref={navRef}
       role="navigation"
-      aria-label="Primary navigation"
+      aria-label={t('sidebar.primaryLabel')}
       className="flex h-full shrink-0 flex-col border-r border-ds-border bg-ds-surface transition-[width] ease-out"
       style={{
         width: `${sidebarWidth}px`,
@@ -208,6 +209,8 @@ export function Sidebar({
                 <MissionBriefPanel />
                 <div className="mx-3 border-t border-ds-border/50" />
                 <WorkObjectPanel />
+                <div className="mx-3 border-t border-ds-border/50" />
+                <IntegrationSettings />
                 <div className="mx-3 border-t border-ds-border/50" />
                 <ApprovalPanel />
                 <div className="mx-3 border-t border-ds-border/50" />
@@ -278,13 +281,13 @@ export function Sidebar({
 
             <div className="flex items-center justify-between border-t border-ds-border/50 px-1 py-2">
               <div className="text-xs text-ds-muted">
-                Cost: <span className="font-mono text-ds-text">${cost.toFixed(4)}</span>
+                {t('sidebar.cost')}: <span className="font-mono text-ds-text">${cost.toFixed(4)}</span>
               </div>
               <button
                 onClick={onOpenSettings}
                 data-testid="open-settings"
                 className="rounded p-1 text-ds-muted transition-colors hover:bg-ds-bg hover:text-ds-text focus:outline-none focus-visible:ring-2 focus-visible:ring-ds-accent/50"
-                title="Settings (Ctrl+,)"
+                title={t('sidebar.openSettingsTitle', { shortcut: 'Ctrl+,' })}
               >
                 <Settings size={14} />
               </button>

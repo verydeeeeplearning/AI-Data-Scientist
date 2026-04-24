@@ -19,6 +19,7 @@ exports.flushQueuedMobileApprovals = flushQueuedMobileApprovals;
 exports.getQueuedApprovalCount = getQueuedApprovalCount;
 exports.buildApprovalResolvePayload = buildApprovalResolvePayload;
 const indexedDbOutbox_1 = require("../outbox/indexedDbOutbox");
+const mobileError_1 = require("../errors/mobileError");
 const RISK_VALUES = ['low', 'medium', 'high'];
 function pickString(meta, key) {
     if (!meta) {
@@ -85,19 +86,44 @@ function selectPendingApprovals(approvals) {
  */
 async function submitMobileApproval(rpc, params, options = {}) {
     if (!params.approvalId) {
-        return { ok: false, queued: false, error: 'missing approvalId' };
+        return {
+            ok: false,
+            queued: false,
+            error: 'missing approvalId',
+            errorCode: 'approval_missing_id',
+            debugDetail: 'missing approvalId',
+        };
     }
     if (params.decision !== 'approved' && params.decision !== 'rejected') {
-        return { ok: false, queued: false, error: 'invalid decision' };
+        return {
+            ok: false,
+            queued: false,
+            error: 'invalid decision',
+            errorCode: 'approval_invalid_decision',
+            debugDetail: 'invalid decision',
+        };
     }
     const outbox = options.outbox ?? indexedDbOutbox_1.indexedDbOutbox;
     const requestBackgroundSync = options.requestBackgroundSync ?? indexedDbOutbox_1.registerOutboxBackgroundSync;
     const navigatorOnline = options.navigatorOnline ?? readNavigatorOnline();
     const payload = buildApprovalResolvePayload(params);
     if (!navigatorOnline) {
-        const queuedId = await enqueueApproval(outbox, payload, options.now);
-        await requestBackgroundSync();
-        return { ok: true, queued: true, queuedId };
+        try {
+            const queuedId = await enqueueApproval(outbox, payload, options.now);
+            await requestBackgroundSync();
+            return { ok: true, queued: true, queuedId };
+        }
+        catch (error) {
+            const errorCode = (0, mobileError_1.resolveApprovalErrorCode)(error);
+            const debugDetail = (0, mobileError_1.getMobileErrorDebugDetail)(error);
+            return {
+                ok: false,
+                queued: false,
+                error: debugDetail,
+                errorCode,
+                debugDetail,
+            };
+        }
     }
     try {
         await rpc('approval.resolve', payload);
@@ -105,18 +131,35 @@ async function submitMobileApproval(rpc, params, options = {}) {
     }
     catch (err) {
         if (isQueueableApprovalError(err)) {
-            const queuedId = await enqueueApproval(outbox, payload, options.now);
-            await requestBackgroundSync();
-            return {
-                ok: true,
-                queued: true,
-                queuedId,
-            };
+            try {
+                const queuedId = await enqueueApproval(outbox, payload, options.now);
+                await requestBackgroundSync();
+                return {
+                    ok: true,
+                    queued: true,
+                    queuedId,
+                };
+            }
+            catch (queueError) {
+                const errorCode = (0, mobileError_1.resolveApprovalErrorCode)(queueError);
+                const debugDetail = (0, mobileError_1.getMobileErrorDebugDetail)(queueError);
+                return {
+                    ok: false,
+                    queued: false,
+                    error: debugDetail,
+                    errorCode,
+                    debugDetail,
+                };
+            }
         }
+        const errorCode = (0, mobileError_1.resolveApprovalErrorCode)(err);
+        const debugDetail = (0, mobileError_1.getMobileErrorDebugDetail)(err);
         return {
             ok: false,
             queued: false,
-            error: err instanceof Error ? err.message : String(err),
+            error: debugDetail,
+            errorCode,
+            debugDetail,
         };
     }
 }
@@ -168,9 +211,7 @@ function readNavigatorOnline() {
     return navigator.onLine !== false;
 }
 function isQueueableApprovalError(error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return /(offline|network|socket|websocket|disconnected|failed to fetch|backend is not connected)/i
-        .test(message);
+    return (0, mobileError_1.resolveApprovalErrorCode)(error) === 'approval_transport_unavailable';
 }
 async function enqueueApproval(outbox, payload, now) {
     return outbox.enqueue({

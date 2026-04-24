@@ -7,24 +7,23 @@ import { useId, useState } from 'react';
 import { Badge, Button, Card } from '../../design-system/primitives';
 import { useWs } from '../../hooks/WsProvider';
 import { fetchPolicySnapshot } from '../../hooks/usePolicy';
+import { useI18n } from '../../stores/i18nStore';
 import { usePolicyStore, type RecurringGoalEntry } from '../../stores/policyStore';
 import { RecurringGoalEditor } from './RecurringGoalEditor';
+import { formatRuntimeIntervalShort } from './runtimeI18n';
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-function formatInterval(intervalSeconds: number): string {
-  if (intervalSeconds < 60) return `${Math.round(intervalSeconds)}s`;
-  if (intervalSeconds < 3600) return `${Math.round(intervalSeconds / 60)}m`;
-  if (intervalSeconds < 86400) return `${Math.round(intervalSeconds / 3600)}h`;
-  return `${Math.round(intervalSeconds / 86400)}d`;
-}
-
-function formatLastTriggered(timestamp?: number | null): string {
-  if (!timestamp) return 'Never';
+function formatLastTriggered(
+  timestamp: number | null | undefined,
+  t: (key: string) => string,
+): string {
+  if (!timestamp) return t('run.runtime.policy.recurringGoals.never');
   return new Date(timestamp * 1000).toLocaleString();
 }
 
 export function RecurringGoalsPanel() {
+  const { t } = useI18n();
   const headingId = useId();
   const editorRegionId = `${headingId}-editor`;
   const { rpc } = useWs();
@@ -65,7 +64,7 @@ export function RecurringGoalsPanel() {
       setEditingGoalId(null);
     } catch (err) {
       setSaveState('error');
-      setErrorMessage((err as Error)?.message ?? 'Failed to save recurring goal.');
+      setErrorMessage((err as Error)?.message ?? t('run.runtime.policy.recurringGoals.errorSave'));
     }
   };
 
@@ -88,7 +87,7 @@ export function RecurringGoalsPanel() {
             className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-ds-muted"
           >
             <Clock3 size={12} aria-hidden="true" />
-            Recurring Goals
+            {t('run.runtime.policy.recurringGoals.title')}
           </div>
           <Badge compact>{recurringGoals.length}</Badge>
           <Button
@@ -105,7 +104,9 @@ export function RecurringGoalsPanel() {
             aria-expanded={showCreate}
             aria-controls={editorRegionId}
           >
-            {showCreate ? 'Close' : 'Add Goal'}
+            {showCreate
+              ? t('run.runtime.policy.recurringGoals.action.close')
+              : t('run.runtime.policy.recurringGoals.action.add')}
           </Button>
         </header>
 
@@ -130,16 +131,19 @@ export function RecurringGoalsPanel() {
         ) : null}
         {saveState === 'saved' ? (
           <p role="status" className="text-xs text-ds-success">
-            Policy updated.
+            {t('run.runtime.policy.recurringGoals.saved')}
           </p>
         ) : null}
 
         {recurringGoals.length === 0 ? (
           <Card className="bg-ds-surface/60 text-sm text-ds-muted">
-            No recurring goals configured.
+            {t('run.runtime.policy.recurringGoals.empty')}
           </Card>
         ) : (
-          <ul className="space-y-3 list-none p-0" aria-label="Recurring goals">
+          <ul
+            className="space-y-3 list-none p-0"
+            aria-label={t('run.runtime.policy.recurringGoals.listAria')}
+          >
             {recurringGoals.map((goal) => (
               <li key={goal.goalId}>
                 {editingGoalId === goal.goalId ? (
@@ -166,15 +170,21 @@ export function RecurringGoalsPanel() {
                         compact
                         className="uppercase tracking-[0.16em]"
                       >
-                        {goal.enabled ? 'enabled' : 'disabled'}
+                        {goal.enabled
+                          ? t('run.runtime.policy.recurringGoals.state.enabled')
+                          : t('run.runtime.policy.recurringGoals.state.disabled')}
                       </Badge>
                     </div>
 
                     <dl className="grid gap-3 sm:grid-cols-3">
-                      <GoalMetaItem label="Session">{goal.sessionId}</GoalMetaItem>
-                      <GoalMetaItem label="Interval">{formatInterval(goal.intervalSeconds)}</GoalMetaItem>
-                      <GoalMetaItem label="Last trigger">
-                        {formatLastTriggered(goal.lastTriggeredAt)}
+                      <GoalMetaItem label={t('run.runtime.policy.recurringGoals.meta.session')}>
+                        {goal.sessionId}
+                      </GoalMetaItem>
+                      <GoalMetaItem label={t('run.runtime.policy.recurringGoals.meta.interval')}>
+                        {formatRuntimeIntervalShort(t, goal.intervalSeconds)}
+                      </GoalMetaItem>
+                      <GoalMetaItem label={t('run.runtime.policy.recurringGoals.meta.lastTrigger')}>
+                        {formatLastTriggered(goal.lastTriggeredAt, t)}
                       </GoalMetaItem>
                     </dl>
 
@@ -190,7 +200,7 @@ export function RecurringGoalsPanel() {
                         size="sm"
                         leadingIcon={<Pencil size={14} aria-hidden="true" />}
                       >
-                        Edit
+                        {t('run.runtime.policy.recurringGoals.action.edit')}
                       </Button>
                       <Button
                         onClick={() => void toggleGoal(goal)}
@@ -199,7 +209,9 @@ export function RecurringGoalsPanel() {
                         size="sm"
                         leadingIcon={<RefreshCw size={14} aria-hidden="true" />}
                       >
-                        {goal.enabled ? 'Disable' : 'Enable'}
+                        {goal.enabled
+                          ? t('run.runtime.policy.recurringGoals.action.disable')
+                          : t('run.runtime.policy.recurringGoals.action.enable')}
                       </Button>
                     </div>
                   </Card>

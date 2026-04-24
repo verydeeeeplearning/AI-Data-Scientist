@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { useI18n } from '../../stores/i18nStore';
 import type { RpcFn } from './types';
 
 type ConnectorType = 'postgres' | 'bigquery' | 'snowflake';
@@ -86,19 +87,30 @@ interface DraftContext {
   editingConnector: ConnectorSummary | null;
 }
 
-const CONNECTOR_TYPES: { type: ConnectorType; label: string; hint: string }[] = [
-  { type: 'postgres', label: 'PostgreSQL', hint: 'Host, database, schema, and read-only login.' },
-  {
-    type: 'bigquery',
-    label: 'BigQuery',
-    hint: 'Project, dataset, location, and service-account or ADC auth.',
-  },
-  {
-    type: 'snowflake',
-    label: 'Snowflake',
-    hint: 'Account, warehouse, database, and schema-aware read-only access.',
-  },
-];
+type Translator = (
+  key: string,
+  vars?: Record<string, string | number | null | undefined>,
+) => string;
+
+function buildConnectorTypes(t: Translator): Array<{ type: ConnectorType; label: string; hint: string }> {
+  return [
+    {
+      type: 'postgres',
+      label: t('settings.connectorWizard.type.postgres.label'),
+      hint: t('settings.connectorWizard.type.postgres.hint'),
+    },
+    {
+      type: 'bigquery',
+      label: t('settings.connectorWizard.type.bigquery.label'),
+      hint: t('settings.connectorWizard.type.bigquery.hint'),
+    },
+    {
+      type: 'snowflake',
+      label: t('settings.connectorWizard.type.snowflake.label'),
+      hint: t('settings.connectorWizard.type.snowflake.hint'),
+    },
+  ];
+}
 
 const DEFAULT_TIMEOUT_SECONDS = '30';
 const DEFAULT_MAX_ROWS = '10000';
@@ -154,6 +166,7 @@ function createDefaultDrafts(): DraftByType {
 }
 
 export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
+  const { t } = useI18n();
   const [connectors, setConnectors] = useState<ConnectorSummary[]>([]);
   const [selectedType, setSelectedType] = useState<ConnectorType>('postgres');
   const [drafts, setDrafts] = useState<DraftByType>(() => createDefaultDrafts());
@@ -167,14 +180,15 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
   const [testResult, setTestResult] = useState<ConnectorTestResult | null>(null);
   const [testedFingerprint, setTestedFingerprint] = useState<string | null>(null);
 
+  const connectorTypes = useMemo(() => buildConnectorTypes(t), [t]);
   const currentDraft = drafts[selectedType];
   const currentFingerprint = useMemo(
     () => JSON.stringify({ type: selectedType, draft: currentDraft }),
     [currentDraft, selectedType]
   );
   const validationErrors = useMemo(
-    () => validateDraft(selectedType, currentDraft, { editingConnector }),
-    [currentDraft, editingConnector, selectedType]
+    () => validateDraft(selectedType, currentDraft, { editingConnector }, t),
+    [currentDraft, editingConnector, selectedType, t]
   );
   const isTestFresh = testedFingerprint === currentFingerprint;
   const canSave = connectorCreationAllowed && validationErrors.length === 0 && isTestFresh && testResult?.ok;
@@ -194,7 +208,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
     } catch (error) {
       setMessage({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Failed to load connectors.',
+        text: error instanceof Error ? error.message : t('settings.connectorWizard.message.load_failed'),
       });
     } finally {
       setLoading(false);
@@ -226,7 +240,9 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
     resetDraftForType(type);
     setMessage({
       tone: 'info',
-      text: `Preparing a new ${connectorTypeLabel(type)} connector.`,
+      text: t('settings.connectorWizard.message.prepare_new', {
+        type: connectorTypeLabel(type, t),
+      }),
     });
   };
 
@@ -240,13 +256,19 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
       tone: 'info',
       text:
         connector.hasCredential && connector.credentialMethod === 'secret_manager'
-          ? 'Stored credentials can be reused for test/save unless you rename the connector.'
-          : `Editing ${connector.label || connector.name}.`,
+          ? t('settings.connectorWizard.message.edit_reuse_secret')
+          : t('settings.connectorWizard.message.edit_connector', {
+              name: connector.label || connector.name,
+            }),
     });
   };
 
   const handleDelete = async (connector: ConnectorSummary) => {
-    const confirmed = window.confirm(`Delete connector "${connector.label || connector.name}"?`);
+    const confirmed = window.confirm(
+      t('settings.connectorWizard.message.confirm_delete', {
+        name: connector.label || connector.name,
+      }),
+    );
     if (!confirmed) {
       return;
     }
@@ -261,13 +283,15 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
       }
       setMessage({
         tone: 'success',
-        text: `Deleted ${connector.label || connector.name}.`,
+        text: t('settings.connectorWizard.message.deleted', {
+          name: connector.label || connector.name,
+        }),
       });
       await refreshConnectors();
     } catch (error) {
       setMessage({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Failed to delete connector.',
+        text: error instanceof Error ? error.message : t('settings.connectorWizard.message.delete_failed'),
       });
     } finally {
       setDeletingName(null);
@@ -275,7 +299,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
   };
 
   const handleTest = async () => {
-    const errors = validateDraft(selectedType, currentDraft, { editingConnector });
+    const errors = validateDraft(selectedType, currentDraft, { editingConnector }, t);
     if (errors.length > 0) {
       setMessage({ tone: 'error', text: errors[0] });
       return;
@@ -287,13 +311,15 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
     try {
       const payload = buildPayload(selectedType, currentDraft, { editingConnector });
       const result = await rpc('connector.test', payload);
-      const parsed = parseTestResult(result);
+      const parsed = parseTestResult(result, t);
       setTestResult(parsed);
       if (parsed.ok) {
         setTestedFingerprint(currentFingerprint);
         setMessage({
           tone: 'success',
-          text: `Connection test passed for ${connectorTypeLabel(selectedType)}.`,
+          text: t('settings.connectorWizard.message.test_passed', {
+            type: connectorTypeLabel(selectedType, t),
+          }),
         });
       } else {
         setTestedFingerprint(null);
@@ -306,7 +332,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
       setTestedFingerprint(null);
       setMessage({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Connection test failed.',
+        text: error instanceof Error ? error.message : t('settings.connectorWizard.message.test_failed_default'),
       });
     } finally {
       setTesting(false);
@@ -314,7 +340,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
   };
 
   const handleSave = async () => {
-    const errors = validateDraft(selectedType, currentDraft, { editingConnector });
+    const errors = validateDraft(selectedType, currentDraft, { editingConnector }, t);
     if (errors.length > 0) {
       setMessage({ tone: 'error', text: errors[0] });
       return;
@@ -322,7 +348,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
     if (!isTestFresh || !testResult?.ok) {
       setMessage({
         tone: 'error',
-        text: 'Run a successful connection test before saving.',
+        text: t('settings.connectorWizard.message.save_requires_test'),
       });
       return;
     }
@@ -337,13 +363,15 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
       updateDraft(saved.type, () => draftFromSummary(saved));
       setMessage({
         tone: 'success',
-        text: `${saved.label || saved.name} is saved and ready for warehouse access.`,
+        text: t('settings.connectorWizard.message.saved_ready', {
+          name: saved.label || saved.name,
+        }),
       });
       await refreshConnectors();
     } catch (error) {
       setMessage({
         tone: 'error',
-        text: error instanceof Error ? error.message : 'Failed to save connector.',
+        text: error instanceof Error ? error.message : t('settings.connectorWizard.message.save_failed'),
       });
     } finally {
       setSaving(false);
@@ -355,10 +383,11 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
       <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-xs font-medium text-ds-text">Warehouse Connector Setup</div>
+            <div className="text-xs font-medium text-ds-text">
+              {t('settings.connectorWizard.title')}
+            </div>
             <p className="mt-1 text-[11px] leading-5 text-ds-muted">
-              Configure read-only access for PostgreSQL, BigQuery, or Snowflake. Secrets stay in
-              secure storage and tests only run a read-only probe.
+              {t('settings.connectorWizard.description')}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -367,20 +396,22 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
               disabled={loading}
               className="rounded-lg border border-ds-border bg-ds-surface px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50 disabled:opacity-40"
             >
-              {loading ? 'Refreshing...' : 'Refresh'}
+              {loading
+                ? t('settings.connectorWizard.action.refreshing')
+                : t('settings.connectorWizard.action.refresh')}
             </button>
             <button
               onClick={() => handleStartNew(selectedType)}
               disabled={!connectorCreationAllowed}
               className="rounded-lg border border-ds-border bg-ds-surface px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              New Connector
+              {t('settings.connectorWizard.action.new')}
             </button>
           </div>
         </div>
         {!connectorCreationAllowed && (
           <div className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
-            Connector creation is currently disabled by organization policy.
+            {t('settings.connectorWizard.policy_disabled')}
           </div>
         )}
       </div>
@@ -388,22 +419,24 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
       {message && <MessageBanner tone={message.tone}>{message.text}</MessageBanner>}
 
       <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
-        <div className="text-xs font-medium text-ds-text">Saved Connectors</div>
+        <div className="text-xs font-medium text-ds-text">
+          {t('settings.connectorWizard.saved.title')}
+        </div>
         <div className="mt-1 text-[11px] text-ds-muted">
           {connectors.length === 0
-            ? 'No database connectors saved yet.'
-            : `${connectors.length} connector${connectors.length === 1 ? '' : 's'} configured.`}
+            ? t('settings.connectorWizard.saved.empty')
+            : t('settings.connectorWizard.saved.count', { count: connectors.length })}
         </div>
 
         <div className="mt-3 space-y-2">
           {loading && (
             <div className="rounded-lg border border-ds-border/60 bg-ds-surface px-3 py-2 text-[11px] text-ds-muted">
-              Loading connector inventory...
+              {t('settings.connectorWizard.saved.loading')}
             </div>
           )}
           {!loading && connectors.length === 0 && (
             <div className="rounded-lg border border-ds-border/60 bg-ds-surface px-3 py-2 text-[11px] text-ds-muted">
-              Start with a connector type below, run a read-only test, then save it for reuse.
+              {t('settings.connectorWizard.saved.empty_help')}
             </div>
           )}
           {!loading &&
@@ -424,21 +457,25 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                         <span className="text-xs font-medium text-ds-text">
                           {connector.label || connector.name}
                         </span>
-                        <Badge>{connectorTypeLabel(connector.type)}</Badge>
+                        <Badge>{connectorTypeLabel(connector.type, t)}</Badge>
                         <Badge tone={connector.hasCredential ? 'success' : 'muted'}>
-                          {connector.hasCredential ? 'Credential Ready' : 'No Secret Stored'}
+                          {connector.hasCredential
+                            ? t('settings.connectorWizard.badge.credential_ready')
+                            : t('settings.connectorWizard.badge.no_secret')}
                         </Badge>
-                        <Badge tone="muted">Read Only</Badge>
+                        <Badge tone="muted">{t('settings.connectorWizard.badge.read_only')}</Badge>
                       </div>
                       <div className="mt-1 text-[11px] text-ds-muted">
-                        {connector.name} · {describeConnectorTarget(connector)}
+                        {connector.name} / {describeConnectorTarget(connector, t)}
                       </div>
                       <div className="mt-1 text-[11px] text-ds-muted/90">
                         {connector.credentialMethod === 'env'
                           ? connector.credentialRef
-                            ? `Environment credential ref: ${connector.credentialRef}`
-                            : 'Environment / default credentials'
-                          : 'Secret stored in backend secure storage'}
+                            ? t('settings.connectorWizard.saved.credential.env_ref', {
+                                credentialRef: connector.credentialRef,
+                              })
+                            : t('settings.connectorWizard.saved.credential.env_default')
+                          : t('settings.connectorWizard.saved.credential.secret_manager')}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -446,14 +483,16 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                         onClick={() => handleEdit(connector)}
                         className="rounded-lg border border-ds-border bg-ds-bg px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50"
                       >
-                        Edit
+                        {t('settings.connectorWizard.action.edit')}
                       </button>
                       <button
                         onClick={() => void handleDelete(connector)}
                         disabled={!connectorCreationAllowed || deletingName === connector.name}
                         className="rounded-lg border border-ds-border bg-ds-bg px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-error/50 hover:text-ds-error disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        {deletingName === connector.name ? 'Deleting...' : 'Delete'}
+                        {deletingName === connector.name
+                          ? t('settings.connectorWizard.action.deleting')
+                          : t('settings.connectorWizard.action.delete')}
                       </button>
                     </div>
                   </div>
@@ -465,7 +504,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
 
       <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
         <div className="flex flex-wrap gap-2">
-          {CONNECTOR_TYPES.map((entry) => {
+          {connectorTypes.map((entry) => {
             const active = selectedType === entry.type;
             return (
               <button
@@ -494,23 +533,27 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
             <div>
               <div className="text-xs font-medium text-ds-text">
                 {editingConnector?.name === currentDraft.name && editingConnector?.type === selectedType
-                  ? `Edit ${editingConnector.label || editingConnector.name}`
-                  : `New ${connectorTypeLabel(selectedType)} Connector`}
+                  ? t('settings.connectorWizard.form.edit_title', {
+                      name: editingConnector.label || editingConnector.name,
+                    })
+                  : t('settings.connectorWizard.form.new_title', {
+                      type: connectorTypeLabel(selectedType, t),
+                    })}
               </div>
               <div className="text-[11px] text-ds-muted">
-                Fill in the connector details, run a read-only probe, then save the configuration.
+                {t('settings.connectorWizard.form.description')}
               </div>
             </div>
             <button
               onClick={() => handleStartNew(selectedType)}
               className="rounded-lg border border-ds-border bg-ds-bg px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50"
             >
-              Reset Form
+              {t('settings.connectorWizard.action.reset_form')}
             </button>
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <LabeledField label="Connector name" required>
+            <LabeledField label={t('settings.connectorWizard.field.connector_name')} required>
               <input
                 type="text"
                 value={currentDraft.name}
@@ -521,18 +564,20 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                 className={fieldClassName}
               />
             </LabeledField>
-            <LabeledField label="Display label">
+            <LabeledField label={t('settings.connectorWizard.field.display_label')}>
               <input
                 type="text"
                 value={currentDraft.label}
                 onChange={(event) =>
                   updateDraft(selectedType, (draft) => ({ ...draft, label: event.target.value }))
                 }
-                placeholder={`${connectorTypeLabel(selectedType)} read-only`}
+                placeholder={t('settings.connectorWizard.field.display_label_placeholder', {
+                  type: connectorTypeLabel(selectedType, t),
+                })}
                 className={fieldClassName}
               />
             </LabeledField>
-            <LabeledField label="Timeout (seconds)" required>
+            <LabeledField label={t('settings.connectorWizard.field.timeout')} required>
               <input
                 type="number"
                 min={1}
@@ -546,7 +591,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                 className={fieldClassName}
               />
             </LabeledField>
-            <LabeledField label="Max rows" required>
+            <LabeledField label={t('settings.connectorWizard.field.max_rows')} required>
               <input
                 type="number"
                 min={1}
@@ -562,14 +607,16 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
           <div className="mt-4 rounded-lg border border-ds-border/60 bg-ds-bg px-3 py-2">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-xs font-medium text-ds-text">Read-only guard</div>
+                <div className="text-xs font-medium text-ds-text">
+                  {t('settings.connectorWizard.read_only.title')}
+                </div>
                 <div className="text-[11px] text-ds-muted">
-                  Connector tests and query execution stay in read-only mode.
+                  {t('settings.connectorWizard.read_only.description')}
                 </div>
               </div>
               <label className="flex items-center gap-2 text-[11px] text-ds-muted">
                 <input type="checkbox" checked={currentDraft.readOnly} readOnly />
-                Locked
+                {t('settings.connectorWizard.read_only.locked')}
               </label>
             </div>
           </div>
@@ -579,6 +626,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
               draft={drafts.postgres}
               onChange={(updater) => updateDraft('postgres', updater)}
               showStoredSecretHint={usesStoredSecret}
+              t={t}
             />
           )}
           {selectedType === 'bigquery' && (
@@ -586,6 +634,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
               draft={drafts.bigquery}
               onChange={(updater) => updateDraft('bigquery', updater)}
               showStoredSecretHint={usesStoredSecret}
+              t={t}
             />
           )}
           {selectedType === 'snowflake' && (
@@ -593,6 +642,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
               draft={drafts.snowflake}
               onChange={(updater) => updateDraft('snowflake', updater)}
               showStoredSecretHint={usesStoredSecret}
+              t={t}
             />
           )}
 
@@ -605,21 +655,27 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
           {testResult && (
             <div className="mt-4 rounded-lg border border-ds-border/60 bg-ds-bg p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-ds-text">Last Connection Test</span>
+                <span className="text-xs font-medium text-ds-text">
+                  {t('settings.connectorWizard.test.title')}
+                </span>
                 <Badge tone={testResult.ok ? 'success' : 'error'}>
-                  {testResult.ok ? 'Passed' : 'Failed'}
+                  {testResult.ok
+                    ? t('settings.connectorWizard.test.passed')
+                    : t('settings.connectorWizard.test.failed')}
                 </Badge>
                 {typeof testResult.latencyMs === 'number' && (
                   <Badge tone="muted">{testResult.latencyMs}ms</Badge>
                 )}
-                {!isTestFresh && <Badge tone="warning">Draft changed, retest required</Badge>}
+                {!isTestFresh && (
+                  <Badge tone="warning">{t('settings.connectorWizard.test.retest_required')}</Badge>
+                )}
               </div>
               <div className="mt-2 text-[11px] text-ds-muted">
                 {testResult.probeMessage ?? testResult.message}
               </div>
               {Object.keys(testResult.details).length > 0 && (
                 <div className="mt-2 rounded border border-ds-border/50 bg-ds-surface px-3 py-2 text-[11px] text-ds-muted">
-                  {formatDetails(testResult.details)}
+                  {normalizeDetailSummary(formatDetails(testResult.details))}
                 </div>
               )}
               {testResult.warnings.length > 0 && (
@@ -636,14 +692,20 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
               disabled={!connectorCreationAllowed || testing || validationErrors.length > 0}
               className="rounded-lg border border-ds-border bg-ds-bg px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {testing ? 'Testing...' : 'Test Connection'}
+              {testing
+                ? t('settings.connectorWizard.action.testing')
+                : t('settings.connectorWizard.action.test')}
             </button>
             <button
               onClick={() => void handleSave()}
               disabled={saving || !canSave}
               className="rounded-lg bg-ds-accent px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {saving ? 'Saving...' : editingConnector ? 'Save Changes' : 'Save Connector'}
+              {saving
+                ? t('settings.connectorWizard.action.saving')
+                : editingConnector
+                  ? t('settings.connectorWizard.action.save_changes')
+                  : t('settings.connectorWizard.action.save_connector')}
             </button>
           </div>
         </div>
@@ -656,15 +718,17 @@ function PostgresFields({
   draft,
   onChange,
   showStoredSecretHint,
+  t,
 }: {
   draft: PostgresDraft;
   onChange: (updater: (draft: PostgresDraft) => PostgresDraft) => void;
   showStoredSecretHint: boolean;
+  t: Translator;
 }) {
   return (
     <div className="mt-4 space-y-4">
       <div className="grid gap-3 md:grid-cols-2">
-        <LabeledField label="Host" required>
+        <LabeledField label={t('settings.connectorWizard.postgres.host')} required>
           <input
             type="text"
             value={draft.host}
@@ -673,7 +737,7 @@ function PostgresFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Port">
+        <LabeledField label={t('settings.connectorWizard.postgres.port')}>
           <input
             type="number"
             value={draft.port}
@@ -682,7 +746,7 @@ function PostgresFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Database" required>
+        <LabeledField label={t('settings.connectorWizard.postgres.database')} required>
           <input
             type="text"
             value={draft.database}
@@ -693,7 +757,7 @@ function PostgresFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Schema">
+        <LabeledField label={t('settings.connectorWizard.postgres.schema')}>
           <input
             type="text"
             value={draft.schema}
@@ -702,7 +766,7 @@ function PostgresFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Username">
+        <LabeledField label={t('settings.connectorWizard.postgres.username')}>
           <input
             type="text"
             value={draft.username}
@@ -713,55 +777,59 @@ function PostgresFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="SSL">
+        <LabeledField label={t('settings.connectorWizard.postgres.ssl')}>
           <label className="flex h-10 items-center gap-2 rounded border border-ds-border bg-ds-bg px-3 text-xs text-ds-text">
             <input
               type="checkbox"
               checked={draft.ssl}
               onChange={(event) => onChange((current) => ({ ...current, ssl: event.target.checked }))}
             />
-            Require SSL
+            {t('settings.connectorWizard.postgres.require_ssl')}
           </label>
         </LabeledField>
       </div>
 
       <AuthModePicker<PostgresAuthMode>
-        label="Credential source"
+        label={t('settings.connectorWizard.auth_source')}
         value={draft.authMode}
         options={[
           {
             value: 'password',
-            label: 'Secure password',
-            description: 'Store the password in backend secure storage.',
+            label: t('settings.connectorWizard.postgres.auth.password.label'),
+            description: t('settings.connectorWizard.postgres.auth.password.description'),
           },
           {
             value: 'environment',
-            label: 'Environment / DSN',
-            description: 'Use an environment variable or a local auth path.',
+            label: t('settings.connectorWizard.postgres.auth.environment.label'),
+            description: t('settings.connectorWizard.postgres.auth.environment.description'),
           },
         ]}
         onChange={(value) => onChange((current) => ({ ...current, authMode: value }))}
       />
 
       {draft.authMode === 'password' ? (
-        <LabeledField label="Password" required={!showStoredSecretHint}>
+        <LabeledField label={t('settings.connectorWizard.postgres.password')} required={!showStoredSecretHint}>
           <input
             type="password"
             value={draft.password}
             onChange={(event) => onChange((current) => ({ ...current, password: event.target.value }))}
-            placeholder={showStoredSecretHint ? 'Stored secret will be reused if left blank' : 'Enter password'}
+            placeholder={
+              showStoredSecretHint
+                ? t('settings.connectorWizard.secret.reuse_placeholder')
+                : t('settings.connectorWizard.secret.enter_password')
+            }
             className={fieldClassName}
           />
         </LabeledField>
       ) : (
-        <LabeledField label="Credential env var">
+        <LabeledField label={t('settings.connectorWizard.credential_env_var')}>
           <input
             type="text"
             value={draft.credentialRef}
             onChange={(event) =>
               onChange((current) => ({ ...current, credentialRef: event.target.value }))
             }
-            placeholder="PG_DSN or PG_READONLY_JSON"
+            placeholder={t('settings.connectorWizard.postgres.env_placeholder')}
             className={fieldClassName}
           />
         </LabeledField>
@@ -769,8 +837,7 @@ function PostgresFields({
 
       {showStoredSecretHint && (
         <div className="rounded-lg border border-ds-border/60 bg-ds-bg px-3 py-2 text-[11px] text-ds-muted">
-          Existing stored credentials will be reused for test/save unless you rename the connector
-          or enter a replacement password.
+          {t('settings.connectorWizard.postgres.reuse_hint')}
         </div>
       )}
     </div>
@@ -781,15 +848,17 @@ function BigQueryFields({
   draft,
   onChange,
   showStoredSecretHint,
+  t,
 }: {
   draft: BigQueryDraft;
   onChange: (updater: (draft: BigQueryDraft) => BigQueryDraft) => void;
   showStoredSecretHint: boolean;
+  t: Translator;
 }) {
   return (
     <div className="mt-4 space-y-4">
       <div className="grid gap-3 md:grid-cols-2">
-        <LabeledField label="Project ID" required>
+        <LabeledField label={t('settings.connectorWizard.bigquery.project_id')} required>
           <input
             type="text"
             value={draft.projectId}
@@ -800,7 +869,7 @@ function BigQueryFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Dataset">
+        <LabeledField label={t('settings.connectorWizard.bigquery.dataset')}>
           <input
             type="text"
             value={draft.dataset}
@@ -809,7 +878,7 @@ function BigQueryFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Location">
+        <LabeledField label={t('settings.connectorWizard.bigquery.location')}>
           <input
             type="text"
             value={draft.location}
@@ -820,7 +889,7 @@ function BigQueryFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Billing project">
+        <LabeledField label={t('settings.connectorWizard.bigquery.billing_project')}>
           <input
             type="text"
             value={draft.billingProject}
@@ -834,25 +903,25 @@ function BigQueryFields({
       </div>
 
       <AuthModePicker<BigQueryAuthMode>
-        label="Credential source"
+        label={t('settings.connectorWizard.auth_source')}
         value={draft.authMode}
         options={[
           {
             value: 'service_account_json',
-            label: 'Service account JSON',
-            description: 'Store the service-account payload in backend secure storage.',
+            label: t('settings.connectorWizard.bigquery.auth.service_account_json.label'),
+            description: t('settings.connectorWizard.bigquery.auth.service_account_json.description'),
           },
           {
             value: 'environment',
-            label: 'Application default credentials',
-            description: 'Use local ADC or an env var that points to credentials.',
+            label: t('settings.connectorWizard.bigquery.auth.environment.label'),
+            description: t('settings.connectorWizard.bigquery.auth.environment.description'),
           },
         ]}
         onChange={(value) => onChange((current) => ({ ...current, authMode: value }))}
       />
 
       {draft.authMode === 'service_account_json' ? (
-        <LabeledField label="Service account JSON" required={!showStoredSecretHint}>
+        <LabeledField label={t('settings.connectorWizard.bigquery.service_account_json')} required={!showStoredSecretHint}>
           <textarea
             value={draft.serviceAccountJson}
             onChange={(event) =>
@@ -860,7 +929,7 @@ function BigQueryFields({
             }
             placeholder={
               showStoredSecretHint
-                ? 'Stored secret will be reused if left blank'
+                ? t('settings.connectorWizard.secret.reuse_placeholder')
                 : '{ "type": "service_account", ... }'
             }
             rows={8}
@@ -868,14 +937,14 @@ function BigQueryFields({
           />
         </LabeledField>
       ) : (
-        <LabeledField label="Credential env var">
+        <LabeledField label={t('settings.connectorWizard.credential_env_var')}>
           <input
             type="text"
             value={draft.credentialRef}
             onChange={(event) =>
               onChange((current) => ({ ...current, credentialRef: event.target.value }))
             }
-            placeholder="GOOGLE_APPLICATION_CREDENTIALS or leave blank for ADC"
+            placeholder={t('settings.connectorWizard.bigquery.env_placeholder')}
             className={fieldClassName}
           />
         </LabeledField>
@@ -883,8 +952,7 @@ function BigQueryFields({
 
       {showStoredSecretHint && (
         <div className="rounded-lg border border-ds-border/60 bg-ds-bg px-3 py-2 text-[11px] text-ds-muted">
-          Existing stored service-account credentials will be reused for test/save unless you rename
-          the connector or paste a replacement JSON payload.
+          {t('settings.connectorWizard.bigquery.reuse_hint')}
         </div>
       )}
     </div>
@@ -895,15 +963,17 @@ function SnowflakeFields({
   draft,
   onChange,
   showStoredSecretHint,
+  t,
 }: {
   draft: SnowflakeDraft;
   onChange: (updater: (draft: SnowflakeDraft) => SnowflakeDraft) => void;
   showStoredSecretHint: boolean;
+  t: Translator;
 }) {
   return (
     <div className="mt-4 space-y-4">
       <div className="grid gap-3 md:grid-cols-2">
-        <LabeledField label="Account" required>
+        <LabeledField label={t('settings.connectorWizard.snowflake.account')} required>
           <input
             type="text"
             value={draft.account}
@@ -914,7 +984,7 @@ function SnowflakeFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Warehouse" required>
+        <LabeledField label={t('settings.connectorWizard.snowflake.warehouse')} required>
           <input
             type="text"
             value={draft.warehouse}
@@ -925,7 +995,7 @@ function SnowflakeFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Database" required>
+        <LabeledField label={t('settings.connectorWizard.snowflake.database')} required>
           <input
             type="text"
             value={draft.database}
@@ -936,7 +1006,7 @@ function SnowflakeFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Schema">
+        <LabeledField label={t('settings.connectorWizard.snowflake.schema')}>
           <input
             type="text"
             value={draft.schema}
@@ -945,7 +1015,7 @@ function SnowflakeFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Username" required>
+        <LabeledField label={t('settings.connectorWizard.snowflake.username')} required>
           <input
             type="text"
             value={draft.username}
@@ -956,7 +1026,7 @@ function SnowflakeFields({
             className={fieldClassName}
           />
         </LabeledField>
-        <LabeledField label="Role">
+        <LabeledField label={t('settings.connectorWizard.snowflake.role')}>
           <input
             type="text"
             value={draft.role}
@@ -968,42 +1038,46 @@ function SnowflakeFields({
       </div>
 
       <AuthModePicker<SnowflakeAuthMode>
-        label="Credential source"
+        label={t('settings.connectorWizard.auth_source')}
         value={draft.authMode}
         options={[
           {
             value: 'password',
-            label: 'Secure password',
-            description: 'Store the password in backend secure storage.',
+            label: t('settings.connectorWizard.snowflake.auth.password.label'),
+            description: t('settings.connectorWizard.snowflake.auth.password.description'),
           },
           {
             value: 'environment',
-            label: 'Environment payload',
-            description: 'Use a JSON payload already exposed through an environment variable.',
+            label: t('settings.connectorWizard.snowflake.auth.environment.label'),
+            description: t('settings.connectorWizard.snowflake.auth.environment.description'),
           },
         ]}
         onChange={(value) => onChange((current) => ({ ...current, authMode: value }))}
       />
 
       {draft.authMode === 'password' ? (
-        <LabeledField label="Password" required={!showStoredSecretHint}>
+        <LabeledField label={t('settings.connectorWizard.snowflake.password')} required={!showStoredSecretHint}>
           <input
             type="password"
             value={draft.password}
             onChange={(event) => onChange((current) => ({ ...current, password: event.target.value }))}
-            placeholder={showStoredSecretHint ? 'Stored secret will be reused if left blank' : 'Enter password'}
+            placeholder={
+              showStoredSecretHint
+                ? t('settings.connectorWizard.secret.reuse_placeholder')
+                : t('settings.connectorWizard.secret.enter_password')
+            }
             className={fieldClassName}
           />
         </LabeledField>
       ) : (
-        <LabeledField label="Credential env var">
+        <LabeledField label={t('settings.connectorWizard.credential_env_var')}>
           <input
             type="text"
             value={draft.credentialRef}
             onChange={(event) =>
               onChange((current) => ({ ...current, credentialRef: event.target.value }))
             }
-            placeholder="SNOWFLAKE_READONLY_JSON"
+            placeholder={t('settings.connectorWizard.snowflake.env_placeholder')}
             className={fieldClassName}
           />
         </LabeledField>
@@ -1011,8 +1085,7 @@ function SnowflakeFields({
 
       {showStoredSecretHint && (
         <div className="rounded-lg border border-ds-border/60 bg-ds-bg px-3 py-2 text-[11px] text-ds-muted">
-          Existing stored credentials will be reused for test/save unless you rename the connector
-          or enter a replacement password.
+          {t('settings.connectorWizard.snowflake.reuse_hint')}
         </div>
       )}
     </div>
@@ -1289,79 +1362,80 @@ function buildSnowflakeCredentialPayload(
 function validateDraft(
   type: ConnectorType,
   draft: DraftByType[ConnectorType],
-  context: DraftContext
+  context: DraftContext,
+  t: Translator,
 ): string[] {
   const errors: string[] = [];
   if (!draft.name.trim()) {
-    errors.push('Connector name is required.');
+    errors.push(t('settings.connectorWizard.validation.connector_name_required'));
   } else if (!CONNECTOR_NAME_PATTERN.test(draft.name.trim())) {
-    errors.push("Connector name may contain only letters, numbers, '_' and '-'.");
+    errors.push(t('settings.connectorWizard.validation.connector_name_pattern'));
   }
 
   if (!parsePositiveIntegerOrNull(draft.timeoutSeconds)) {
-    errors.push('Timeout must be a positive integer.');
+    errors.push(t('settings.connectorWizard.validation.timeout_positive'));
   }
   if (!parsePositiveIntegerOrNull(draft.maxRows)) {
-    errors.push('Max rows must be a positive integer.');
+    errors.push(t('settings.connectorWizard.validation.max_rows_positive'));
   }
 
   if (type === 'postgres') {
     const postgres = draft as PostgresDraft;
     if (!postgres.host.trim()) {
-      errors.push('Postgres host is required.');
+      errors.push(t('settings.connectorWizard.validation.postgres.host_required'));
     }
     if (!postgres.database.trim()) {
-      errors.push('Postgres database is required.');
+      errors.push(t('settings.connectorWizard.validation.postgres.database_required'));
     }
     if (
       postgres.authMode === 'password'
       && !postgres.password.trim()
       && !shouldReuseStoredSecret('postgres', postgres, context.editingConnector)
     ) {
-      errors.push('Postgres password is required for secure-password mode.');
+      errors.push(t('settings.connectorWizard.validation.postgres.password_required'));
     }
   } else if (type === 'bigquery') {
     const bigquery = draft as BigQueryDraft;
     if (!bigquery.projectId.trim()) {
-      errors.push('BigQuery project ID is required.');
+      errors.push(t('settings.connectorWizard.validation.bigquery.project_required'));
     }
     if (
       bigquery.authMode === 'service_account_json'
       && !bigquery.serviceAccountJson.trim()
       && !shouldReuseStoredSecret('bigquery', bigquery, context.editingConnector)
     ) {
-      errors.push('Service account JSON is required for BigQuery secure-storage mode.');
+      errors.push(t('settings.connectorWizard.validation.bigquery.service_account_required'));
     }
     if (bigquery.serviceAccountJson.trim()) {
       try {
         const parsed = JSON.parse(bigquery.serviceAccountJson);
         if (!isRecord(parsed)) {
-          errors.push('BigQuery service account JSON must decode to an object.');
+          errors.push(t('settings.connectorWizard.validation.bigquery.service_account_object'));
         }
       } catch {
-        errors.push('BigQuery service account JSON must be valid JSON.');
+        errors.push(t('settings.connectorWizard.validation.bigquery.service_account_json'));
       }
     }
   } else {
     const snowflake = draft as SnowflakeDraft;
     if (!snowflake.account.trim()) {
-      errors.push('Snowflake account is required.');
+      errors.push(t('settings.connectorWizard.validation.snowflake.account_required'));
     }
     if (!snowflake.warehouse.trim()) {
-      errors.push('Snowflake warehouse is required.');
+      errors.push(t('settings.connectorWizard.validation.snowflake.warehouse_required'));
     }
     if (!snowflake.database.trim()) {
-      errors.push('Snowflake database is required.');
+      errors.push(t('settings.connectorWizard.validation.snowflake.database_required'));
     }
     if (!snowflake.username.trim()) {
-      errors.push('Snowflake username is required.');
+      errors.push(t('settings.connectorWizard.validation.snowflake.username_required'));
     }
     if (
       snowflake.authMode === 'password'
       && !snowflake.password.trim()
       && !shouldReuseStoredSecret('snowflake', snowflake, context.editingConnector)
     ) {
-      errors.push('Snowflake password is required for secure-password mode.');
+      errors.push(t('settings.connectorWizard.validation.snowflake.password_required'));
     }
   }
 
@@ -1395,6 +1469,10 @@ function shouldReuseStoredSecret(
   return (draft as SnowflakeDraft).authMode === 'password';
 }
 
+function normalizeDetailSummary(value: string): string {
+  return value.replace(/ [^\x00-\x7F]{1,3} /g, ' / ');
+}
+
 function parseConnectorSummary(value: unknown): ConnectorSummary {
   const record = isRecord(value) ? value : {};
   return {
@@ -1411,7 +1489,7 @@ function parseConnectorSummary(value: unknown): ConnectorSummary {
   };
 }
 
-function parseTestResult(payload: Record<string, unknown>): ConnectorTestResult {
+function parseTestResult(payload: Record<string, unknown>, t: Translator): ConnectorTestResult {
   const details = isRecord(payload.details) ? payload.details : {};
   const probe = isRecord(payload.probe) ? payload.probe : {};
   return {
@@ -1419,7 +1497,10 @@ function parseTestResult(payload: Record<string, unknown>): ConnectorTestResult 
     latencyMs: typeof payload.latencyMs === 'number' ? payload.latencyMs : undefined,
     probeMessage: asString(probe.message),
     errorCode: asString(payload.errorCode) || undefined,
-    message: asString(payload.message) || asString(probe.message) || 'Connection test completed.',
+    message:
+      asString(payload.message)
+      || asString(probe.message)
+      || t('settings.connectorWizard.message.test_completed'),
     details,
     warnings: Array.isArray(payload.warnings)
       ? payload.warnings.map((warning) => String(warning))
@@ -1427,18 +1508,24 @@ function parseTestResult(payload: Record<string, unknown>): ConnectorTestResult 
   };
 }
 
-function describeConnectorTarget(connector: ConnectorSummary): string {
+function describeConnectorTarget(connector: ConnectorSummary, t: Translator): string {
   if (connector.type === 'postgres') {
     const host = optionAsString(connector.options, 'host');
     const database = optionAsString(connector.options, 'database');
     const schema = optionAsString(connector.options, 'schema', 'public');
-    return `${host || 'host?'} / ${database || 'database?'} / ${schema || 'public'}`;
+    return `${host || t('settings.connectorWizard.target.host_unknown')} / ${
+      database || t('settings.connectorWizard.target.database_unknown')
+    } / ${schema || t('settings.connectorWizard.target.public_schema')}`;
   }
   if (connector.type === 'bigquery') {
     const projectId = optionAsString(connector.options, 'project_id');
     const dataset = optionAsString(connector.options, 'dataset');
     const location = optionAsString(connector.options, 'location');
-    return [projectId, dataset || 'all datasets', location || 'default location'].join(' / ');
+    return [
+      projectId,
+      dataset || t('settings.connectorWizard.target.all_datasets'),
+      location || t('settings.connectorWizard.target.default_location'),
+    ].join(' / ');
   }
   const account = optionAsString(connector.options, 'account', optionAsString(connector.options, 'host'));
   const warehouse = optionAsString(connector.options, 'warehouse');
@@ -1453,8 +1540,8 @@ function formatDetails(details: Record<string, unknown>): string {
     .join(' · ');
 }
 
-function connectorTypeLabel(type: ConnectorType): string {
-  return CONNECTOR_TYPES.find((entry) => entry.type === type)?.label ?? type;
+function connectorTypeLabel(type: ConnectorType, t: Translator): string {
+  return buildConnectorTypes(t).find((entry) => entry.type === type)?.label ?? type;
 }
 
 function parseConnectorType(value: unknown): ConnectorType {

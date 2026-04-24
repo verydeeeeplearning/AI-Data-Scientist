@@ -32,6 +32,7 @@
     "src/renderer/domain/**/*.ts",
     "src/renderer/application/**/*.ts",
     "src/renderer/infrastructure/**/*.ts",
+    "src/shared/**/*.ts",
     "src/renderer/hooks/useAccessRole.ts",
     "src/renderer/hooks/useCanMutate.ts",
     "src/mobile/router.tsx",

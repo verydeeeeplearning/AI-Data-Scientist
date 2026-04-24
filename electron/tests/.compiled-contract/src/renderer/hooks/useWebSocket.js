@@ -10,6 +10,7 @@ exports.useWebSocket = useWebSocket;
 const react_1 = require("react");
 const eventEnvelope_1 = require("../infrastructure/ws/eventEnvelope");
 const eventSchemaRegistry_1 = require("../infrastructure/ws/eventSchemaRegistry");
+const i18nStore_1 = require("../stores/i18nStore");
 const RECONNECT_DELAY_MS = 2000;
 const HEALTHCHECK_TIMEOUT_MS = 1500;
 let idCounter = 0;
@@ -74,6 +75,9 @@ async function fetchBackendHealth(port) {
 function sleep(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
+function wsMessage(key, vars) {
+    return (0, i18nStore_1.translateKey)(key, vars);
+}
 function useWebSocket(port, token) {
     const wsRef = (0, react_1.useRef)(null);
     const [status, setStatus] = (0, react_1.useState)('disconnected');
@@ -127,7 +131,7 @@ function useWebSocket(port, token) {
                             pending.resolve(msg.payload ?? {});
                         }
                         else {
-                            pending.reject(new Error(msg.error?.message ?? 'RPC error'));
+                            pending.reject(new Error(msg.error?.message ?? wsMessage('common.webSocket.rpcError')));
                         }
                     }
                 }
@@ -182,7 +186,7 @@ function useWebSocket(port, token) {
                 return;
             console.log('[ws] disconnected');
             wsRef.current = null;
-            rejectPending('WebSocket disconnected');
+            rejectPending(wsMessage('common.webSocket.disconnected'));
             if (disposedRef.current || manualCloseRef.current) {
                 setStatus('disconnected');
                 return;
@@ -218,7 +222,7 @@ function useWebSocket(port, token) {
         return () => {
             disposedRef.current = true;
             clearTimeout(reconnectTimer.current);
-            rejectPending('WebSocket closed');
+            rejectPending(wsMessage('common.webSocket.closed'));
             if (wsRef.current) {
                 manualCloseRef.current = true;
                 wsRef.current.close();
@@ -230,7 +234,7 @@ function useWebSocket(port, token) {
         return new Promise((resolve, reject) => {
             const ws = wsRef.current;
             if (!ws || ws.readyState !== WebSocket.OPEN) {
-                reject(new Error('WebSocket not connected'));
+                reject(new Error(wsMessage('common.webSocket.notConnected')));
                 return;
             }
             const id = nextId();
@@ -239,7 +243,7 @@ function useWebSocket(port, token) {
                 if (pendingRef.current.has(id)) {
                     clearTimeout(timer);
                     pendingRef.current.delete(id);
-                    reject(new Error(`RPC timeout: ${method}`));
+                    reject(new Error(wsMessage('common.webSocket.timeout', { method })));
                 }
             }, 30000);
             pendingRef.current.set(id, { resolve, reject, timer });
@@ -249,7 +253,9 @@ function useWebSocket(port, token) {
             catch (error) {
                 clearTimeout(timer);
                 pendingRef.current.delete(id);
-                reject(error instanceof Error ? error : new Error('WebSocket send failed'));
+                reject(error instanceof Error
+                    ? error
+                    : new Error(wsMessage('common.webSocket.sendFailed')));
             }
         });
     }, []);

@@ -5,8 +5,8 @@
  * Launches Electron, lets the main process spawn the real PyInstaller
  * backend, and asserts the renderer reaches the post-handshake UI
  * (OnboardingWizard's "DS Agent" hero shown on first launch). This
- * exercises the full chain: backend READY emit → /health probe → window
- * navigation → WebSocket handshake → first-paint of app UI.
+ * exercises the full chain: backend READY emit -> /health probe -> window
+ * navigation -> WebSocket handshake -> first-paint of app UI.
  *
  * Runner: plain Node (no @playwright/test). Exits non-zero on failure.
  */
@@ -26,16 +26,13 @@ async function run() {
             throw new Error(`Hero not rendered. Got: ${JSON.stringify(heroText)}\n` +
                 `--- HTML (first 2 KB) ---\n${html.slice(0, 2048)}`);
         }
-        // Diagnostic title would override hero on failure — make absolutely sure
-        // the diagnostic window did NOT open instead.
-        const diagnosticHit = await page
-            .locator('h1', { hasText: /Backend|Failed to start/i })
-            .count();
+        // Make sure we did not route to the diagnostic surface.
+        const diagnosticHit = await page.locator('#diagnostic-title').count();
         if (diagnosticHit > 0) {
             throw new Error(`Diagnostic window appeared instead of main UI. ` +
                 `Backend handshake likely failed.`);
         }
-        console.log(`[smoke] PASS — main UI hero rendered: ${heroText.trim()}`);
+        console.log(`[smoke] PASS main UI hero rendered: ${heroText.trim()}`);
     }
     catch (err) {
         await (0, artifacts_1.captureFailureArtifacts)(page, isolated.artifacts, 'happy-path').catch(() => { });

@@ -5,7 +5,9 @@
 import { CircleStop, ListTree } from 'lucide-react';
 import { useState } from 'react';
 import { useWs } from '../../hooks/WsProvider';
+import { useI18n } from '../../stores/i18nStore';
 import { useRuntimeStore, type RuntimeRunEntry } from '../../stores/runtimeStore';
+import { translateRuntimeRunStatus } from './runtimeI18n';
 
 const STATUS_STYLES: Record<RuntimeRunEntry['status'], string> = {
   running: 'text-ds-accent',
@@ -15,6 +17,7 @@ const STATUS_STYLES: Record<RuntimeRunEntry['status'], string> = {
 };
 
 export function RunsPanel() {
+  const { t } = useI18n();
   const runs = useRuntimeStore((s) => s.runs);
   const selectedRunId = useRuntimeStore((s) => s.selectedRunId);
   const selectRun = useRuntimeStore((s) => s.selectRun);
@@ -23,17 +26,18 @@ export function RunsPanel() {
     <div className="px-3 py-2">
       <div className="flex items-center gap-2 text-[10px] font-semibold text-ds-muted uppercase tracking-wider mb-2">
         <ListTree size={12} />
-        Runs
+        {t('run.runtime.runs.title')}
         <span className="ml-auto text-ds-text normal-case text-xs">{runs.length}</span>
       </div>
 
       {runs.length === 0 ? (
-        <div className="text-xs text-ds-muted">No tracked runs.</div>
+        <div className="text-xs text-ds-muted">{t('run.runtime.runs.empty')}</div>
       ) : (
         <div className="space-y-2">
           {runs.map((run) => (
             <RunCard
               key={run.runId}
+              t={t}
               run={run}
               selected={selectedRunId === run.runId}
               onInspect={() => selectRun(run.runId)}
@@ -46,10 +50,12 @@ export function RunsPanel() {
 }
 
 function RunCard({
+  t,
   run,
   selected,
   onInspect,
 }: {
+  t: (key: string, vars?: Record<string, string | number | undefined | null>) => string;
   run: RuntimeRunEntry;
   selected: boolean;
   onInspect: () => void;
@@ -80,7 +86,7 @@ function RunCard({
       <div className="flex items-center gap-2">
         <div className="text-xs font-mono text-ds-text truncate">{run.runId}</div>
         <span className={`ml-auto text-[10px] uppercase ${STATUS_STYLES[run.status]}`}>
-          {run.status}
+          {translateRuntimeRunStatus(run.status, t)}
         </span>
       </div>
       <div className="space-y-0.5 text-[10px] text-ds-muted">
@@ -95,7 +101,7 @@ function RunCard({
             onClick={onInspect}
             className="inline-flex items-center gap-1 rounded border border-ds-border px-2 py-1 hover:text-ds-text"
           >
-            Inspect
+            {t('run.runtime.runs.action.inspect')}
           </button>
           {run.status === 'running' ? (
             <button
@@ -104,7 +110,7 @@ function RunCard({
               className="inline-flex items-center gap-1 rounded border border-ds-border px-2 py-1 hover:border-ds-error hover:text-ds-error disabled:opacity-50"
             >
               <CircleStop size={10} />
-              Abort
+              {t('run.runtime.runs.action.abort')}
             </button>
           ) : (
             <span>{new Date(run.createdAt * 1000).toLocaleTimeString()}</span>

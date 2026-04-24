@@ -1,3 +1,5 @@
+import { createMobileError } from '../errors/mobileError';
+
 export interface OutboxItem {
   readonly id: string;
   readonly kind: 'approval';
@@ -31,7 +33,7 @@ export const OUTBOX_SYNC_TAG = 'ds-agent-outbox-flush';
 function getIndexedDb(factory?: IDBFactory): IDBFactory {
   const resolved = factory ?? globalThis.indexedDB;
   if (!resolved) {
-    throw new Error('indexedDB is unavailable');
+    throw createMobileError('outbox_unavailable', 'indexedDB is unavailable');
   }
   return resolved;
 }
@@ -39,15 +41,33 @@ function getIndexedDb(factory?: IDBFactory): IDBFactory {
 function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
+    request.onerror = () => reject(
+      createMobileError(
+        'outbox_request_failed',
+        request.error?.message ?? 'IndexedDB request failed',
+        request.error?.message,
+      ),
+    );
   });
 }
 
 function transactionDone(transaction: IDBTransaction): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed'));
-    transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted'));
+    transaction.onerror = () => reject(
+      createMobileError(
+        'outbox_transaction_failed',
+        transaction.error?.message ?? 'IndexedDB transaction failed',
+        transaction.error?.message,
+      ),
+    );
+    transaction.onabort = () => reject(
+      createMobileError(
+        'outbox_transaction_aborted',
+        transaction.error?.message ?? 'IndexedDB transaction aborted',
+        transaction.error?.message,
+      ),
+    );
   });
 }
 
@@ -145,7 +165,7 @@ export function createIndexedDbOutbox(factory?: IDBFactory): IndexedDbOutbox {
 
     async incrementAttemptCount(id: string): Promise<number> {
       if (!id.trim()) {
-        throw new Error('id is required');
+        throw createMobileError('outbox_id_required', 'id is required');
       }
       const db = await openDatabase(factory);
       const transaction = db.transaction(STORE_NAME, 'readwrite');

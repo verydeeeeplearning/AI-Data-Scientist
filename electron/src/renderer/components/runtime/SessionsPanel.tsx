@@ -3,18 +3,14 @@
  */
 
 import { Clock3, ExternalLink } from 'lucide-react';
+import { useI18n } from '../../stores/i18nStore';
 import { useSessionHistory } from '../../hooks/useSessionHistory';
 import { useRuntimeEventStore } from '../../stores/runtimeEventStore';
 import { useRuntimeStore } from '../../stores/runtimeStore';
-
-function formatAge(ts: number): string {
-  const diffSeconds = Math.max(0, Math.round((Date.now() - ts * 1000) / 1000));
-  if (diffSeconds < 60) return `${diffSeconds}s ago`;
-  if (diffSeconds < 3600) return `${Math.round(diffSeconds / 60)}m ago`;
-  return `${Math.round(diffSeconds / 3600)}h ago`;
-}
+import { formatRuntimeRelativeAge } from './runtimeI18n';
 
 export function SessionsPanel() {
+  const { t } = useI18n();
   const sessions = useRuntimeStore((s) => s.sessions);
   const events = useRuntimeEventStore((s) => s.events);
   const { currentSessionId, openingSessionId, openSession } = useSessionHistory();
@@ -23,17 +19,18 @@ export function SessionsPanel() {
     <div className="px-3 py-2">
       <div className="flex items-center gap-2 text-[10px] font-semibold text-ds-muted uppercase tracking-wider mb-2">
         <Clock3 size={12} />
-        Sessions
+        {t('run.runtime.sessions.title')}
         <span className="ml-auto text-ds-text normal-case text-xs">{sessions.length}</span>
       </div>
 
       {sessions.length === 0 ? (
-        <div className="text-xs text-ds-muted">No active runtime sessions.</div>
+        <div className="text-xs text-ds-muted">{t('run.runtime.sessions.empty')}</div>
       ) : (
         <div className="space-y-2">
           {sessions.map((session) => (
             <SessionCard
               key={session.sessionId}
+              t={t}
               session={session}
               currentSessionId={currentSessionId}
               openingSessionId={openingSessionId}
@@ -51,12 +48,14 @@ export function SessionsPanel() {
 }
 
 function SessionCard({
+  t,
   session,
   currentSessionId,
   openingSessionId,
   openSession,
   recentAlertCount,
 }: {
+  t: (key: string, vars?: Record<string, string | number | undefined | null>) => string;
   session: {
     sessionId: string;
     sessionLabel?: string | null;
@@ -92,18 +91,22 @@ function SessionCard({
         <div className="flex items-center gap-2">
           {recentAlertCount > 0 && (
             <span className="rounded-full bg-ds-warning/15 px-1.5 py-0.5 text-[10px] text-ds-warning">
-              {recentAlertCount} alert{recentAlertCount > 1 ? 's' : ''}
+              {recentAlertCount === 1
+                ? t('run.runtime.sessions.alertCount.one', { count: recentAlertCount })
+                : t('run.runtime.sessions.alertCount.other', { count: recentAlertCount })}
             </span>
           )}
           <div className="text-[10px] uppercase text-ds-muted">{session.surface}</div>
         </div>
       </div>
       <div className="mt-1 text-[10px] text-ds-muted">
-        Last active {formatAge(session.lastActive)}
+        {t('run.runtime.sessions.lastActive', {
+          value: formatRuntimeRelativeAge(t, session.lastActive),
+        })}
       </div>
       {session.lastRunId && (
         <div className="mt-1 text-[10px] font-mono text-ds-muted truncate">
-          last run {session.lastRunId}
+          {t('run.runtime.sessions.lastRun', { runId: session.lastRunId })}
         </div>
       )}
       <div className="mt-2 flex items-center gap-2">
@@ -115,10 +118,10 @@ function SessionCard({
         >
           <ExternalLink size={10} />
           {openingSessionId === session.sessionId
-            ? 'Opening...'
+            ? t('run.runtime.sessions.action.opening')
             : currentSessionId === session.sessionId
-              ? 'Opened'
-              : 'Open Session'}
+              ? t('run.runtime.sessions.action.opened')
+              : t('run.runtime.sessions.action.open')}
         </button>
       </div>
     </div>

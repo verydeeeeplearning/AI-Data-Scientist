@@ -75,6 +75,21 @@ async function waitForTextContains(page, testId, needle) {
         return Boolean(node?.textContent?.includes(currentNeedle));
     }, { currentTestId: testId, currentNeedle: needle }, { timeout: 30000 });
 }
+async function clickTestId(page, testId) {
+    const element = page.getByTestId(testId);
+    await element.waitFor({ state: 'visible', timeout: 30000 });
+    await element.evaluate((node) => node.click());
+}
+async function openSeededSession(page) {
+    const testId = `open-session-${SEEDED_SESSION_ID}`;
+    const button = page.getByTestId(testId);
+    await button.waitFor({ state: 'visible', timeout: 30000 });
+    await button.evaluate((node) => node.click());
+    await page.waitForFunction(({ currentTestId }) => {
+        const node = document.querySelector(`[data-testid="${currentTestId}"]`);
+        return Boolean(node?.textContent?.includes('Opened'));
+    }, { currentTestId: testId }, { timeout: 30000 });
+}
 async function run() {
     if (!node_fs_1.default.existsSync(BACKEND_BIN)) {
         throw new Error(`Backend binary not found at ${BACKEND_BIN}. ` +
@@ -92,8 +107,10 @@ async function run() {
             DS_AGENT_SENTRY_DSN: '',
             DS_AGENT_ERROR_REPORTING_ENABLED: '0',
             DS_AGENT_TELEMETRY_ENABLED: '0',
+            DS_AGENT_E2E_USER_DATA_DIR: node_path_1.default.join(paths.rootDir, 'userData'),
             DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
             DS_AGENT_E2E_SKIP_ONBOARDING: '1',
+            DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
         },
         timeout: 60000,
     });
@@ -101,21 +118,17 @@ async function run() {
         const page = await app.firstWindow({ timeout: 60000 });
         await page.waitForLoadState('domcontentloaded');
         await page.getByTestId('open-settings').waitFor({ state: 'visible', timeout: 60000 });
-        await page.getByTestId('sidebar-tab-runtime').click();
-        await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).waitFor({
-            state: 'visible',
-            timeout: 30000,
-        });
-        await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).click();
-        await page.getByTestId('sidebar-tab-workflow').click();
+        await clickTestId(page, 'sidebar-tab-runtime');
+        await openSeededSession(page);
+        await clickTestId(page, 'sidebar-tab-workflow');
         await page.getByTestId('mission-brief-panel').waitFor({ state: 'visible', timeout: 30000 });
         await waitForTextContains(page, 'mission-brief-open-assumptions-count', '1 open assumptions');
-        await page.getByTestId('mission-brief-open-assumptions').click();
+        await clickTestId(page, 'mission-brief-open-assumptions');
         await page.getByTestId('assumption-drawer').waitFor({ state: 'visible', timeout: 30000 });
         const noteField = page.locator('[data-testid^="assumption-note-"]').first();
         const verifyButton = page.locator('[data-testid^="assumption-verify-"]').first();
         await noteField.fill('Verified against the weekly KPI operator playbook.');
-        await verifyButton.click();
+        await verifyButton.evaluate((node) => node.click());
         await waitForTextContains(page, 'mission-brief-open-assumptions-count', '0 open assumptions');
         await page.getByTestId('assumption-empty-state').waitFor({ state: 'visible', timeout: 30000 });
         await page.getByText(/marked as verified/i).waitFor({ state: 'visible', timeout: 30000 });

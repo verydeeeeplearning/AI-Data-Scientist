@@ -4,7 +4,6 @@ import { ContractEditor } from './ContractEditor';
 import { CreateContractModal } from './CreateContractModal';
 import {
   buildDeliveryGlobalContext,
-  formatRenderResultNotice,
   normalizeDeliveryTenant,
   parseMissionArtifactGate,
   parseMissionArtifactGateError,
@@ -20,10 +19,13 @@ import {
 } from './missionBriefModel';
 import { useTaskContract } from '../../hooks/useTaskContract';
 import { useChatStore } from '../../stores/chatStore';
+import { useI18n } from '../../stores/i18nStore';
+import { resolveMainIpcErrorMessage } from '../../utils/mainIpcErrors';
 import { AudienceSelector, type AudienceSelectionOption } from '../workflow/AudienceSelector';
 import { ChannelInspector } from '../workflow/ChannelInspector';
 import { DeliveryPackPreview } from '../workflow/DeliveryPackPreview';
 import type {
+  DeliveryRenderResultView,
   DeliveryArtifactView,
   TaskContractErrorDetailView,
   TaskContractCreatePayload,
@@ -40,12 +42,19 @@ const STATUS_STYLES: Record<TaskContractStatus, string> = {
   abandoned: 'bg-rose-500/15 text-rose-300 border-rose-500/40',
 };
 
-function defaultAnalysisDraft(contract: TaskContractView): string {
+type Translator = (
+  key: string,
+  vars?: Record<string, string | number | null | undefined>,
+) => string;
+
+function defaultAnalysisDraft(contract: TaskContractView, t: Translator): string {
   return JSON.stringify(
     {
       summary: contract.contract.business_goal,
-      decision: contract.goal_brief?.decision_to_make ?? 'State the decision needed.',
-      recommendation: 'State the recommended action and expected impact.',
+      decision:
+        contract.goal_brief?.decision_to_make
+        ?? t('mission.brief.render.default_analysis.decision'),
+      recommendation: t('mission.brief.render.default_analysis.recommendation'),
       next_actions: [],
     },
     null,
@@ -53,10 +62,10 @@ function defaultAnalysisDraft(contract: TaskContractView): string {
   );
 }
 
-function parseAnalysisDraft(value: string): Record<string, unknown> | string {
+function parseAnalysisDraft(value: string, t: Translator): Record<string, unknown> | string {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { summary: 'No analysis summary provided.' };
+    return { summary: t('mission.brief.render.default_analysis.empty_summary') };
   }
 
   try {
@@ -69,6 +78,33 @@ function parseAnalysisDraft(value: string): Record<string, unknown> | string {
   }
 
   return value;
+}
+
+function formatRenderResultNotice(result: DeliveryRenderResultView, t: Translator): string {
+  let notice = t('mission.brief.action.render_notice', {
+    artifactId: result.artifact_id,
+    format: result.format,
+    outputPath: result.output_path,
+  });
+  if (!result.renderer_mode) {
+    return notice;
+  }
+  notice += t('mission.brief.action.render_notice_renderer', {
+    rendererMode: result.renderer_mode,
+  });
+  if (result.renderer_model) {
+    notice += t('mission.brief.action.render_notice_model', {
+      rendererModel: result.renderer_model,
+    });
+  }
+  return `${notice}.`;
+}
+
+function formatArtifactGateIssueLabel(
+  kind: MissionArtifactGateStatus['issues'][number]['kind'],
+  t: Translator,
+): string {
+  return t(`mission.brief.artifact_gate.issue.${kind}`);
 }
 
 function buildAudienceOptions(contract: TaskContractView): AudienceSelectionOption[] {
@@ -100,6 +136,7 @@ function buildAudienceOptions(contract: TaskContractView): AudienceSelectionOpti
 }
 
 export function MissionBriefPanel() {
+  const { t } = useI18n();
   const {
     sessionId,
     activeContract,
@@ -132,7 +169,7 @@ export function MissionBriefPanel() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
-  const [closeNote, setCloseNote] = useState('Delivered to stakeholders');
+  const [closeNote, setCloseNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionErrorDetail, setActionErrorDetail] = useState<TaskContractErrorDetailView | null>(null);
@@ -234,10 +271,10 @@ export function MissionBriefPanel() {
     setSourceAnalysisId(activeContract.delivery_pack?.source_analysis_id ?? '');
     setTenant(normalizeDeliveryTenant(activeContract.delivery_pack?.tenant));
     setThemeId(resolveThemeId(activeContract.delivery_pack?.global_context));
-    setAnalysisDraft(defaultAnalysisDraft(activeContract));
+    setAnalysisDraft(defaultAnalysisDraft(activeContract, t));
     setProviderBackedRender(false);
     setRenderModel('');
-  }, [activeContract?.contract.task_id]);
+  }, [activeContract?.contract.task_id, t]);
 
   useEffect(() => {
     if (!activeContract?.delivery_pack?.artifacts.length) {
@@ -289,7 +326,7 @@ export function MissionBriefPanel() {
     }[nextStatus];
 
     if (nextStatus === 'closed') {
-      setCloseNote('Delivered to stakeholders');
+      setCloseNote(t('mission.brief.close.default_note'));
       setCloseDialogOpen(true);
       return;
     }
@@ -307,7 +344,7 @@ export function MissionBriefPanel() {
 
   const handleBuildDeliveryPack = async () => {
     if (selectedAudiences.length === 0) {
-      setActionError('Select at least one audience before building a delivery pack.');
+      setActionError(t('mission.brief.action.error.select_audience'));
       return;
     }
 
@@ -324,9 +361,18 @@ export function MissionBriefPanel() {
       setSelectedArtifactId(result.artifact_ids[0] ?? null);
       const normalizedThemeId = themeId.trim();
       setActionNotice(
-        `Delivery pack ${result.pack_id} prepared for ${result.audiences.join(', ')}`
-          + ` (tenant: ${normalizeDeliveryTenant(tenant)}`
-          + `${normalizedThemeId ? `, theme: ${normalizedThemeId}` : ''}).`,
+        normalizedThemeId
+          ? t('mission.brief.action.delivery_pack_prepared_with_theme', {
+              packId: result.pack_id,
+              audiences: result.audiences.join(', '),
+              tenant: normalizeDeliveryTenant(tenant),
+              themeId: normalizedThemeId,
+            })
+          : t('mission.brief.action.delivery_pack_prepared', {
+              packId: result.pack_id,
+              audiences: result.audiences.join(', '),
+              tenant: normalizeDeliveryTenant(tenant),
+            }),
       );
     });
   };
@@ -334,27 +380,27 @@ export function MissionBriefPanel() {
   const handleConfirmClose = async () => {
     const note = closeNote.trim();
     if (!note) {
-      setActionError('Closing note is required.');
+      setActionError(t('mission.brief.close.note_required'));
       return;
     }
 
     await runAction(async () => {
       await closeContract(note);
       setCloseDialogOpen(false);
-      setActionNotice('Task contract closed.');
+      setActionNotice(t('mission.brief.action.contract_closed'));
     });
   };
 
   const handleVerifyAssumption = async (entryId: string, verificationNote?: string) => {
     await runAction(async () => {
       await verifyAssumption({ entryId, verificationNote });
-      setActionNotice(`Assumption ${entryId} marked as verified.`);
+      setActionNotice(t('mission.brief.action.assumption_verified', { entryId }));
     });
   };
 
   const handleRenderSelectedArtifact = async () => {
     if (!selectedArtifact) {
-      setActionError('Select one artifact before rendering.');
+      setActionError(t('mission.brief.action.error.select_artifact_render'));
       return;
     }
 
@@ -365,19 +411,19 @@ export function MissionBriefPanel() {
       );
       const result = await renderArtifact({
         artifactId: selectedArtifact.artifact_id,
-        analysis: parseAnalysisDraft(analysisDraft),
+        analysis: parseAnalysisDraft(analysisDraft, t),
         providerBacked: renderOptions.providerBacked,
         model: renderOptions.model,
       });
       setSelectedArtifactId(result.artifact_id);
-      setActionNotice(formatRenderResultNotice(result));
+      setActionNotice(formatRenderResultNotice(result, t));
       await refreshDeliveryLog({ artifactIds: [result.artifact_id], limit: 20 });
     });
   };
 
   const handleDispatchSelected = async (dryRun: boolean) => {
     if (!selectedArtifact) {
-      setActionError('Select one artifact before dispatching.');
+      setActionError(t('mission.brief.action.error.select_artifact_dispatch'));
       return;
     }
 
@@ -388,8 +434,14 @@ export function MissionBriefPanel() {
         approveManualReview: !dryRun,
       });
       setActionNotice(
-        `${dryRun ? 'Dry run' : 'Dispatch'} ${result.dispatch_status} `
-          + `(sent=${result.sent}, blocked=${result.blocked}).`,
+        t('mission.brief.action.dispatch_selected_notice', {
+          action: dryRun
+            ? t('mission.brief.dispatch.action.dry_run')
+            : t('mission.brief.dispatch.action.send'),
+          status: result.dispatch_status,
+          sent: result.sent,
+          blocked: result.blocked,
+        }),
       );
       await refreshDeliveryLog({ artifactIds: [selectedArtifact.artifact_id], limit: 20 });
     });
@@ -402,8 +454,14 @@ export function MissionBriefPanel() {
         approveManualReview: !dryRun,
       });
       setActionNotice(
-        `${dryRun ? 'Dry run' : 'Pack dispatch'} ${result.dispatch_status} `
-          + `(sent=${result.sent}, blocked=${result.blocked}).`,
+        t('mission.brief.action.dispatch_pack_notice', {
+          action: dryRun
+            ? t('mission.brief.dispatch.action.dry_run')
+            : t('mission.brief.dispatch.action.send_pack'),
+          status: result.dispatch_status,
+          sent: result.sent,
+          blocked: result.blocked,
+        }),
       );
       await refreshDeliveryLog({ limit: 20 });
     });
@@ -411,13 +469,19 @@ export function MissionBriefPanel() {
 
   const handleRevealPath = async (targetPath: string) => {
     if (!window.electronAPI?.revealPath) {
-      setActionError('Path reveal is unavailable.');
+      setActionError(t('mission.brief.action.error.reveal_unavailable'));
       return;
     }
 
     const result = await window.electronAPI.revealPath(targetPath);
     if (!result.ok) {
-      setActionError(result.error ?? `Unable to reveal ${targetPath}`);
+      setActionError(
+        resolveMainIpcErrorMessage(
+          result,
+          'mission.brief.action.error.reveal_failed',
+          { targetPath },
+        ),
+      );
     }
   };
 
@@ -425,16 +489,16 @@ export function MissionBriefPanel() {
     await runAction(async () => {
       const result = await createContract(payload);
       setCreateDialogOpen(false);
-      setActionNotice(`Task contract ${result.task_id} drafted for this session.`);
+      setActionNotice(t('mission.brief.action.contract_drafted', { taskId: result.task_id }));
     });
   };
 
   if (!sessionId) {
     return (
       <section className="mx-3 rounded-2xl border border-ds-border bg-ds-bg px-4 py-3">
-        <h3 className="text-sm font-semibold text-ds-text">Mission Brief</h3>
+        <h3 className="text-sm font-semibold text-ds-text">{t('mission.brief.title')}</h3>
         <p className="mt-2 text-xs leading-5 text-ds-muted">
-          Start a chat turn first. The active session will attach the current task contract here.
+          {t('mission.brief.no_session')}
         </p>
       </section>
     );
@@ -448,26 +512,28 @@ export function MissionBriefPanel() {
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-ds-text">Mission Brief</h3>
-            <p className="mt-1 text-[11px] text-ds-muted">Session: {sessionId}</p>
+            <h3 className="text-sm font-semibold text-ds-text">{t('mission.brief.title')}</h3>
+            <p className="mt-1 text-[11px] text-ds-muted">
+              {t('mission.brief.session', { sessionId })}
+            </p>
           </div>
           <button
             onClick={() => void refresh()}
             className="rounded-lg border border-ds-border px-3 py-1.5 text-[11px] text-ds-muted hover:border-ds-accent hover:text-ds-text"
           >
-            Refresh
+            {t('mission.brief.refresh')}
           </button>
         </div>
 
-        {loading && <p className="mt-3 text-xs text-ds-muted">Loading task contract...</p>}
+        {loading && <p className="mt-3 text-xs text-ds-muted">{t('mission.brief.loading')}</p>}
 
         {!loading && !activeContract && (
           <div className="mt-3 rounded-2xl border border-dashed border-ds-border bg-ds-surface px-4 py-4">
             <p className="text-sm font-medium text-ds-text">
-              No active task contract for this session yet.
+              {t('mission.brief.empty.title')}
             </p>
             <p className="mt-2 text-xs leading-5 text-ds-muted">
-              Draft a manual recovery contract for the current session, then edit the details from the mission panel.
+              {t('mission.brief.empty.description')}
             </p>
             <button
               type="button"
@@ -476,7 +542,7 @@ export function MissionBriefPanel() {
               data-testid="mission-brief-create-contract-cta"
               className="mt-3 rounded-xl bg-ds-accent px-3 py-2 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Draft Contract
+              {t('mission.brief.empty.create')}
             </button>
           </div>
         )}
@@ -502,14 +568,16 @@ export function MissionBriefPanel() {
             data-testid="mission-brief-action-gate-detail"
           >
             <p className="text-xs uppercase tracking-wide text-ds-muted">
-              Blocked Transition
+              {t('mission.brief.gate.blocked_transition')}
             </p>
             <p className="mt-1 text-sm font-semibold text-ds-text">
-              {formatMissionArtifactGateHeading(actionMissionArtifactGate.transitionTarget)}
+              {formatMissionArtifactGateHeading(actionMissionArtifactGate.transitionTarget, t)}
             </p>
             {actionMissionArtifactGate.requiredArtifacts.length > 0 && (
               <p className="mt-2 text-xs leading-5 text-ds-text/90">
-                Required: {actionMissionArtifactGate.requiredArtifacts.join(', ')}
+                {t('mission.brief.gate.required', {
+                  items: actionMissionArtifactGate.requiredArtifacts.join(', '),
+                })}
               </p>
             )}
             <div className="mt-3 space-y-2">
@@ -518,7 +586,7 @@ export function MissionBriefPanel() {
                   key={`${issue.kind}-${issue.artifacts.join('-') || 'none'}`}
                   className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current"
                 >
-                  <span className="font-medium">{issue.label}</span>
+                  <span className="font-medium">{formatArtifactGateIssueLabel(issue.kind, t)}</span>
                   {issue.artifacts.length > 0 ? `: ${issue.artifacts.join(', ')}` : null}
                 </div>
               ))}
@@ -530,7 +598,7 @@ export function MissionBriefPanel() {
           && (actionMissionCheckGate.failed.length > 0 || actionMissionCheckGate.unmapped.length > 0) && (
           <MissionCheckGatePanel
             gate={actionMissionCheckGate}
-            label="Blocked — Required Checks Failed"
+            label={t('mission.brief.check_gate.blocked')}
             testId="mission-brief-action-check-gate-detail"
           />
         )}
@@ -538,7 +606,7 @@ export function MissionBriefPanel() {
         {actionMissionChannelGate && actionMissionChannelGate.missing.length > 0 && (
           <MissionChannelGatePanel
             gate={actionMissionChannelGate}
-            label="Blocked — Required Channels Not Delivered"
+            label={t('mission.brief.channel_gate.blocked')}
             testId="mission-brief-action-channel-gate-detail"
           />
         )}
@@ -574,7 +642,9 @@ export function MissionBriefPanel() {
                     className="rounded-full border border-ds-border bg-ds-surface px-2 py-1 text-[11px] text-ds-text"
                     data-testid="mission-brief-authority"
                   >
-                    Authority: {activeContract.contract.authority}
+                    {t('mission.brief.labels.authority', {
+                      value: activeContract.contract.authority,
+                    })}
                   </span>
                 )}
                 {activeContract.contract.audience && (
@@ -582,7 +652,9 @@ export function MissionBriefPanel() {
                     className="rounded-full border border-ds-border bg-ds-surface px-2 py-1 text-[11px] text-ds-text"
                     data-testid="mission-brief-audience"
                   >
-                    Audience: {activeContract.contract.audience}
+                    {t('mission.brief.labels.audience', {
+                      value: activeContract.contract.audience,
+                    })}
                   </span>
                 )}
               </div>
@@ -596,7 +668,9 @@ export function MissionBriefPanel() {
 
             {activeContract.goal_brief && (
               <div className="mt-3 rounded-xl border border-ds-border bg-ds-surface px-3 py-3">
-                <p className="text-[11px] uppercase tracking-wide text-ds-muted">Decision</p>
+                <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+                  {t('mission.brief.labels.decision')}
+                </p>
                 <p className="mt-1 text-sm text-ds-text">
                   {activeContract.goal_brief.decision_to_make}
                 </p>
@@ -605,7 +679,9 @@ export function MissionBriefPanel() {
 
             {activeContract.contract.decision_owner && (
               <div className="mt-3 rounded-xl border border-ds-border bg-ds-surface px-3 py-3">
-                <p className="text-[11px] uppercase tracking-wide text-ds-muted">Owner</p>
+                <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+                  {t('mission.brief.labels.owner')}
+                </p>
                 <p
                   className="mt-1 text-sm text-ds-text"
                   data-testid="mission-brief-decision-owner"
@@ -635,13 +711,15 @@ export function MissionBriefPanel() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-ds-muted">
-                      Mission Artifact Gate
+                      {t('mission.brief.artifact_gate.title')}
                     </p>
                     <p
                       className="mt-1 text-sm font-semibold text-ds-text"
                       data-testid="mission-artifact-gate-status"
                     >
-                      {missionArtifactGate.ready ? 'Ready' : 'Unmet'}
+                      {missionArtifactGate.ready
+                        ? t('mission.brief.artifact_gate.ready')
+                        : t('mission.brief.artifact_gate.unmet')}
                     </p>
                   </div>
                   {missionArtifactGate.missionName && (
@@ -653,7 +731,9 @@ export function MissionBriefPanel() {
 
                 {missionArtifactGate.requiredArtifacts.length > 0 && (
                   <p className="mt-2 text-xs leading-5 text-ds-text/90">
-                    Required: {missionArtifactGate.requiredArtifacts.join(', ')}
+                    {t('mission.brief.gate.required', {
+                      items: missionArtifactGate.requiredArtifacts.join(', '),
+                    })}
                   </p>
                 )}
 
@@ -664,14 +744,14 @@ export function MissionBriefPanel() {
                         key={`${issue.kind}-${issue.artifacts.join('-') || 'none'}`}
                         className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current"
                       >
-                        <span className="font-medium">{issue.label}</span>
+                        <span className="font-medium">{formatArtifactGateIssueLabel(issue.kind, t)}</span>
                         {issue.artifacts.length > 0 ? `: ${issue.artifacts.join(', ')}` : null}
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="mt-3 text-xs leading-5 text-ds-text/90">
-                    All mapped mission artifacts are declared and delivered.
+                    {t('mission.brief.artifact_gate.all_delivered')}
                   </p>
                 )}
               </div>
@@ -681,7 +761,7 @@ export function MissionBriefPanel() {
               && (missionCheckGate.failed.length > 0 || missionCheckGate.unmapped.length > 0) && (
               <MissionCheckGatePanel
                 gate={missionCheckGate}
-                label="Mission Check Gate"
+                label={t('mission.brief.check_gate.title')}
                 testId="mission-check-gate-panel"
               />
             )}
@@ -689,7 +769,7 @@ export function MissionBriefPanel() {
             {missionChannelGate && missionChannelGate.missing.length > 0 && (
               <MissionChannelGatePanel
                 gate={missionChannelGate}
-                label="Mission Channel Gate"
+                label={t('mission.brief.channel_gate.title')}
                 testId="mission-channel-gate-panel"
               />
             )}
@@ -702,7 +782,7 @@ export function MissionBriefPanel() {
                   data-testid="mission-brief-action-agree"
                   className="rounded-xl bg-ds-accent px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
                 >
-                  Agree
+                  {t('mission.brief.action.agree')}
                 </button>
               )}
               {activeContract.contract.status === 'agreed' && (
@@ -712,7 +792,7 @@ export function MissionBriefPanel() {
                   data-testid="mission-brief-action-start-work"
                   className="rounded-xl bg-ds-accent px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
                 >
-                  Start Work
+                  {t('mission.brief.action.start_work')}
                 </button>
               )}
               {activeContract.contract.status === 'in_progress' && (
@@ -722,7 +802,7 @@ export function MissionBriefPanel() {
                   data-testid="mission-brief-action-send-review"
                   className="rounded-xl bg-ds-accent px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
                 >
-                  Send To Review
+                  {t('mission.brief.action.send_review')}
                 </button>
               )}
               {activeContract.contract.status === 'review' && (
@@ -733,7 +813,7 @@ export function MissionBriefPanel() {
                     data-testid="mission-brief-action-reopen"
                     className="rounded-xl bg-ds-accent px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
                   >
-                    Reopen
+                    {t('mission.brief.action.reopen')}
                   </button>
                   <button
                     disabled={busy}
@@ -741,7 +821,7 @@ export function MissionBriefPanel() {
                     data-testid="mission-brief-action-close"
                     className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-200 disabled:opacity-60"
                   >
-                    Close
+                    {t('mission.brief.action.close')}
                   </button>
                 </>
               )}
@@ -753,7 +833,7 @@ export function MissionBriefPanel() {
                     data-testid="mission-brief-action-edit"
                     className="rounded-xl border border-ds-border px-3 py-2 text-xs text-ds-text hover:border-ds-accent disabled:opacity-60"
                   >
-                    Edit
+                    {t('mission.brief.action.edit')}
                   </button>
                   <button
                     disabled={busy}
@@ -761,7 +841,7 @@ export function MissionBriefPanel() {
                     data-testid="mission-brief-action-abandon"
                     className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 disabled:opacity-60"
                   >
-                    Abandon
+                    {t('mission.brief.action.abandon')}
                   </button>
                 </>
               )}
@@ -770,18 +850,22 @@ export function MissionBriefPanel() {
             <div className="mt-4 rounded-2xl border border-ds-border bg-ds-surface px-4 py-4">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-xs font-semibold text-ds-text">Stakeholder Delivery</p>
+                  <p className="text-xs font-semibold text-ds-text">
+                    {t('mission.brief.delivery.title')}
+                  </p>
                   <p className="mt-1 text-[11px] text-ds-muted">
-                    Build, preview, render, and dispatch audience-specific artifacts.
+                    {t('mission.brief.delivery.description')}
                   </p>
                 </div>
                 <div className="text-right">
                   {deliveryLogLoading && (
-                    <span className="block text-[10px] text-ds-muted">Syncing log...</span>
+                    <span className="block text-[10px] text-ds-muted">
+                      {t('mission.brief.delivery.log_syncing')}
+                    </span>
                   )}
                   {!deliveryLogLoading && hasDeliveryPack && (
                     <span className="block text-[10px] text-ds-muted">
-                      {deliveryRecordCount} log record{deliveryRecordCount === 1 ? '' : 's'}
+                      {t('mission.brief.delivery.log_records', { count: deliveryRecordCount })}
                     </span>
                   )}
                 </div>
@@ -789,7 +873,9 @@ export function MissionBriefPanel() {
 
               <div className="mt-4 space-y-4">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-ds-muted">Audience Selector</p>
+                  <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+                    {t('mission.brief.delivery.audience_selector')}
+                  </p>
                   <div className="mt-2">
                     <AudienceSelector
                       options={audienceOptions}
@@ -802,19 +888,19 @@ export function MissionBriefPanel() {
                         <input
                           value={sourceAnalysisId}
                           onChange={(event) => setSourceAnalysisId(event.target.value)}
-                          placeholder="source analysis id (optional)"
+                          placeholder={t('mission.brief.delivery.source_analysis_placeholder')}
                           className="min-w-0 rounded-xl border border-ds-border bg-ds-bg px-3 py-2 text-xs text-ds-text"
                         />
                         <input
                           value={tenant}
                           onChange={(event) => setTenant(event.target.value)}
-                          placeholder="tenant"
+                          placeholder={t('mission.brief.delivery.tenant_placeholder')}
                           className="min-w-0 rounded-xl border border-ds-border bg-ds-bg px-3 py-2 text-xs text-ds-text"
                         />
                         <input
                           value={themeId}
                           onChange={(event) => setThemeId(event.target.value)}
-                          placeholder="theme_id (optional)"
+                          placeholder={t('mission.brief.delivery.theme_placeholder')}
                           className="min-w-0 rounded-xl border border-ds-border bg-ds-bg px-3 py-2 text-xs text-ds-text"
                         />
                       </div>
@@ -823,21 +909,25 @@ export function MissionBriefPanel() {
                       onClick={() => void handleBuildDeliveryPack()}
                       className="rounded-xl bg-ds-accent px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
                     >
-                      {hasDeliveryPack ? 'Rebuild Pack' : 'Build Pack'}
+                      {hasDeliveryPack
+                        ? t('mission.brief.delivery.rebuild_pack')
+                        : t('mission.brief.delivery.build_pack')}
                     </button>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] uppercase tracking-wide text-ds-muted">Render Input</p>
+                    <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+                      {t('mission.brief.render.title')}
+                    </p>
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => setAnalysisDraft(defaultAnalysisDraft(activeContract))}
+                      onClick={() => setAnalysisDraft(defaultAnalysisDraft(activeContract, t))}
                       className="text-[10px] text-ds-muted hover:text-ds-text disabled:opacity-60"
                     >
-                      Reset draft
+                      {t('mission.brief.render.reset')}
                     </button>
                   </div>
                   <textarea
@@ -854,19 +944,18 @@ export function MissionBriefPanel() {
                           onChange={(event) => setProviderBackedRender(event.target.checked)}
                           className="h-3.5 w-3.5 rounded border-ds-border bg-ds-surface text-ds-accent"
                         />
-                        Provider-backed narrative
+                        {t('mission.brief.render.provider_backed')}
                       </label>
                     <input
                       value={renderModel}
                       onChange={(event) => setRenderModel(event.target.value)}
                       disabled={!providerBackedRender}
-                      placeholder="model override (optional)"
+                      placeholder={t('mission.brief.render.model_placeholder')}
                       className="min-w-0 rounded-xl border border-ds-border bg-ds-bg px-3 py-2 text-xs text-ds-text disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     </div>
                     <p className="mt-2 text-[10px] text-ds-muted">
-                      Deterministic rendering stays default. Enable provider-backed mode only when you
-                      want live model narration.
+                      {t('mission.brief.render.help')}
                     </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
@@ -874,35 +963,35 @@ export function MissionBriefPanel() {
                       onClick={() => void handleRenderSelectedArtifact()}
                       className="rounded-xl border border-ds-border px-3 py-2 text-xs text-ds-text hover:border-ds-accent disabled:opacity-60"
                     >
-                      Render Selected
+                      {t('mission.brief.render.render_selected')}
                     </button>
                     <button
                       disabled={busy || !hasDeliveryPack}
                       onClick={() => void handleDispatchSelected(true)}
                       className="rounded-xl border border-ds-border px-3 py-2 text-xs text-ds-text hover:border-ds-accent disabled:opacity-60"
                     >
-                      Dry Run Selected
+                      {t('mission.brief.dispatch.dry_run_selected')}
                     </button>
                     <button
                       disabled={busy || !hasDeliveryPack}
                       onClick={() => void handleDispatchPack(true)}
                       className="rounded-xl border border-ds-border px-3 py-2 text-xs text-ds-text hover:border-ds-accent disabled:opacity-60"
                     >
-                      Dry Run Pack
+                      {t('mission.brief.dispatch.dry_run_pack')}
                     </button>
                     <button
                       disabled={busy || !selectedArtifact}
                       onClick={() => void handleDispatchSelected(false)}
                       className="rounded-xl border border-ds-border px-3 py-2 text-xs text-ds-text hover:border-ds-accent disabled:opacity-60"
                     >
-                      Send Selected
+                      {t('mission.brief.dispatch.send_selected')}
                     </button>
                     <button
                       disabled={busy || !hasDeliveryPack}
                       onClick={() => void handleDispatchPack(false)}
                       className="rounded-xl bg-ds-accent px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
                     >
-                      Send All
+                      {t('mission.brief.dispatch.send_all')}
                     </button>
                   </div>
                 </div>
@@ -923,19 +1012,21 @@ export function MissionBriefPanel() {
                 {deliveryLog?.summary && (
                   <div className="rounded-xl border border-ds-border bg-ds-bg/60 px-3 py-3 text-[11px] text-ds-muted">
                     <p className="text-[11px] uppercase tracking-wide text-ds-muted">
-                      Delivery Summary
+                      {t('mission.brief.delivery.summary.title')}
                     </p>
                     <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div>Pack: {deliveryLog.summary.pack_status}</div>
-                      <div>Artifacts: {deliveryLog.summary.artifact_count}</div>
-                      <div>Rendered: {deliveryLog.summary.rendered_count}</div>
-                      <div>Sent: {deliveryLog.summary.sent}</div>
-                      <div>Blocked: {deliveryLog.summary.blocked}</div>
-                      <div>Duplicates: {deliveryLog.summary.duplicate}</div>
-                      <div>Failed: {deliveryLog.summary.failed}</div>
-                      <div>Dry runs: {deliveryLog.summary.dry_run}</div>
+                      <div>{t('mission.brief.delivery.summary.pack', { value: deliveryLog.summary.pack_status })}</div>
+                      <div>{t('mission.brief.delivery.summary.artifacts', { value: deliveryLog.summary.artifact_count })}</div>
+                      <div>{t('mission.brief.delivery.summary.rendered', { value: deliveryLog.summary.rendered_count })}</div>
+                      <div>{t('mission.brief.delivery.summary.sent', { value: deliveryLog.summary.sent })}</div>
+                      <div>{t('mission.brief.delivery.summary.blocked', { value: deliveryLog.summary.blocked })}</div>
+                      <div>{t('mission.brief.delivery.summary.duplicates', { value: deliveryLog.summary.duplicate })}</div>
+                      <div>{t('mission.brief.delivery.summary.failed', { value: deliveryLog.summary.failed })}</div>
+                      <div>{t('mission.brief.delivery.summary.dry_runs', { value: deliveryLog.summary.dry_run })}</div>
                       <div className="col-span-2">
-                        Last attempt: {deliveryLog.summary.last_attempt ?? '-'}
+                        {t('mission.brief.delivery.summary.last_attempt', {
+                          value: deliveryLog.summary.last_attempt ?? '-',
+                        })}
                       </div>
                     </div>
                   </div>
@@ -943,7 +1034,7 @@ export function MissionBriefPanel() {
 
                 {deliveryLog?.log_path && (
                   <div className="rounded-xl border border-ds-border bg-ds-bg/60 px-3 py-2 text-[11px] text-ds-muted">
-                    Delivery log: {deliveryLog.log_path}
+                    {t('mission.brief.delivery.log_path', { path: deliveryLog.log_path })}
                   </div>
                 )}
 
@@ -964,18 +1055,22 @@ export function MissionBriefPanel() {
                   : 'border-ds-border bg-ds-surface'
               }`}
             >
-              <p className="text-xs uppercase tracking-wide text-ds-muted">Assumptions</p>
+              <p className="text-xs uppercase tracking-wide text-ds-muted">
+                {t('mission.brief.assumptions.title')}
+              </p>
               <p
                 className="mt-1 text-sm font-medium text-ds-text"
                 data-testid="mission-brief-open-assumptions-count"
               >
-                {openAssumptions.length} open assumptions
+                {t('mission.brief.assumptions.open_count', { count: openAssumptions.length })}
               </p>
             </button>
 
             {activeContract.dod_summary.length > 0 && (
               <div className="mt-4 rounded-2xl border border-ds-border bg-ds-surface px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-ds-muted">DoD Summary</p>
+                <p className="text-xs uppercase tracking-wide text-ds-muted">
+                  {t('mission.brief.dod_summary.title')}
+                </p>
                 <div className="mt-2 space-y-2">
                   {activeContract.dod_summary.map((item, index) => (
                     <p key={`${index}-${item}`} className="text-xs leading-5 text-ds-muted">
@@ -1023,10 +1118,10 @@ export function MissionBriefPanel() {
                       id="mission-brief-close-title"
                       className="text-base font-semibold text-ds-text"
                     >
-                      Close Task Contract
+                      {t('mission.brief.close.title')}
                     </h2>
                     <p className="mt-1 text-xs text-ds-muted">
-                      Record the operator note before the contract moves to closed.
+                      {t('mission.brief.close.description')}
                     </p>
                   </div>
                   <button
@@ -1034,13 +1129,13 @@ export function MissionBriefPanel() {
                     onClick={() => setCloseDialogOpen(false)}
                     className="rounded-lg border border-ds-border px-3 py-1.5 text-xs text-ds-muted hover:border-ds-accent hover:text-ds-text"
                   >
-                    Cancel
+                    {t('mission.brief.close.cancel')}
                   </button>
                 </div>
 
                 <div className="grid gap-4 p-5">
                   <label className="grid gap-2 text-xs text-ds-muted">
-                    Closing Note
+                    {t('mission.brief.close.note_label')}
                     <textarea
                       value={closeNote}
                       onChange={(event) => setCloseNote(event.target.value)}
@@ -1059,7 +1154,7 @@ export function MissionBriefPanel() {
                     data-testid="mission-brief-close-confirm"
                     className="rounded-xl bg-ds-accent px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {busy ? 'Closing...' : 'Confirm Close'}
+                    {busy ? t('mission.brief.close.closing') : t('mission.brief.close.confirm')}
                   </button>
                 </div>
               </div>
@@ -1098,14 +1193,14 @@ function getMissionArtifactGateTone(
   return 'ready';
 }
 
-function formatMissionArtifactGateHeading(transitionTarget: string | null): string {
+function formatMissionArtifactGateHeading(transitionTarget: string | null, t: Translator): string {
   if (transitionTarget === 'close') {
-    return 'Close blocked by mission artifact gate.';
+    return t('mission.brief.artifact_gate.heading.close');
   }
   if (transitionTarget === 'review') {
-    return 'Review blocked by mission artifact gate.';
+    return t('mission.brief.artifact_gate.heading.review');
   }
-  return 'Mission artifact gate blocked this action.';
+  return t('mission.brief.artifact_gate.heading.default');
 }
 
 function readTaskContractErrorDetail(
@@ -1140,6 +1235,7 @@ function MissionCheckGatePanel({
   label: string;
   testId?: string;
 }) {
+  const { t } = useI18n();
   const hasFailed = gate.failed.length > 0;
   const hasUnmapped = gate.unmapped.length > 0;
   const tone = hasFailed ? MISSION_GATE_DANGER_STYLES : MISSION_GATE_WARNING_STYLES;
@@ -1155,7 +1251,9 @@ function MissionCheckGatePanel({
             {label}
           </p>
           <p className="mt-1 text-sm font-semibold text-ds-text">
-            {hasFailed ? 'Checks Failed' : 'Checks Unmapped'}
+            {hasFailed
+              ? t('mission.brief.check_gate.status.failed')
+              : t('mission.brief.check_gate.status.unmapped')}
           </p>
         </div>
         {gate.missionName && (
@@ -1167,26 +1265,26 @@ function MissionCheckGatePanel({
 
       {gate.requiredChecks.length > 0 && (
         <p className="mt-2 text-xs leading-5 text-ds-text/90">
-          Required: {gate.requiredChecks.join(', ')}
+          {t('mission.brief.gate.required', { items: gate.requiredChecks.join(', ') })}
         </p>
       )}
 
       <div className="mt-3 space-y-2">
         {hasFailed && (
           <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
-            <span className="font-medium">Failed checks</span>: {gate.failed.join(', ')}
+            <span className="font-medium">{t('mission.brief.check_gate.failed_checks')}</span>: {gate.failed.join(', ')}
           </div>
         )}
         {hasUnmapped && (
           <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
-            <span className="font-medium">Unmapped checks</span>: {gate.unmapped.join(', ')}
+            <span className="font-medium">{t('mission.brief.check_gate.unmapped_checks')}</span>: {gate.unmapped.join(', ')}
           </div>
         )}
       </div>
 
       {gate.transitionTarget && (
         <p className="mt-2 text-xs text-ds-muted">
-          Transition blocked: {gate.transitionTarget}
+          {t('mission.brief.gate.transition_blocked', { target: gate.transitionTarget })}
         </p>
       )}
     </div>
@@ -1202,6 +1300,7 @@ function MissionChannelGatePanel({
   label: string;
   testId?: string;
 }) {
+  const { t } = useI18n();
   const hasMissing = gate.missing.length > 0;
   const hasUnmapped = gate.unmapped.length > 0;
   const tone = hasMissing ? MISSION_GATE_DANGER_STYLES : MISSION_GATE_WARNING_STYLES;
@@ -1217,7 +1316,9 @@ function MissionChannelGatePanel({
             {label}
           </p>
           <p className="mt-1 text-sm font-semibold text-ds-text">
-            {hasMissing ? 'Channels Not Delivered' : 'Channels Unmapped'}
+            {hasMissing
+              ? t('mission.brief.channel_gate.status.missing')
+              : t('mission.brief.channel_gate.status.unmapped')}
           </p>
         </div>
         {gate.missionName && (
@@ -1229,36 +1330,37 @@ function MissionChannelGatePanel({
 
       {gate.requiredChannels.length > 0 && (
         <p className="mt-2 text-xs leading-5 text-ds-text/90">
-          Required: {gate.requiredChannels.join(', ')}
+          {t('mission.brief.gate.required', { items: gate.requiredChannels.join(', ') })}
         </p>
       )}
 
       <div className="mt-3 space-y-2">
         {hasMissing && (
           <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
-            <span className="font-medium">Missing delivery</span>: {gate.missing.join(', ')}
+            <span className="font-medium">{t('mission.brief.channel_gate.missing_delivery')}</span>: {gate.missing.join(', ')}
           </div>
         )}
         {gate.satisfied.length > 0 && (
           <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
-            <span className="font-medium">Satisfied</span>: {gate.satisfied.join(', ')}
+            <span className="font-medium">{t('mission.brief.channel_gate.satisfied')}</span>: {gate.satisfied.join(', ')}
           </div>
         )}
         {hasUnmapped && (
           <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
-            <span className="font-medium">Unmapped channels</span>: {gate.unmapped.join(', ')}
+            <span className="font-medium">{t('mission.brief.channel_gate.unmapped_channels')}</span>: {gate.unmapped.join(', ')}
           </div>
         )}
         {!gate.dispatchLogAvailable && (
           <div className="rounded-xl border border-current/15 bg-black/10 px-3 py-2 text-xs leading-5 text-current">
-            <span className="font-medium">Dispatch log unavailable</span> — cannot verify channel delivery.
+            <span className="font-medium">{t('mission.brief.channel_gate.dispatch_log_unavailable')}</span>{' '}
+            {t('mission.brief.channel_gate.dispatch_log_help')}
           </div>
         )}
       </div>
 
       {gate.transitionTarget && (
         <p className="mt-2 text-xs text-ds-muted">
-          Transition blocked: {gate.transitionTarget}
+          {t('mission.brief.gate.transition_blocked', { target: gate.transitionTarget })}
         </p>
       )}
     </div>

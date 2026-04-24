@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import i18next from 'i18next';
+import {
+  DESKTOP_I18N_NAMESPACES,
+  SHARED_I18N_LOCALES,
+} from '../../src/shared/i18n/meta';
 
 function findElectronRoot(start: string): string {
   let dir = start;
@@ -19,24 +23,8 @@ function findElectronRoot(start: string): string {
 const ELECTRON_ROOT = findElectronRoot(__dirname);
 const LOCALES_DIR = join(ELECTRON_ROOT, 'public', 'locales');
 
-const NAMESPACES = [
-  'common',
-  'mission',
-  'workspace',
-  'execution',
-  'llm',
-  'sidebar',
-  'onboarding',
-  'settings',
-  'approval',
-  'trust',
-  'run',
-  'cards',
-  'chat',
-  'share',
-] as const;
-
-const LOCALES = ['ko', 'en', 'ja'] as const;
+const NAMESPACES = DESKTOP_I18N_NAMESPACES;
+const LOCALES = SHARED_I18N_LOCALES;
 
 function loadResources(): Record<string, Record<string, unknown>> {
   const out: Record<string, Record<string, unknown>> = {};
@@ -44,7 +32,7 @@ function loadResources(): Record<string, Record<string, unknown>> {
     out[lng] = {};
     for (const ns of NAMESPACES) {
       const filePath = join(LOCALES_DIR, lng, `${ns}.json`);
-      out[lng][ns] = JSON.parse(readFileSync(filePath, 'utf8'));
+      out[lng][ns] = JSON.parse(readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''));
     }
   }
   return out;
@@ -91,6 +79,14 @@ test('namespace inference: prefix matches a registered namespace and is stripped
     ns: 'execution',
     key: 'stage.eda',
   });
+  assert.deepEqual(resolveNamespaceAndKey('area.mission.label'), {
+    ns: 'area',
+    key: 'mission.label',
+  });
+  assert.deepEqual(resolveNamespaceAndKey('cmd.palette.title'), {
+    ns: 'cmd',
+    key: 'palette.title',
+  });
 });
 
 test('namespace inference: unknown prefix falls back to common, key kept whole', () => {
@@ -115,7 +111,7 @@ test('namespace inference: bare key without dot uses common', () => {
   assert.deepEqual(resolveNamespaceAndKey('save'), { ns: 'common', key: 'save' });
 });
 
-test('i18next init: 3 locales x 14 namespaces resources load', async () => {
+test('i18next init: 3 locales x shared desktop namespaces resources load', async () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await i18next.init({
     resources: loadResources() as any,

@@ -70,6 +70,7 @@
     "test:e2e:task-contract": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/task-contract-assumptions.spec.js && node tests/.compiled/smoke/task-contract-lifecycle.spec.js && node tests/.compiled/smoke/task-contract-governance.spec.js",
     "test:e2e:decision-os": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/decision-os-review.spec.js",
     "test:e2e:workflow": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/workflow-integration.spec.js",
+    "test:e2e:visual-survey": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/smoke/visual-surface-survey.spec.js",
     "test:e2e:a11y": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/e2e/a11y/onboarding.a11y.spec.js && node tests/.compiled/e2e/a11y/mission.a11y.spec.js && node tests/.compiled/e2e/a11y/chat.a11y.spec.js && node tests/.compiled/e2e/a11y/settings.a11y.spec.js && node tests/.compiled/e2e/a11y/sidebar.a11y.spec.js && node tests/.compiled/e2e/a11y/runtime-panels.a11y.spec.js && node tests/.compiled/e2e/a11y/workspace-panels.a11y.spec.js",
     "test:e2e:palette": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/e2e/palette.spec.js",
     "test:e2e:wave3": "npm run build && tsc -p tsconfig.test.json && node tests/.compiled/e2e/palette.spec.js",

@@ -19,8 +19,10 @@ module.exports = {
   output: 'public/locales/$LOCALE/$NAMESPACE.json',
   input: [
     'src/renderer/**/*.{ts,tsx}',
+    'src/mobile/**/*.{ts,tsx}',
     '!src/renderer/i18n.ts',
     '!src/renderer/stores/i18nStore.ts',
+    '!src/mobile/i18n.ts',
   ],
   sort: true,
   verbose: false,

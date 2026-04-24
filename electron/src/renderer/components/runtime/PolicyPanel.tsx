@@ -5,18 +5,15 @@
 import { ShieldAlert } from 'lucide-react';
 import { useId, useMemo } from 'react';
 import { Badge, Card } from '../../design-system/primitives';
+import { useI18n } from '../../stores/i18nStore';
 import { usePolicyStore } from '../../stores/policyStore';
 import { useRuntimeStore } from '../../stores/runtimeStore';
 import { RecurringGoalsPanel } from './RecurringGoalsPanel';
+import { translateRuntimeProfile } from './runtimeI18n';
 import { StandingOrdersPanel } from './StandingOrdersPanel';
 
-const PROFILE_DESCRIPTIONS: Record<'manual' | 'balanced' | 'aggressive', string> = {
-  manual: 'Suppresses proactive automation until an operator or direct runtime trigger intervenes.',
-  balanced: 'Allows direct runtime wake-ups while keeping monitoring-driven remediation conservative.',
-  aggressive: 'Allows proactive review and monitoring-driven remediation when the runtime is healthy.',
-};
-
 export function PolicyPanel() {
+  const { t } = useI18n();
   const headingId = useId();
   const snapshot = usePolicyStore((s) => s.snapshot);
   const lastUpdatedAt = usePolicyStore((s) => s.lastUpdatedAt);
@@ -28,8 +25,8 @@ export function PolicyPanel() {
   const profile = runtimeStatus?.automationProfile ?? snapshot?.automationProfile ?? 'balanced';
 
   const summary = useMemo(
-    () => PROFILE_DESCRIPTIONS[profile],
-    [profile],
+    () => t(`run.runtime.profile.description.${profile}`),
+    [profile, t],
   );
 
   return (
@@ -41,19 +38,19 @@ export function PolicyPanel() {
             className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-ds-muted"
           >
             <ShieldAlert size={12} aria-hidden="true" />
-            Policy
+            {t('run.runtime.policy.title')}
           </div>
           <Badge tone="accent" compact className="ml-auto uppercase tracking-[0.16em]">
-            {profile}
+            {translateRuntimeProfile(profile, t)}
           </Badge>
         </header>
 
         <p className="text-sm leading-6 text-ds-text">{summary}</p>
 
         <dl className="grid grid-cols-3 gap-3">
-          <PolicySummaryCard label="Recurring goals" value={recurringGoals.length} />
-          <PolicySummaryCard label="Standing orders" value={standingOrders.length} />
-          <PolicySummaryCard label="Matrix overrides" value={actionMatrixOverrideCount} />
+          <PolicySummaryCard label={t('run.runtime.policy.summary.recurringGoals')} value={recurringGoals.length} />
+          <PolicySummaryCard label={t('run.runtime.policy.summary.standingOrders')} value={standingOrders.length} />
+          <PolicySummaryCard label={t('run.runtime.policy.summary.matrixOverrides')} value={actionMatrixOverrideCount} />
         </dl>
 
         <div className="space-y-4">
@@ -63,7 +60,9 @@ export function PolicyPanel() {
 
         {lastUpdatedAt ? (
           <p className="text-xs text-ds-muted">
-            Policy updated {new Date(lastUpdatedAt).toLocaleTimeString()}
+            {t('run.runtime.policy.updated', {
+              time: new Date(lastUpdatedAt).toLocaleTimeString(),
+            })}
           </p>
         ) : null}
       </Card>

@@ -1,14 +1,18 @@
 import i18next, { createInstance, type i18n as I18nInstance } from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import {
+  MOBILE_I18N_NAMESPACES as SHARED_MOBILE_I18N_NAMESPACES,
+  SHARED_I18N_LOCALES,
+} from '../shared/i18n/meta';
 
 import koMobile from '../../public/locales/ko/mobile.json';
 import enMobile from '../../public/locales/en/mobile.json';
 import jaMobile from '../../public/locales/ja/mobile.json';
 
-export const MOBILE_SUPPORTED_LNGS = ['ko', 'en', 'ja'] as const;
+export const MOBILE_SUPPORTED_LNGS = SHARED_I18N_LOCALES;
 export type MobileLocale = (typeof MOBILE_SUPPORTED_LNGS)[number];
 
-export const MOBILE_I18N_NAMESPACES = ['mobile'] as const;
+export const MOBILE_I18N_NAMESPACES = SHARED_MOBILE_I18N_NAMESPACES;
 export const MOBILE_I18N_LANGUAGE_KEY = 'i18nextLng';
 
 export const MOBILE_I18N_RESOURCES = {

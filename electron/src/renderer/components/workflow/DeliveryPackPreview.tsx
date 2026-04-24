@@ -3,7 +3,13 @@ import type {
   DeliveryLogRecordView,
   DeliveryPackView,
 } from '../../types/taskContract';
+import { useI18n } from '../../stores/i18nStore';
 import { ArtifactInlinePreview } from './ArtifactInlinePreview';
+
+type TranslateFn = (
+  key: string,
+  vars?: Record<string, string | number | undefined | null>,
+) => string;
 
 interface Props {
   pack: DeliveryPackView | null;
@@ -35,10 +41,12 @@ export function DeliveryPackPreview({
   onRevealPath,
   onSelectArtifact,
 }: Props) {
+  const { t } = useI18n();
+
   if (!pack) {
     return (
       <div className="rounded-xl border border-ds-border bg-ds-surface px-3 py-3 text-xs text-ds-muted">
-        Build a delivery pack to inspect audience-specific artifacts and dispatch readiness.
+        {t('workspace.workflow.deliveryPack.empty')}
       </div>
     );
   }
@@ -57,20 +65,34 @@ export function DeliveryPackPreview({
       <div className="rounded-xl border border-ds-border bg-ds-surface px-3 py-3">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-ds-muted">Delivery Pack</p>
+            <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+              {t('workspace.workflow.deliveryPack.title')}
+            </p>
             <p className="mt-1 text-xs font-medium text-ds-text">{pack.pack_id}</p>
           </div>
           <span className="rounded-full border border-ds-border px-2 py-1 text-[10px] text-ds-text">
-            {pack.status}
+            {translateDeliveryPackStatus(pack.status, t)}
           </span>
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-ds-muted">
-          <div>Generated: {formatTimestamp(pack.generated_at)}</div>
-          <div>Artifacts: {pack.artifacts.length}</div>
-          <div>Analysis: {pack.source_analysis_id ?? '-'}</div>
-          <div>Confidence: {pack.confidence ?? '-'}</div>
-          <div>Tenant: {pack.tenant}</div>
-          <div>Theme: {themeId ?? '-'}</div>
+          <div>
+            {t('workspace.workflow.deliveryPack.generated', {
+              value: formatTimestamp(pack.generated_at),
+            })}
+          </div>
+          <div>
+            {t('workspace.workflow.deliveryPack.artifacts', { value: pack.artifacts.length })}
+          </div>
+          <div>
+            {t('workspace.workflow.deliveryPack.analysis', {
+              value: pack.source_analysis_id ?? '-',
+            })}
+          </div>
+          <div>
+            {t('workspace.workflow.deliveryPack.confidence', { value: pack.confidence ?? '-' })}
+          </div>
+          <div>{t('workspace.workflow.deliveryPack.tenant', { value: pack.tenant })}</div>
+          <div>{t('workspace.workflow.deliveryPack.theme', { value: themeId ?? '-' })}</div>
         </div>
       </div>
 
@@ -97,7 +119,10 @@ export function DeliveryPackPreview({
                   </p>
                 </div>
                 <span className="text-[10px] text-ds-muted">
-                  {record?.status ?? (artifact.rendered_uri ? 'rendered' : 'planned')}
+                  {translateDeliveryPackStatus(
+                    record?.status ?? (artifact.rendered_uri ? 'rendered' : 'planned'),
+                    t,
+                  )}
                 </span>
               </div>
               <p className="mt-2 text-[11px] text-ds-muted">
@@ -112,24 +137,46 @@ export function DeliveryPackPreview({
         <div className="rounded-xl border border-ds-border bg-ds-surface px-3 py-3">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-ds-muted">Preview</p>
+              <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+                {t('workspace.workflow.deliveryPack.preview.title')}
+              </p>
               <p className="mt-1 text-xs font-medium text-ds-text">
                 {selectedArtifact.type} | {selectedArtifact.audience}
               </p>
             </div>
-            <span className="text-[10px] text-ds-muted">{selectedArtifact.dispatch_mode}</span>
+            <span className="text-[10px] text-ds-muted">
+              {translateDeliveryDispatchMode(selectedArtifact.dispatch_mode, t)}
+            </span>
           </div>
 
           <div className="mt-3 space-y-2 text-[11px] text-ds-muted">
-            <div>Template: {selectedArtifact.template_ref}</div>
-            <div>Structure: {selectedArtifact.content_policy.structure.join(', ')}</div>
-            <div>Channels: {selectedArtifact.delivery_channel.join(', ') || '-'}</div>
-            <div>Verifier: {selectedArtifact.verifier_report_id ?? '-'}</div>
+            <div>
+              {t('workspace.workflow.deliveryPack.template', {
+                value: selectedArtifact.template_ref,
+              })}
+            </div>
+            <div>
+              {t('workspace.workflow.deliveryPack.structure', {
+                value: selectedArtifact.content_policy.structure.join(', '),
+              })}
+            </div>
+            <div>
+              {t('workspace.workflow.deliveryPack.channels', {
+                value: selectedArtifact.delivery_channel.join(', ') || '-',
+              })}
+            </div>
+            <div>
+              {t('workspace.workflow.deliveryPack.verifier', {
+                value: selectedArtifact.verifier_report_id ?? '-',
+              })}
+            </div>
           </div>
 
           {renderedUri ? (
             <div className="mt-3 rounded-lg border border-ds-border/70 bg-ds-bg/50 px-3 py-2">
-              <p className="text-[11px] text-ds-muted">Rendered file</p>
+              <p className="text-[11px] text-ds-muted">
+                {t('workspace.workflow.deliveryPack.renderedFile')}
+              </p>
               <p className="mt-1 break-all text-xs text-ds-text">
                 {renderedUri}
               </p>
@@ -138,12 +185,12 @@ export function DeliveryPackPreview({
                 onClick={() => onRevealPath(renderedUri)}
                 className="mt-2 rounded border border-ds-border px-2 py-1 text-[10px] text-ds-muted hover:text-ds-text"
               >
-                Reveal file
+                {t('workspace.workflow.deliveryPack.revealFile')}
               </button>
             </div>
           ) : (
             <div className="mt-3 rounded-lg border border-ds-border/70 bg-ds-bg/50 px-3 py-2 text-[11px] text-ds-muted">
-              Artifact is planned but not rendered yet.
+              {t('workspace.workflow.deliveryPack.notRendered')}
             </div>
           )}
 
@@ -152,4 +199,34 @@ export function DeliveryPackPreview({
       )}
     </div>
   );
+}
+
+function translateDeliveryPackStatus(
+  value: string,
+  t: TranslateFn,
+): string {
+  const keyByStatus: Record<string, string> = {
+    draft: 'workspace.workflow.deliveryPack.status.draft',
+    rendered: 'workspace.workflow.deliveryPack.status.rendered',
+    planned: 'workspace.workflow.deliveryPack.status.planned',
+    dispatched: 'workspace.workflow.deliveryPack.status.dispatched',
+    rejected: 'workspace.workflow.deliveryPack.status.rejected',
+    sent: 'workspace.workflow.deliveryPack.status.sent',
+    blocked: 'workspace.workflow.deliveryPack.status.blocked',
+    duplicate: 'workspace.workflow.deliveryPack.status.duplicate',
+    failed: 'workspace.workflow.deliveryPack.status.failed',
+    dry_run: 'workspace.workflow.deliveryPack.status.dryRun',
+  };
+  const key = keyByStatus[value];
+  return key ? t(key) : value;
+}
+
+function translateDeliveryDispatchMode(value: string, t: TranslateFn): string {
+  const keyByMode: Record<string, string> = {
+    auto: 'workspace.workflow.deliveryPack.dispatchMode.auto',
+    auto_with_signature: 'workspace.workflow.deliveryPack.dispatchMode.autoWithSignature',
+    manual_review: 'workspace.workflow.deliveryPack.dispatchMode.manualReview',
+  };
+  const key = keyByMode[value];
+  return key ? t(key) : value;
 }

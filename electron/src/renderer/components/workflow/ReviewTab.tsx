@@ -1,6 +1,7 @@
 import { Plus, RefreshCcw, ShieldCheck, Siren } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useWs } from '../../hooks/WsProvider';
+import { useI18n } from '../../stores/i18nStore';
 import { InlineError, OverviewStat, StatusLine } from './DecisionOsReviewPrimitives';
 import { PromotionGateModal } from './PromotionGateModal';
 import { RunDiffPanel } from './RunDiffPanel';
@@ -12,8 +13,10 @@ import {
   PostDeployStatusResult,
   severityClass,
 } from './decisionOsReviewModel';
+import { translatePromotionStage, translateReviewStatus } from './reviewI18n';
 
 export function ReviewTab() {
+  const { t } = useI18n();
   const { on, rpc, status } = useWs();
   const connected = status === 'connected';
 
@@ -123,7 +126,7 @@ export function ReviewTab() {
 
   const loadPostDeployStatus = async () => {
     if (!modelId) {
-      setStatusError('Select a model.');
+      setStatusError(t('workspace.workflow.review.postDeploy.selectModelError'));
       return;
     }
     setStatusBusy(true);
@@ -151,7 +154,7 @@ export function ReviewTab() {
       <div data-testid="decision-os-review-tab" className="space-y-3 px-3 py-2">
         <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
           <ShieldCheck size={12} />
-          Review
+          {t('workspace.workflow.review.title')}
           <button
             onClick={() => void refreshOverview()}
             disabled={!connected || loading}
@@ -159,7 +162,7 @@ export function ReviewTab() {
             className="ml-auto inline-flex items-center gap-1 rounded border border-ds-border px-2 py-1 text-[10px] normal-case text-ds-muted hover:text-ds-text disabled:opacity-50"
           >
             <RefreshCcw size={10} />
-            Refresh
+            {t('workspace.workflow.review.refresh')}
           </button>
         </div>
 
@@ -171,7 +174,9 @@ export function ReviewTab() {
           className="space-y-2 rounded-md border border-ds-border bg-ds-bg/70 p-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xs font-semibold text-ds-text">Decision OS Overview</div>
+            <div className="text-xs font-semibold text-ds-text">
+              {t('workspace.workflow.review.overview.title')}
+            </div>
             <button
               onClick={() => openPromotionModal()}
               disabled={!connected || (overview?.runs.length ?? 0) === 0}
@@ -179,28 +184,28 @@ export function ReviewTab() {
               className="inline-flex items-center gap-1 rounded border border-ds-accent px-2 py-1 text-[10px] text-ds-accent hover:bg-ds-accent/10 disabled:opacity-50"
             >
               <Plus size={10} />
-              Open promotion gate
+              {t('workspace.workflow.review.overview.openPromotionGate')}
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <OverviewStat
-              label="Runs"
+              label={t('workspace.workflow.review.overview.summary.runs')}
               value={overview?.summary.runCount ?? 0}
               testId="decision-os-overview-run-count"
             />
             <OverviewStat
-              label="Models"
+              label={t('workspace.workflow.review.overview.summary.models')}
               value={overview?.summary.modelCount ?? 0}
               testId="decision-os-overview-model-count"
             />
             <OverviewStat
-              label="Decisions"
+              label={t('workspace.workflow.review.overview.summary.decisions')}
               value={overview?.summary.decisionCount ?? 0}
               testId="decision-os-overview-decision-count"
             />
             <OverviewStat
-              label="Monitors"
+              label={t('workspace.workflow.review.overview.summary.monitors')}
               value={overview?.summary.monitorStateCount ?? 0}
               testId="decision-os-overview-monitor-count"
             />
@@ -209,10 +214,12 @@ export function ReviewTab() {
           <div className="grid gap-2 lg:grid-cols-2">
             <div>
               <div className="mb-1 text-[10px] uppercase tracking-wider text-ds-muted">
-                Latest decisions
+                {t('workspace.workflow.review.overview.latestDecisions')}
               </div>
               {latestDecisions.length === 0 ? (
-                <div className="text-xs text-ds-muted">No promotion decisions yet.</div>
+                <div className="text-xs text-ds-muted">
+                  {t('workspace.workflow.review.overview.noDecisions')}
+                </div>
               ) : (
                 <div className="space-y-2">
                   {latestDecisions.map((decision) => (
@@ -229,11 +236,11 @@ export function ReviewTab() {
                           <span
                             className={`rounded border px-1.5 py-0.5 text-[10px] ${severityClass(decision.chain_state)}`}
                           >
-                            {decision.chain_state}
+                            {translateReviewStatus(decision.chain_state, t)}
                           </span>
                         </div>
                         <div className="mt-1 text-[10px] text-ds-muted">
-                          {decision.target_stage} {'->'} {decision.candidate_model_id}
+                          {translatePromotionStage(decision.target_stage, t)} {'->'} {decision.candidate_model_id}
                         </div>
                       </button>
                       {decision.chain_state === 'approved' ? (
@@ -248,7 +255,9 @@ export function ReviewTab() {
                           data-testid={`decision-os-apply-${decision.decision_id}`}
                           className="mt-2 rounded border border-ds-success/40 px-2 py-1 text-[10px] text-ds-success hover:bg-ds-success/10 disabled:opacity-50"
                         >
-                          {applyingDecisionId === decision.decision_id ? 'Applying...' : 'Apply'}
+                          {applyingDecisionId === decision.decision_id
+                            ? t('workspace.workflow.review.overview.applying')
+                            : t('workspace.workflow.review.overview.apply')}
                         </button>
                       ) : null}
                     </div>
@@ -259,10 +268,12 @@ export function ReviewTab() {
 
             <div>
               <div className="mb-1 text-[10px] uppercase tracking-wider text-ds-muted">
-                Latest monitor states
+                {t('workspace.workflow.review.overview.latestMonitorStates')}
               </div>
               {latestMonitorStates.length === 0 ? (
-                <div className="text-xs text-ds-muted">No post-deploy observations yet.</div>
+                <div className="text-xs text-ds-muted">
+                  {t('workspace.workflow.review.overview.noObservations')}
+                </div>
               ) : (
                 <div className="space-y-2">
                   {latestMonitorStates.map((monitorState) => (
@@ -275,7 +286,7 @@ export function ReviewTab() {
                         <span
                           className={`rounded border px-1.5 py-0.5 text-[10px] ${severityClass(monitorState.overall_status)}`}
                         >
-                          {monitorState.overall_status}
+                          {translateReviewStatus(monitorState.overall_status, t)}
                         </span>
                       </div>
                       <div className="mt-1 text-[10px] text-ds-muted">
@@ -304,17 +315,17 @@ export function ReviewTab() {
         >
           <div className="flex items-center gap-2 text-xs font-semibold text-ds-text">
             <Siren size={14} />
-            Post-deploy Monitor
+            {t('workspace.workflow.review.postDeploy.title')}
           </div>
           <div className="grid gap-2">
             <select
               value={modelId}
               onChange={(event) => setModelId(event.target.value)}
-              aria-label="Model selected for post-deploy monitoring"
+              aria-label={t('workspace.workflow.review.postDeploy.modelAria')}
               data-testid="decision-os-post-deploy-model"
               className="rounded border border-ds-border bg-ds-surface px-2 py-1.5 text-xs text-ds-text"
             >
-              <option value="">Select model</option>
+              <option value="">{t('workspace.workflow.review.postDeploy.selectModel')}</option>
               {(overview?.models ?? []).map((model) => (
                 <option key={`${model.model_id}:${model.version}`} value={model.model_id}>
                   {modelOptionLabel(model)}
@@ -334,7 +345,9 @@ export function ReviewTab() {
               data-testid="decision-os-post-deploy-load"
               className="rounded bg-ds-accent px-2 py-1.5 text-xs text-white disabled:opacity-50"
             >
-              {statusBusy ? 'Loading...' : 'Load status'}
+              {statusBusy
+                ? t('workspace.workflow.review.postDeploy.loading')
+                : t('workspace.workflow.review.postDeploy.load')}
             </button>
           </div>
           {statusError && <InlineError message={statusError} />}
@@ -346,29 +359,33 @@ export function ReviewTab() {
                   <span
                     className={`rounded border px-1.5 py-0.5 text-[10px] ${severityClass(statusResult.summary.overall_status)}`}
                   >
-                    {statusResult.summary.overall_status}
+                    {translateReviewStatus(statusResult.summary.overall_status, t)}
                   </span>
                 </div>
                 <div className="mt-1 text-[10px] text-ds-muted">
-                  {statusResult.observations} observations / {statusResult.window} /{' '}
+                  {t('workspace.workflow.review.postDeploy.observations', {
+                    count: statusResult.observations,
+                    window: statusResult.window,
+                  })}{' '}
+                  /{' '}
                   {formatDate(statusResult.summary.observed_at)}
                 </div>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 <StatusLine
-                  label="Selected model"
+                  label={t('workspace.workflow.review.postDeploy.selectedModel')}
                   value={selectedModel ? modelOptionLabel(selectedModel) : statusResult.model_id}
                 />
                 <StatusLine
-                  label="Remediation"
+                  label={t('workspace.workflow.review.postDeploy.remediation')}
                   value={`${statusResult.summary.remediation.decision} (${statusResult.summary.remediation.severity})`}
                 />
                 <StatusLine
-                  label="Drift"
+                  label={t('workspace.workflow.review.postDeploy.drift')}
                   value={`PSI ${statusResult.summary.drift.max_psi ?? '-'} / KS ${statusResult.summary.drift.max_ks ?? '-'}`}
                 />
                 <StatusLine
-                  label="Service level"
+                  label={t('workspace.workflow.review.postDeploy.serviceLevel')}
                   value={`${statusResult.summary.service_level.status} / p95 ${statusResult.summary.service_level.latency_p95_ms ?? '-'} ms`}
                 />
               </div>

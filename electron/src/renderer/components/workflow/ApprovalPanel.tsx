@@ -13,6 +13,7 @@ import {
 } from '../../design-system/primitives';
 import { useCanMutate } from '../../hooks/useCanMutate';
 import { useWs } from '../../hooks/WsProvider';
+import { useI18n } from '../../stores/i18nStore';
 import { useWorkflowStore } from '../../stores/workflowStore';
 
 type ApprovalRecord = {
@@ -27,6 +28,7 @@ type ApprovalRecord = {
 };
 
 export function ApprovalPanel() {
+  const { t } = useI18n();
   const headingId = useId().replace(/:/g, '');
   const approvals = useWorkflowStore((s) => s.approvals);
   const pending = approvals.filter((item) => item.status === 'pending');
@@ -36,22 +38,26 @@ export function ApprovalPanel() {
       <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
         <ShieldAlert size={12} />
         <h2 id={headingId} className="text-inherit">
-          Approval Inbox
+          {t('workspace.workflow.approval.title')}
         </h2>
         <Badge
           tone={pending.length > 0 ? 'warning' : 'neutral'}
           compact
           className="ml-auto normal-case"
-          aria-label={`${pending.length} pending approvals`}
+          aria-label={t('workspace.workflow.approval.pendingCountAria', { count: pending.length })}
         >
           {pending.length}
         </Badge>
       </div>
 
       {pending.length === 0 ? (
-        <div className="text-xs text-ds-muted">No pending approvals.</div>
+        <div className="text-xs text-ds-muted">{t('workspace.workflow.approval.empty')}</div>
       ) : (
-        <div className="space-y-2" role="list" aria-label="Pending approvals">
+        <div
+          className="space-y-2"
+          role="list"
+          aria-label={t('workspace.workflow.approval.pendingListAria')}
+        >
           {pending.map((approval) => (
             <div key={approval.approvalId} role="listitem">
               <ApprovalCard approval={approval} />
@@ -68,11 +74,13 @@ function ApprovalCard({
 }: {
   approval: ApprovalRecord;
 }) {
+  const { t } = useI18n();
   const cardTitleId = useId().replace(/:/g, '');
   const responseFieldId = useId().replace(/:/g, '');
   const { rpc } = useWs();
   const { canMutate, reason: mutateBlockedReason } = useCanMutate();
   const mutationBlocked = !canMutate;
+  const mutateBlockedTitle = mutateBlockedReason ? t(mutateBlockedReason) : undefined;
   const [busy, setBusy] = useState(false);
   const [respondOpen, setRespondOpen] = useState(false);
   const [responseDraft, setResponseDraft] = useState(approval.default ?? '');
@@ -138,19 +146,25 @@ function ApprovalCard({
           <dl className="space-y-1">
             {proposalType && (
               <div className="flex gap-2">
-                <dt className="font-medium text-ds-text">Type:</dt>
+                <dt className="font-medium text-ds-text">
+                  {t('workspace.workflow.approval.meta.type')}
+                </dt>
                 <dd className="min-w-0 break-all">{proposalType}</dd>
               </div>
             )}
             {targetId && (
               <div className="flex gap-2">
-                <dt className="font-medium text-ds-text">Target:</dt>
+                <dt className="font-medium text-ds-text">
+                  {t('workspace.workflow.approval.meta.target')}
+                </dt>
                 <dd className="min-w-0 break-all">{targetId}</dd>
               </div>
             )}
             {risk && (
               <div className="flex gap-2">
-                <dt className="font-medium text-ds-text">Risk:</dt>
+                <dt className="font-medium text-ds-text">
+                  {t('workspace.workflow.approval.meta.risk')}
+                </dt>
                 <dd className="min-w-0 break-all">{risk}</dd>
               </div>
             )}
@@ -163,7 +177,11 @@ function ApprovalCard({
       </div>
 
       {approval.options.length > 0 && (
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Approval options">
+        <div
+          className="flex flex-wrap gap-1"
+          role="group"
+          aria-label={t('workspace.workflow.approval.optionsAria')}
+        >
           {approval.options.map((option) => (
             <Button
               key={option}
@@ -172,7 +190,7 @@ function ApprovalCard({
               onClick={() => void resolve('approved', option)}
               disabled={busy || mutationBlocked}
               aria-disabled={mutationBlocked || undefined}
-              title={mutationBlocked ? mutateBlockedReason : undefined}
+              title={mutationBlocked ? mutateBlockedTitle : undefined}
             >
               {option}
             </Button>
@@ -186,8 +204,8 @@ function ApprovalCard({
           onOpenChange={handleRespondOpenChange}
           tone="accent"
           align="start"
-          title="Approval response"
-          description="Submit an optional freeform response while keeping the current approval context in view."
+          title={t('workspace.workflow.approval.responsePopover.title')}
+          description={t('workspace.workflow.approval.responsePopover.description')}
           trigger={(
             <Button
               variant="primary"
@@ -195,24 +213,26 @@ function ApprovalCard({
               leadingIcon={<Check size={12} />}
               disabled={busy || mutationBlocked}
               aria-disabled={mutationBlocked || undefined}
-              title={mutationBlocked ? mutateBlockedReason : undefined}
-              aria-label={`Respond to approval ${approval.approvalId}`}
+              title={mutationBlocked ? mutateBlockedTitle : undefined}
+              aria-label={t('workspace.workflow.approval.respondAria', {
+                approvalId: approval.approvalId,
+              })}
             >
-              Respond
+              {t('workspace.workflow.approval.respond')}
             </Button>
           )}
         >
           <form className="space-y-ds-3" onSubmit={handleResponseSubmit}>
             <Textarea
               id={responseFieldId}
-              label="Response"
+              label={t('workspace.workflow.approval.responseLabel')}
               value={responseDraft}
               onChange={(event) => setResponseDraft(event.target.value)}
               rows={4}
               resize="vertical"
               disabled={busy || mutationBlocked}
               aria-disabled={mutationBlocked || undefined}
-              title={mutationBlocked ? mutateBlockedReason : undefined}
+              title={mutationBlocked ? mutateBlockedTitle : undefined}
             />
             <div className="flex items-center justify-end gap-ds-2">
               <Button
@@ -221,10 +241,12 @@ function ApprovalCard({
                 onClick={() => setRespondOpen(false)}
                 disabled={busy || mutationBlocked}
                 aria-disabled={mutationBlocked || undefined}
-                title={mutationBlocked ? mutateBlockedReason : undefined}
-                aria-label={`Cancel response for approval ${approval.approvalId}`}
+                title={mutationBlocked ? mutateBlockedTitle : undefined}
+                aria-label={t('workspace.workflow.approval.cancelResponseAria', {
+                  approvalId: approval.approvalId,
+                })}
               >
-                Cancel
+                {t('workspace.workflow.approval.cancel')}
               </Button>
               <Button
                 type="submit"
@@ -233,9 +255,9 @@ function ApprovalCard({
                 leadingIcon={<Check size={12} />}
                 disabled={busy || mutationBlocked}
                 aria-disabled={mutationBlocked || undefined}
-                title={mutationBlocked ? mutateBlockedReason : undefined}
+                title={mutationBlocked ? mutateBlockedTitle : undefined}
               >
-                Approve
+                {t('workspace.workflow.approval.approve')}
               </Button>
             </div>
           </form>
@@ -246,9 +268,11 @@ function ApprovalCard({
           variant="danger"
           size="sm"
           leadingIcon={<X size={12} />}
-          aria-label={`Reject approval ${approval.approvalId}`}
+          aria-label={t('workspace.workflow.approval.rejectAria', {
+            approvalId: approval.approvalId,
+          })}
         >
-          Reject
+          {t('workspace.workflow.approval.reject')}
         </Button>
       </div>
     </Card>

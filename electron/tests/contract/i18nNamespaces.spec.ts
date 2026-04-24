@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import {
+  ALL_I18N_NAMESPACES,
+  SHARED_I18N_LOCALES,
+} from '../../src/shared/i18n/meta';
 
 // Resolve repository electron/ root regardless of compiled output depth.
 function findElectronRoot(start: string): string {
@@ -19,25 +23,8 @@ function findElectronRoot(start: string): string {
 const ELECTRON_ROOT = findElectronRoot(__dirname);
 const LOCALES_DIR = join(ELECTRON_ROOT, 'public', 'locales');
 
-const NAMESPACES = [
-  'common',
-  'area',
-  'mission',
-  'workspace',
-  'execution',
-  'llm',
-  'sidebar',
-  'onboarding',
-  'settings',
-  'approval',
-  'trust',
-  'run',
-  'cards',
-  'chat',
-  'share',
-] as const;
-
-const LOCALES = ['ko', 'en', 'ja'] as const;
+const NAMESPACES = ALL_I18N_NAMESPACES;
+const LOCALES = SHARED_I18N_LOCALES;
 
 type Tree = Record<string, unknown>;
 
@@ -60,7 +47,7 @@ function flatten(tree: Tree, prefix = ''): Map<string, string> {
 
 function loadFlat(lng: string, ns: string): Map<string, string> {
   const filePath = join(LOCALES_DIR, lng, `${ns}.json`);
-  const data = JSON.parse(readFileSync(filePath, 'utf8')) as Tree;
+  const data = JSON.parse(readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')) as Tree;
   return flatten(data);
 }
 
@@ -135,6 +122,21 @@ test('interpolation variables match across locales for every key', () => {
             `[${ns}.${key}] ${lng} missing interpolation var {${v}} present in en`,
           );
         }
+      }
+    }
+  }
+});
+
+test('locale values use runtime interpolation syntax (`{var}` only)', () => {
+  for (const ns of NAMESPACES) {
+    for (const lng of LOCALES) {
+      const flat = loadFlat(lng, ns);
+      for (const [key, value] of flat.entries()) {
+        assert.equal(
+          /\{\{\s*\w+\s*\}\}/.test(value),
+          false,
+          `[${ns}.${key}] ${lng} uses '{{var}}' instead of '{var}'`,
+        );
       }
     }
   }
@@ -256,9 +258,9 @@ test('area namespace preserves Wave 2 IA keys', () => {
   }
 });
 
-test('approval / trust / run / cards / chat / share namespaces exist (placeholder ok)', () => {
+test('approval / trust / run / cards / chat / cmd / share / mobile namespaces exist (placeholder ok)', () => {
   for (const lng of LOCALES) {
-    for (const ns of ['approval', 'trust', 'run', 'cards', 'chat', 'share']) {
+    for (const ns of ['approval', 'trust', 'run', 'cards', 'chat', 'cmd', 'share', 'mobile']) {
       const flat = loadFlat(lng, ns);
       assert.ok(flat instanceof Map, `${lng}/${ns}.json failed to load`);
     }

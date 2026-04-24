@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from ds_agent.config.loader import save_config
@@ -244,6 +244,7 @@ def _seed_models(workspace_dir: Path) -> None:
 
 def _seed_post_deploy_state(workspace_dir: Path) -> None:
     deploy_store = SqliteDeployMonitorStateStore.for_workspace(str(workspace_dir))
+    observed_at = datetime.now(UTC) - timedelta(hours=1)
     deploy_store.save(
         PostDeployMonitorState.model_validate(
             {
@@ -252,7 +253,7 @@ def _seed_post_deploy_state(workspace_dir: Path) -> None:
                 "model_version": 5,
                 "alias": "champion",
                 "window": "24h",
-                "observed_at": datetime(2026, 4, 16, 12, tzinfo=UTC),
+                "observed_at": observed_at,
                 "drift": {
                     "overall_status": "warning",
                     "max_psi": 0.33,

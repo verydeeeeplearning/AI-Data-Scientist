@@ -112,6 +112,32 @@ async function screenshot(page: Page, targetPath: string): Promise<void> {
   await page.screenshot({ path: targetPath, fullPage: true });
 }
 
+async function clickTestId(page: Page, testId: string): Promise<void> {
+  const element = page.getByTestId(testId);
+  await element.waitFor({ state: 'visible', timeout: 30_000 });
+  await element.evaluate((node) => (node as HTMLElement).click());
+}
+
+async function clickLocator(locator: ReturnType<Page['locator']>): Promise<void> {
+  await locator.waitFor({ state: 'visible', timeout: 30_000 });
+  await locator.evaluate((node) => (node as HTMLElement).click());
+}
+
+async function openSeededSession(page: Page): Promise<void> {
+  const testId = `open-session-${SEEDED_SESSION_ID}`;
+  const button = page.getByTestId(testId);
+  await button.waitFor({ state: 'visible', timeout: 30_000 });
+  await button.evaluate((node) => (node as HTMLButtonElement).click());
+  await page.waitForFunction(
+    ({ currentTestId }) => {
+      const node = document.querySelector(`[data-testid="${currentTestId}"]`);
+      return Boolean(node?.textContent?.includes('Opened'));
+    },
+    { currentTestId: testId },
+    { timeout: 30_000 },
+  );
+}
+
 async function run(): Promise<void> {
   if (!fs.existsSync(BACKEND_BIN)) {
     throw new Error(
@@ -135,8 +161,10 @@ async function run(): Promise<void> {
       DS_AGENT_SENTRY_DSN: '',
       DS_AGENT_ERROR_REPORTING_ENABLED: '0',
       DS_AGENT_TELEMETRY_ENABLED: '0',
+      DS_AGENT_E2E_USER_DATA_DIR: path.join(paths.rootDir, 'userData'),
       DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
       DS_AGENT_E2E_SKIP_ONBOARDING: '1',
+      DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
     },
     timeout: 60_000,
   });
@@ -148,15 +176,11 @@ async function run(): Promise<void> {
     await page.getByTestId('open-settings').waitFor({ state: 'visible', timeout: 60_000 });
 
     // ── Step 1: Attach to the seeded session ────────────────────────────
-    await page.getByTestId('sidebar-tab-runtime').click();
-    await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).waitFor({
-      state: 'visible',
-      timeout: 30_000,
-    });
-    await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).click();
+    await clickTestId(page, 'sidebar-tab-runtime');
+    await openSeededSession(page);
 
     // ── Step 2: Navigate to Workflow tab ────────────────────────────────
-    await page.getByTestId('sidebar-tab-workflow').click();
+    await clickTestId(page, 'sidebar-tab-workflow');
     await page.getByTestId('work-object-panel').waitFor({
       state: 'visible',
       timeout: 30_000,
@@ -165,8 +189,7 @@ async function run(): Promise<void> {
 
     // ── Step 3: Verify seeded work object is visible ────────────────────
     const woItem = page.locator(`[data-testid="work-object-item-${SEEDED_WORK_OBJECT_ID}"]`);
-    await woItem.waitFor({ state: 'visible', timeout: 30_000 });
-    await woItem.click();
+    await clickLocator(woItem);
 
     // Work object detail should appear with intake phase
     await page.getByTestId('work-object-detail').waitFor({
@@ -185,8 +208,7 @@ async function run(): Promise<void> {
 
     // ── Step 5: Advance work object phase (intake → executing) ──────────
     const advanceBtn = page.getByTestId('work-object-advance-btn');
-    await advanceBtn.waitFor({ state: 'visible', timeout: 30_000 });
-    await advanceBtn.click();
+    await clickLocator(advanceBtn);
     // After advance the detail should refresh — wait for the Advance button
     // to change (next target is "review") or for a notice to appear.
     await page.waitForFunction(
@@ -205,15 +227,14 @@ async function run(): Promise<void> {
 
     // ── Step 6: Close the work object ───────────────────────────────────
     const closeBtn = page.getByTestId('work-object-close-btn');
-    await closeBtn.waitFor({ state: 'visible', timeout: 30_000 });
-    await closeBtn.click();
+    await clickLocator(closeBtn);
 
     const reasonInput = page.getByTestId('work-object-close-reason');
     await reasonInput.waitFor({ state: 'visible', timeout: 30_000 });
     await reasonInput.fill('E2E test closure — all criteria verified.');
 
     const confirmBtn = page.getByTestId('work-object-close-confirm');
-    await confirmBtn.click();
+    await clickLocator(confirmBtn);
 
     // Wait for the close notice or the phase badge to reflect closed state
     await page.waitForFunction(
@@ -233,8 +254,7 @@ async function run(): Promise<void> {
       timeout: 30_000,
     });
     const healthBtn = page.getByTestId('integration-health-check-btn');
-    await healthBtn.waitFor({ state: 'visible', timeout: 30_000 });
-    await healthBtn.click();
+    await clickLocator(healthBtn);
 
     // Wait for at least one connector card to appear
     await page.waitForFunction(

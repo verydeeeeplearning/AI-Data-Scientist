@@ -2,9 +2,10 @@
 /**
  * lint:i18n CI gate.
  *
- * Two checks (both must pass for exit 0):
+ * Three checks (all must pass for exit 0):
  *  1. ko/en/ja JSON files share identical key sets per namespace.
- *  2. No CJK (Korean) string literals remain in renderer/mobile TS/TSX
+ *  2. Locale strings use the runtime interpolation format (`{var}`, not `{{var}}`).
+ *  3. No CJK (Korean) string literals remain in renderer/mobile/main TS/TSX
  *     surfaces that should already be backed by locale keys.
  *
  * Implementation note: avoids running i18next-parser in CI because dynamic
@@ -19,34 +20,42 @@ import { fileURLToPath } from 'node:url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const LOCALES_DIR = resolve(ROOT, 'public/locales');
-const NAMESPACES = [
-  'common',
-  'area',
-  'mission',
-  'workspace',
-  'execution',
-  'llm',
-  'sidebar',
-  'onboarding',
-  'settings',
-  'approval',
-  'trust',
-  'run',
-  'cards',
-  'chat',
-  'mobile',
-  'share',
-];
-const LOCALES = ['ko', 'en', 'ja'];
+const META_FILE = resolve(ROOT, 'src/shared/i18n/meta.ts');
+const META_SOURCE = readFileSync(META_FILE, 'utf8');
+
+function parseTupleExport(exportName) {
+  const match = META_SOURCE.match(
+    new RegExp(`export const ${exportName} = \\[([\\s\\S]*?)\\] as const;`),
+  );
+  if (!match) {
+    throw new Error(`[lint:i18n] failed to parse ${exportName} from ${META_FILE}`);
+  }
+  return Array.from(match[1].matchAll(/'([^']+)'/g), (item) => item[1]);
+}
+
+const LOCALES = parseTupleExport('SHARED_I18N_LOCALES');
+const DESKTOP_NAMESPACES = parseTupleExport('DESKTOP_I18N_NAMESPACES');
+const MOBILE_NAMESPACES = parseTupleExport('MOBILE_I18N_NAMESPACES');
+const NAMESPACES = [...DESKTOP_NAMESPACES, ...MOBILE_NAMESPACES];
 
 const SCAN_ROOTS = [
+  resolve(ROOT, 'src/renderer/application/command'),
   resolve(ROOT, 'src/renderer/components'),
   resolve(ROOT, 'src/renderer/hooks'),
+  resolve(ROOT, 'src/renderer/pages'),
+  resolve(ROOT, 'src/renderer/stores'),
+  resolve(ROOT, 'src/renderer/utils'),
+  resolve(ROOT, 'src/main'),
   resolve(ROOT, 'src/mobile/components'),
   resolve(ROOT, 'src/mobile/pages'),
+  resolve(ROOT, 'src/mobile/approvals'),
+  resolve(ROOT, 'src/mobile/outbox'),
+  resolve(ROOT, 'src/mobile/push'),
+  resolve(ROOT, 'src/mobile/sw'),
 ];
 const SKIP_FILE_BASENAMES = new Set([
   // generated or test files exempt from CJK literal check
+  'i18nStore.ts',
 ]);
 
 const HANGUL_REGEX = /[\u3131-\u318E\uAC00-\uD7A3]/;
@@ -105,6 +114,27 @@ function checkNamespaceConsistency() {
   return errors;
 }
 
+function checkInterpolationFormat() {
+  const errors = [];
+  for (const lng of LOCALES) {
+    for (const ns of NAMESPACES) {
+      const flat = loadFlat(lng, ns);
+      for (const [key, value] of flat.entries()) {
+        if (typeof value !== 'string') {
+          continue;
+        }
+        if (/\{\{\s*\w+\s*\}\}/.test(value)) {
+          errors.push(`${lng}/${ns}.json:${key} uses '{{var}}' instead of '{var}'`);
+          if (errors.length > 50) {
+            return errors;
+          }
+        }
+      }
+    }
+  }
+  return errors;
+}
+
 function walk(dir, out) {
   let entries;
   try {
@@ -155,11 +185,12 @@ function checkNoHangulLiterals() {
 
 function main() {
   const nsErrors = checkNamespaceConsistency();
+  const interpolationErrors = checkInterpolationFormat();
   const cjkErrors = checkNoHangulLiterals();
 
-  if (nsErrors.length === 0 && cjkErrors.length === 0) {
+  if (nsErrors.length === 0 && interpolationErrors.length === 0 && cjkErrors.length === 0) {
     console.log(
-      `[lint:i18n] OK - ${NAMESPACES.length} namespaces x ${LOCALES.length} locales key sets identical, 0 Hangul literals in renderer/mobile surfaces`,
+      `[lint:i18n] OK - ${NAMESPACES.length} namespaces x ${LOCALES.length} locales key sets identical, interpolation format clean, 0 Hangul literals in renderer/mobile/main surfaces`,
     );
     process.exit(0);
   }
@@ -167,6 +198,10 @@ function main() {
   if (nsErrors.length) {
     console.error('[lint:i18n] namespace key-set mismatches:');
     for (const err of nsErrors) console.error(err);
+  }
+  if (interpolationErrors.length) {
+    console.error('\n[lint:i18n] invalid interpolation format (use {var}):');
+    for (const err of interpolationErrors) console.error(`  ${err}`);
   }
   if (cjkErrors.length) {
     console.error('\n[lint:i18n] Hangul string literals (use i18n keys instead):');

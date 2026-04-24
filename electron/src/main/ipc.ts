@@ -366,11 +366,7 @@ export function registerMainIpcHandlers(): void {
     async (_event, params: ExportSupportBundleParams = {}) => {
       const connection = getBackendConnection();
       if (!connection) {
-        return {
-          canceled: false,
-          path: null,
-          error: 'Backend is not connected.',
-        };
+        return buildDialogIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
 
       const defaultName = sanitizeFilename(
@@ -405,7 +401,10 @@ export function registerMainIpcHandlers(): void {
         recordDiagnosticLog('error', 'ipc', 'Support ZIP bundle export failed.', {
           error: message,
         });
-        return { canceled: false, path: null, error: message };
+        return buildDialogIpcErrorResult(
+          'Support bundle export failed.',
+          'support_bundle_export_failed',
+        );
       }
     }
   );
@@ -413,7 +412,7 @@ export function registerMainIpcHandlers(): void {
   ipcMain.handle('shell:revealPath', async (_event, rawPath: string) => {
     const targetPath = typeof rawPath === 'string' ? rawPath.trim() : '';
     if (!targetPath) {
-      return { ok: false, error: 'Path is required.' };
+      return buildIpcErrorResult('Path is required.', 'path_required');
     }
 
     const normalized = path.normalize(targetPath);
@@ -427,11 +426,17 @@ export function registerMainIpcHandlers(): void {
         await fs.access(parent);
         const error = await shell.openPath(parent);
         if (error) {
-          return { ok: false, error };
+          return buildIpcErrorResult(
+            'Unable to reveal the requested path.',
+            'reveal_path_failed',
+          );
         }
         return { ok: true };
       } catch {
-        return { ok: false, error: `Unable to reveal path: ${normalized}` };
+        return buildIpcErrorResult(
+          'Unable to reveal the requested path.',
+          'reveal_path_failed',
+        );
       }
     }
   });
@@ -440,16 +445,17 @@ export function registerMainIpcHandlers(): void {
     const targetPath =
       typeof params.targetPath === 'string' ? params.targetPath.trim() : '';
     if (!targetPath) {
-      return { ok: false, error: 'targetPath is required.' };
+      return buildIpcErrorResult('targetPath is required.', 'target_path_required');
     }
 
     try {
       const preview = await previewLocalArtifactFile(targetPath);
       return { ok: true, preview };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to preview local artifact.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult(
+        'Failed to preview local artifact.',
+        'artifact_preview_failed',
+      );
     }
   });
 
@@ -466,7 +472,10 @@ export function registerMainIpcHandlers(): void {
     const key = typeof params.key === 'string' ? params.key.trim() : '';
 
     if (!provider || !key) {
-      return { ok: false, error: 'Provider and key are required.' };
+      return buildIpcErrorResult(
+        'Provider and key are required.',
+        'provider_and_key_required',
+      );
     }
 
     try {
@@ -476,10 +485,10 @@ export function registerMainIpcHandlers(): void {
 
       if (!restartResult.ok) {
         navigateMainWindowToDiagnostic(restartResult);
-        return {
-          ok: false,
-          error: `Backend restart failed: ${restartResult.reason}`,
-        };
+        return buildIpcErrorResult(
+          'Failed to restart the local backend after saving the API key.',
+          'backend_restart_failed',
+        );
       }
 
       if (
@@ -492,15 +501,14 @@ export function registerMainIpcHandlers(): void {
 
       return { ok: true };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save API key.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult('Failed to save API key.', 'api_key_save_failed');
     }
   });
 
   ipcMain.handle('secrets:deleteApiKey', async (_event, params: DeleteApiKeyParams = {}) => {
     const provider = typeof params.provider === 'string' ? params.provider.trim().toLowerCase() : '';
     if (!provider) {
-      return { ok: false, error: 'Provider is required.' };
+      return buildIpcErrorResult('Provider is required.', 'provider_required');
     }
 
     try {
@@ -510,10 +518,10 @@ export function registerMainIpcHandlers(): void {
 
       if (!restartResult.ok) {
         navigateMainWindowToDiagnostic(restartResult);
-        return {
-          ok: false,
-          error: `Backend restart failed: ${restartResult.reason}`,
-        };
+        return buildIpcErrorResult(
+          'Failed to restart the local backend after deleting the API key.',
+          'backend_restart_failed',
+        );
       }
 
       if (
@@ -526,8 +534,7 @@ export function registerMainIpcHandlers(): void {
 
       return { ok: true, deleted };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to delete API key.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult('Failed to delete API key.', 'api_key_delete_failed');
     }
   });
 
@@ -546,13 +553,19 @@ export function registerMainIpcHandlers(): void {
     const needsPdfRender = params.needsPdfRender === true;
 
     if (!stagedPath || !suggestedFilename || !format) {
-      return { canceled: false, path: null, error: 'Invalid export parameters.' };
+      return buildDialogIpcErrorResult(
+        'Invalid export parameters.',
+        'artifact_export_invalid_params',
+      );
     }
 
     try {
       await fs.access(stagedPath);
     } catch {
-      return { canceled: false, path: null, error: `Staged export missing: ${stagedPath}` };
+      return buildDialogIpcErrorResult(
+        'Prepared export file is missing.',
+        'artifact_export_staged_missing',
+      );
     }
 
     const owner = getMainWindow();
@@ -585,7 +598,7 @@ export function registerMainIpcHandlers(): void {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Export failed.';
       recordDiagnosticLog('error', 'ipc', 'Artifact export failed.', { error: message, format });
-      return { canceled: false, path: null, error: message };
+      return buildDialogIpcErrorResult('Export failed.', 'artifact_export_failed');
     } finally {
       await cleanupStagedExport(stagedPath);
     }
@@ -600,16 +613,14 @@ export function registerMainIpcHandlers(): void {
       const payload = await loadSampleForUseCase(useCaseId);
       return { ok: true, sample: payload };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to load sample dataset.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult('Failed to load sample dataset.', 'sample_load_failed');
     }
   });
 
   ipcMain.handle('certification:list', async () => {
     const connection = getBackendConnection();
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
 
     try {
@@ -619,9 +630,10 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, missions: response.missions };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to load certification missions.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult(
+        'Failed to load certification missions.',
+        'certification_list_failed',
+      );
     }
   });
 
@@ -632,10 +644,10 @@ export function registerMainIpcHandlers(): void {
       const missionName =
         typeof params.missionName === 'string' ? params.missionName.trim() : '';
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
       if (!missionName) {
-        return { ok: false, error: 'missionName is required.' };
+        return buildIpcErrorResult('missionName is required.', 'mission_name_required');
       }
 
       try {
@@ -645,9 +657,10 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, mission: response.mission };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to load certification status.';
-        return { ok: false, error: message };
+        return buildIpcErrorResult(
+          'Failed to load certification status.',
+          'certification_status_failed',
+        );
       }
     }
   );
@@ -669,10 +682,13 @@ export function registerMainIpcHandlers(): void {
       const targetLevel =
         typeof params.targetLevel === 'string' ? params.targetLevel.trim() : '';
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
       if (!missionName || !targetLevel) {
-        return { ok: false, error: 'missionName and targetLevel are required.' };
+        return buildIpcErrorResult(
+          'missionName and targetLevel are required.',
+          'certification_submit_params_required',
+        );
       }
 
       try {
@@ -690,9 +706,10 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, result: response.result };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to submit certification.';
-        return { ok: false, error: message };
+        return buildIpcErrorResult(
+          'Failed to submit certification.',
+          'certification_submit_failed',
+        );
       }
     }
   );
@@ -700,7 +717,7 @@ export function registerMainIpcHandlers(): void {
   ipcMain.handle('workObject:list', async (_event, params: WorkObjectListParams = {}) => {
     const connection = getBackendConnection();
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
 
     try {
@@ -728,8 +745,7 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, workObjects: response.work_objects };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load work objects.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult('Failed to load work objects.', 'work_object_list_failed');
     }
   });
 
@@ -738,10 +754,10 @@ export function registerMainIpcHandlers(): void {
     const workObjectId =
       typeof params.workObjectId === 'string' ? params.workObjectId.trim() : '';
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
     if (!workObjectId) {
-      return { ok: false, error: 'workObjectId is required.' };
+      return buildIpcErrorResult('workObjectId is required.', 'work_object_id_required');
     }
 
     try {
@@ -756,20 +772,18 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, detail: response };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to load the work object.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult('Failed to load the work object.', 'work_object_get_failed');
     }
   });
 
   ipcMain.handle('workObject:intake', async (_event, params: WorkObjectIntakeParams = {}) => {
     const connection = getBackendConnection();
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
     const title = typeof params.title === 'string' ? params.title.trim() : '';
     if (!title) {
-      return { ok: false, error: 'title is required.' };
+      return buildIpcErrorResult('title is required.', 'title_required');
     }
 
     try {
@@ -797,23 +811,22 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, result: response.result };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create work object.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult('Failed to create work object.', 'work_object_intake_failed');
     }
   });
 
   ipcMain.handle('workObject:advance', async (_event, params: WorkObjectAdvanceParams = {}) => {
     const connection = getBackendConnection();
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
     const workObjectId = typeof params.workObjectId === 'string' ? params.workObjectId.trim() : '';
     const toPhase = typeof params.toPhase === 'string' ? params.toPhase.trim() : '';
     if (!workObjectId) {
-      return { ok: false, error: 'workObjectId is required.' };
+      return buildIpcErrorResult('workObjectId is required.', 'work_object_id_required');
     }
     if (!toPhase) {
-      return { ok: false, error: 'toPhase is required.' };
+      return buildIpcErrorResult('toPhase is required.', 'to_phase_required');
     }
 
     try {
@@ -828,23 +841,25 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, result: response.result };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to advance work object phase.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult(
+        'Failed to advance work object phase.',
+        'work_object_advance_failed',
+      );
     }
   });
 
   ipcMain.handle('workObject:close', async (_event, params: WorkObjectCloseParams = {}) => {
     const connection = getBackendConnection();
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
     const workObjectId = typeof params.workObjectId === 'string' ? params.workObjectId.trim() : '';
     const reason = typeof params.reason === 'string' ? params.reason.trim() : '';
     if (!workObjectId) {
-      return { ok: false, error: 'workObjectId is required.' };
+      return buildIpcErrorResult('workObjectId is required.', 'work_object_id_required');
     }
     if (!reason) {
-      return { ok: false, error: 'reason is required.' };
+      return buildIpcErrorResult('reason is required.', 'reason_required');
     }
 
     try {
@@ -855,15 +870,14 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, result: response.result };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to close work object.';
-      return { ok: false, error: message };
+      return buildIpcErrorResult('Failed to close work object.', 'work_object_close_failed');
     }
   });
 
   ipcMain.handle('taskContract:list', async (_event, params: TaskContractListParams = {}) => {
     const connection = getBackendConnection();
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
 
     try {
@@ -888,7 +902,7 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, contracts: response.contracts };
     } catch (error) {
-      return buildTaskContractIpcError(error, 'Failed to list task contracts.');
+      return buildTaskContractIpcError(error, 'Failed to list task contracts.', 'task_contract_list_failed');
     }
   });
 
@@ -896,7 +910,7 @@ export function registerMainIpcHandlers(): void {
     const connection = getBackendConnection();
     const sessionId = typeof params.sessionId === 'string' ? params.sessionId.trim() : '';
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
     if (!sessionId) {
       return { ok: false, error: 'sessionId is required.' };
@@ -917,7 +931,11 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, contract: response.contract };
     } catch (error) {
-      return buildTaskContractIpcError(error, 'Failed to load the active task contract.');
+      return buildTaskContractIpcError(
+        error,
+        'Failed to load the active task contract.',
+        'task_contract_active_failed',
+      );
     }
   });
 
@@ -925,7 +943,7 @@ export function registerMainIpcHandlers(): void {
     const connection = getBackendConnection();
     const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
     if (!taskId) {
       return { ok: false, error: 'taskId is required.' };
@@ -947,7 +965,7 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, contract: response.contract };
     } catch (error) {
-      return buildTaskContractIpcError(error, 'Failed to load the task contract.');
+      return buildTaskContractIpcError(error, 'Failed to load the task contract.', 'task_contract_get_failed');
     }
   });
 
@@ -965,7 +983,7 @@ export function registerMainIpcHandlers(): void {
       : [];
 
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
     if (!sessionId || !contractType || !businessGoal || !goalBrief || requiredDeliverables.length === 0) {
       return {
@@ -1018,7 +1036,11 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, result: response.result };
     } catch (error) {
-      return buildTaskContractIpcError(error, 'Failed to create the task contract.');
+      return buildTaskContractIpcError(
+        error,
+        'Failed to create the task contract.',
+        'task_contract_create_failed',
+      );
     }
   });
 
@@ -1026,7 +1048,7 @@ export function registerMainIpcHandlers(): void {
     const connection = getBackendConnection();
     const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
     if (!taskId || typeof params.expectedVersion !== 'number') {
       return { ok: false, error: 'taskId and expectedVersion are required.' };
@@ -1045,7 +1067,11 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, result: response.result };
     } catch (error) {
-      return buildTaskContractIpcError(error, 'Failed to update the task contract.');
+      return buildTaskContractIpcError(
+        error,
+        'Failed to update the task contract.',
+        'task_contract_update_failed',
+      );
     }
   });
 
@@ -1055,7 +1081,7 @@ export function registerMainIpcHandlers(): void {
     const closingNote =
       typeof params.closingNote === 'string' ? params.closingNote.trim() : '';
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
     }
     if (!taskId || typeof params.expectedVersion !== 'number' || !closingNote) {
       return { ok: false, error: 'taskId, expectedVersion, and closingNote are required.' };
@@ -1072,7 +1098,11 @@ export function registerMainIpcHandlers(): void {
       );
       return { ok: true, result: response.result };
     } catch (error) {
-      return buildTaskContractIpcError(error, 'Failed to close the task contract.');
+      return buildTaskContractIpcError(
+        error,
+        'Failed to close the task contract.',
+        'task_contract_close_failed',
+      );
     }
   });
 
@@ -1083,7 +1113,7 @@ export function registerMainIpcHandlers(): void {
       const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
       const entryId = typeof params.entryId === 'string' ? params.entryId.trim() : '';
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
       if (!taskId || !entryId || typeof params.expectedVersion !== 'number') {
         return { ok: false, error: 'taskId, entryId, and expectedVersion are required.' };
@@ -1100,7 +1130,11 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, result: response.result };
       } catch (error) {
-        return buildTaskContractIpcError(error, 'Failed to verify the assumption.');
+        return buildTaskContractIpcError(
+          error,
+          'Failed to verify the assumption.',
+          'task_contract_verify_failed',
+        );
       }
     }
   );
@@ -1111,7 +1145,7 @@ export function registerMainIpcHandlers(): void {
       const connection = getBackendConnection();
       const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
       if (!taskId) {
         return { ok: false, error: 'taskId is required.' };
@@ -1146,7 +1180,11 @@ export function registerMainIpcHandlers(): void {
           );
         return { ok: true, result: response.result };
       } catch (error) {
-        return buildTaskContractIpcError(error, 'Failed to build the delivery pack.');
+        return buildTaskContractIpcError(
+          error,
+          'Failed to build the delivery pack.',
+          'task_contract_build_delivery_failed',
+        );
       }
     }
   );
@@ -1158,7 +1196,7 @@ export function registerMainIpcHandlers(): void {
       const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
       const artifactId = typeof params.artifactId === 'string' ? params.artifactId.trim() : '';
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
       if (!taskId || !artifactId || params.analysis === undefined) {
         return { ok: false, error: 'taskId, artifactId, and analysis are required.' };
@@ -1191,7 +1229,11 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, result: response.result };
       } catch (error) {
-        return buildTaskContractIpcError(error, 'Failed to render the delivery artifact.');
+        return buildTaskContractIpcError(
+          error,
+          'Failed to render the delivery artifact.',
+          'task_contract_render_failed',
+        );
       }
     }
   );
@@ -1203,7 +1245,10 @@ export function registerMainIpcHandlers(): void {
         typeof params.renderedUri === 'string' ? params.renderedUri.trim() : '';
       const format = typeof params.format === 'string' ? params.format.trim() : '';
       if (!renderedUri || !format) {
-        return { ok: false, error: 'renderedUri and format are required.' };
+        return buildIpcErrorResult(
+          'renderedUri and format are required.',
+          'rendered_artifact_preview_params_required',
+        );
       }
 
       try {
@@ -1213,9 +1258,10 @@ export function registerMainIpcHandlers(): void {
         });
         return { ok: true, preview };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to load rendered artifact preview.';
-        return { ok: false, error: message };
+        return buildIpcErrorResult(
+          'Failed to load rendered artifact preview.',
+          'task_contract_preview_failed',
+        );
       }
     }
   );
@@ -1226,7 +1272,7 @@ export function registerMainIpcHandlers(): void {
       const connection = getBackendConnection();
       const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
       if (!taskId) {
         return { ok: false, error: 'taskId is required.' };
@@ -1245,7 +1291,11 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, result: response.result };
       } catch (error) {
-        return buildTaskContractIpcError(error, 'Failed to dispatch the delivery pack.');
+        return buildTaskContractIpcError(
+          error,
+          'Failed to dispatch the delivery pack.',
+          'task_contract_dispatch_failed',
+        );
       }
     }
   );
@@ -1256,7 +1306,7 @@ export function registerMainIpcHandlers(): void {
       const connection = getBackendConnection();
       const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
       if (!taskId) {
         return { ok: false, error: 'taskId is required.' };
@@ -1291,7 +1341,11 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, result: response.result };
       } catch (error) {
-        return buildTaskContractIpcError(error, 'Failed to load delivery log records.');
+        return buildTaskContractIpcError(
+          error,
+          'Failed to load delivery log records.',
+          'task_contract_delivery_log_failed',
+        );
       }
     }
   );
@@ -1302,7 +1356,7 @@ export function registerMainIpcHandlers(): void {
       const connection = getBackendConnection();
       const taskId = typeof params.taskId === 'string' ? params.taskId.trim() : '';
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
       if (!taskId) {
         return { ok: false, error: 'taskId is required.' };
@@ -1326,7 +1380,11 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, comparisons: response.comparisons };
       } catch (error) {
-        return buildTaskContractIpcError(error, 'Failed to load shadow comparison records.');
+        return buildTaskContractIpcError(
+          error,
+          'Failed to load shadow comparison records.',
+          'task_contract_shadow_list_failed',
+        );
       }
     }
   );
@@ -1339,7 +1397,7 @@ export function registerMainIpcHandlers(): void {
       const comparisonId =
         typeof params.comparisonId === 'string' ? params.comparisonId.trim() : '';
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
       }
       if (!taskId || !comparisonId) {
         return { ok: false, error: 'taskId and comparisonId are required.' };
@@ -1354,7 +1412,11 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true, comparison: response.comparison };
       } catch (error) {
-        return buildTaskContractIpcError(error, 'Failed to load the shadow comparison.');
+        return buildTaskContractIpcError(
+          error,
+          'Failed to load the shadow comparison.',
+          'task_contract_shadow_get_failed',
+        );
       }
     }
   );
@@ -1382,8 +1444,7 @@ export function registerMainIpcHandlers(): void {
       }
       return { ok: true, publicKey: response.publicKey };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'public-key fetch failed';
-      return { ok: false, reason: message };
+      return { ok: false, reason: 'public_key_fetch_failed' };
     }
   });
 
@@ -1403,19 +1464,18 @@ export function registerMainIpcHandlers(): void {
         source: response.source ?? null,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'subject fetch failed';
-      return { ok: false, reason: message };
+      return { ok: false, reason: 'subject_fetch_failed' };
     }
   });
 
   ipcMain.handle('webPush:setSubject', async (_event, params: WebPushSubjectPayload = {}) => {
     const connection = getBackendConnection();
     if (!connection) {
-      return { ok: false, error: 'Backend is not connected.' };
+      return { ok: false, error: 'Backend is not connected.', reason: 'backend_offline' };
     }
     const subject = typeof params.subject === 'string' ? params.subject.trim() : '';
     if (!subject) {
-      return { ok: false, error: 'subject is required.' };
+      return { ok: false, error: 'subject is required.', reason: 'subject_required' };
     }
     try {
       const response = await postBackendJson<{
@@ -1429,8 +1489,7 @@ export function registerMainIpcHandlers(): void {
         source: response.source ?? 'config',
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save subject.';
-      return { ok: false, error: message };
+      return { ok: false, error: 'Failed to save subject.', reason: 'subject_save_failed' };
     }
   });
 
@@ -1439,13 +1498,17 @@ export function registerMainIpcHandlers(): void {
     async (_event, params: WebPushRegisterParams = {}) => {
       const connection = getBackendConnection();
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return { ok: false, error: 'Backend is not connected.', reason: 'backend_offline' };
       }
       const endpoint = typeof params.endpoint === 'string' ? params.endpoint.trim() : '';
       const p256dhKey = typeof params.p256dhKey === 'string' ? params.p256dhKey.trim() : '';
       const authKey = typeof params.authKey === 'string' ? params.authKey.trim() : '';
       if (!endpoint || !p256dhKey || !authKey) {
-        return { ok: false, error: 'endpoint, p256dhKey, and authKey are required.' };
+        return {
+          ok: false,
+          error: 'endpoint, p256dhKey, and authKey are required.',
+          reason: 'subscription_payload_required',
+        };
       }
       try {
         await postBackendJson<{ ok: boolean }>(
@@ -1455,9 +1518,11 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to register subscription.';
-        return { ok: false, error: message };
+        return {
+          ok: false,
+          error: 'Failed to register subscription.',
+          reason: 'subscription_register_failed',
+        };
       }
     },
   );
@@ -1467,11 +1532,11 @@ export function registerMainIpcHandlers(): void {
     async (_event, params: WebPushUnregisterParams = {}) => {
       const connection = getBackendConnection();
       if (!connection) {
-        return { ok: false, error: 'Backend is not connected.' };
+        return { ok: false, error: 'Backend is not connected.', reason: 'backend_offline' };
       }
       const endpoint = typeof params.endpoint === 'string' ? params.endpoint.trim() : '';
       if (!endpoint) {
-        return { ok: false, error: 'endpoint is required.' };
+        return { ok: false, error: 'endpoint is required.', reason: 'endpoint_required' };
       }
       try {
         await postBackendJson<{ ok: boolean }>(
@@ -1481,9 +1546,11 @@ export function registerMainIpcHandlers(): void {
         );
         return { ok: true };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to unregister subscription.';
-        return { ok: false, error: message };
+        return {
+          ok: false,
+          error: 'Failed to unregister subscription.',
+          reason: 'subscription_unregister_failed',
+        };
       }
     },
   );
@@ -1687,13 +1754,27 @@ function postBackendJson<T>(
 
 function buildTaskContractIpcError(
   error: unknown,
-  fallbackMessage: string
-): { ok: false; error: string; errorDetail?: BackendErrorDetail } {
-  const message = error instanceof Error ? error.message : fallbackMessage;
+  fallbackMessage: string,
+  errorCode: string,
+): { ok: false; error: string; errorCode: string; errorDetail?: BackendErrorDetail } {
   const detail = getBackendErrorDetail(error);
   return detail
-    ? { ok: false, error: message, errorDetail: detail }
-    : { ok: false, error: message };
+    ? { ok: false, error: fallbackMessage, errorCode, errorDetail: detail }
+    : { ok: false, error: fallbackMessage, errorCode };
+}
+
+function buildIpcErrorResult(
+  error: string,
+  errorCode: string,
+): { ok: false; error: string; errorCode: string } {
+  return { ok: false, error, errorCode };
+}
+
+function buildDialogIpcErrorResult(
+  error: string,
+  errorCode: string,
+): { canceled: false; path: null; error: string; errorCode: string } {
+  return { canceled: false, path: null, error, errorCode };
 }
 
 function getBackendErrorDetail(error: unknown): BackendErrorDetail | undefined {

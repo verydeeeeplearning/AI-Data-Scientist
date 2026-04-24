@@ -35,6 +35,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useConfigStore } from '../../stores/configStore';
 import { useI18n, type Locale } from '../../stores/i18nStore';
+import { resolveMainIpcErrorMessage } from '../../utils/mainIpcErrors';
 import { describeModelAccess, type ModelAccessSummary } from '../../utils/modelAuth';
 import { normalizeQualityPreset, type QualityPreset } from '../../utils/qualityPreset';
 import { CapabilityBadge } from './CapabilityBadge';
@@ -93,6 +94,11 @@ interface OnboardingUseCaseDefaults {
   deliverables: OnboardingDeliverableId[];
   mode: OnboardingAutonomyMode;
 }
+
+type Translator = (
+  key: string,
+  vars?: Record<string, string | number | null | undefined>,
+) => string;
 
 export interface OnboardingFinalizeRequest {
   sessionId?: string;
@@ -238,91 +244,98 @@ function buildObservabilityChoices(
   ];
 }
 
-function buildDataChoices(sampleApiAvailable: boolean): CardOption<OnboardingDataChoiceId>[] {
+function buildDataChoices(
+  t: Translator,
+  sampleApiAvailable: boolean,
+): CardOption<OnboardingDataChoiceId>[] {
   return [
     {
       id: 'upload',
-      title: 'Bring my own file',
-      description: 'Start the mission now and upload your dataset in the workspace.',
-      detail: 'Keeps the first handoff lightweight while preserving the current file-upload path.',
+      title: t('onboarding.data.option.upload.title'),
+      description: t('onboarding.data.option.upload.description'),
+      detail: t('onboarding.data.option.upload.detail'),
       icon: Upload,
     },
     {
       id: 'sample',
-      title: 'Load a sample',
+      title: t('onboarding.data.option.sample.title'),
       description: sampleApiAvailable
-        ? 'Seed the workspace with a sample dataset that matches this use case.'
-        : 'Sample data is unavailable in this runtime.',
+        ? t('onboarding.data.option.sample.description')
+        : t('onboarding.data.option.sample.description_unavailable'),
       detail: sampleApiAvailable
-        ? 'Best for a fast first result and a guided starter prompt.'
-        : 'Desktop sample assets are required for this option.',
+        ? t('onboarding.data.option.sample.detail')
+        : t('onboarding.data.option.sample.detail_unavailable'),
       icon: BarChart3,
       disabled: !sampleApiAvailable,
     },
     {
       id: 'database_deferred',
-      title: 'Connect data later',
-      description: 'Define the mission first, then wire up a database or connector after launch.',
-      detail: 'Aligned with PLAN_05 deferred database connection scope.',
+      title: t('onboarding.data.option.database_deferred.title'),
+      description: t('onboarding.data.option.database_deferred.description'),
+      detail: t('onboarding.data.option.database_deferred.detail'),
       icon: Database,
     },
   ];
 }
 
-function buildDeliverableChoices(): CardOption<OnboardingDeliverableId>[] {
+function buildDeliverableChoices(
+  t: Translator,
+): CardOption<OnboardingDeliverableId>[] {
   return [
     {
       id: 'chart_summary',
-      title: 'Chart summary',
-      description: 'A compact visual readout with the key trends and drivers.',
-      detail: 'Good for EDA, dashboard framing, and quick reviews.',
+      title: t('onboarding.deliverables.option.chart_summary.title'),
+      description: t('onboarding.deliverables.option.chart_summary.description'),
+      detail: t('onboarding.deliverables.option.chart_summary.detail'),
       icon: BarChart3,
     },
     {
       id: 'report',
-      title: 'Report',
-      description: 'A narrative analysis with findings, evidence, and recommended actions.',
-      detail: 'Best when you need a decision-ready written deliverable.',
+      title: t('onboarding.deliverables.option.report.title'),
+      description: t('onboarding.deliverables.option.report.description'),
+      detail: t('onboarding.deliverables.option.report.detail'),
       icon: FileText,
     },
     {
       id: 'notebook',
-      title: 'Notebook',
-      description: 'A reproducible technical artifact with code, analysis, and outputs.',
-      detail: 'Fits modeling, experimentation, and deployment preparation.',
+      title: t('onboarding.deliverables.option.notebook.title'),
+      description: t('onboarding.deliverables.option.notebook.description'),
+      detail: t('onboarding.deliverables.option.notebook.detail'),
       icon: LineChart,
     },
     {
       id: 'presentation',
-      title: 'Presentation',
-      description: 'A stakeholder-facing summary oriented around slides and talk tracks.',
-      detail: 'Useful for reporting, leadership reviews, and dashboard narratives.',
+      title: t('onboarding.deliverables.option.presentation.title'),
+      description: t('onboarding.deliverables.option.presentation.description'),
+      detail: t('onboarding.deliverables.option.presentation.detail'),
       icon: Presentation,
     },
   ];
 }
 
-function buildAutonomyChoices(): CardOption<OnboardingAutonomyMode>[] {
+function buildAutonomyChoices(
+  t: Translator,
+): CardOption<OnboardingAutonomyMode>[] {
   return [
     {
       id: 'fast',
-      title: 'Fast',
-      description: 'Move quickly with lighter checks and quicker model recommendations.',
-      detail: 'Maps to the current auto execution mode.',
+      title: t('onboarding.mode.option.fast.title'),
+      description: t('onboarding.mode.option.fast.description'),
+      detail: t('onboarding.mode.option.fast.detail'),
       icon: ChevronRight,
     },
     {
       id: 'balanced',
-      title: 'Balanced',
-      description: 'Default pace for most data-science work with practical guardrails.',
-      detail: 'Maps to the current supervised execution mode.',
+      title: t('onboarding.mode.option.balanced.title'),
+      description: t('onboarding.mode.option.balanced.description'),
+      detail: t('onboarding.mode.option.balanced.detail'),
       icon: Bot,
     },
     {
       id: 'controlled',
-      title: 'Controlled',
-      description: 'Favor careful handoffs, deeper review, and stronger model quality.',
-      detail: 'Maps to the current step-by-step execution mode.',
+      title: t('onboarding.mode.option.controlled.title'),
+      description: t('onboarding.mode.option.controlled.description'),
+      detail: t('onboarding.mode.option.controlled.detail'),
       icon: Check,
     },
   ];
@@ -549,37 +562,48 @@ async function finalizeOnboardingHandoff(
   return (await response.json()) as OnboardingFinalizeResponse;
 }
 
-function formatDataChoiceTitle(choiceId: OnboardingDataChoiceId): string {
+function formatDataChoiceTitle(choiceId: OnboardingDataChoiceId, t: Translator): string {
   if (choiceId === 'sample') {
-    return 'Sample data';
+    return t('onboarding.data.option.sample.title');
   }
   if (choiceId === 'database_deferred') {
-    return 'Connect later';
+    return t('onboarding.data.option.database_deferred.title');
   }
-  return 'Bring my own file';
+  return t('onboarding.data.option.upload.title');
 }
 
-function formatDeliverableTitle(choiceId: OnboardingDeliverableId): string {
+function formatDeliverableTitle(choiceId: OnboardingDeliverableId, t: Translator): string {
   if (choiceId === 'chart_summary') {
-    return 'Chart summary';
+    return t('onboarding.deliverables.option.chart_summary.title');
   }
   if (choiceId === 'report') {
-    return 'Report';
+    return t('onboarding.deliverables.option.report.title');
   }
   if (choiceId === 'notebook') {
-    return 'Notebook';
+    return t('onboarding.deliverables.option.notebook.title');
   }
-  return 'Presentation';
+  return t('onboarding.deliverables.option.presentation.title');
 }
 
-function formatAutonomyModeTitle(choiceId: OnboardingAutonomyMode): string {
+function formatAutonomyModeTitle(choiceId: OnboardingAutonomyMode, t: Translator): string {
   if (choiceId === 'fast') {
-    return 'Fast';
+    return t('onboarding.mode.option.fast.title');
   }
   if (choiceId === 'controlled') {
-    return 'Controlled';
+    return t('onboarding.mode.option.controlled.title');
   }
-  return 'Balanced';
+  return t('onboarding.mode.option.balanced.title');
+}
+
+function formatExecutionModeTitle(choiceId: OnboardingAutonomyMode, t: Translator): string {
+  const runtimeMode = mapAutonomyModeToExecutionMode(choiceId);
+  if (runtimeMode === 'auto') {
+    return t('common.mode.auto');
+  }
+  if (runtimeMode === 'supervised') {
+    return t('common.mode.supervised');
+  }
+  return t('common.mode.step');
 }
 
 function SummaryCard({
@@ -589,6 +613,7 @@ function SummaryCard({
   selectedAutonomyMode,
   selectedModel,
   selectedModelAccess,
+  t,
 }: {
   selectedUseCase: UseCaseCard | null;
   selectedDataChoiceId: OnboardingDataChoiceId;
@@ -596,41 +621,42 @@ function SummaryCard({
   selectedAutonomyMode: OnboardingAutonomyMode;
   selectedModel: ModelEntry | null;
   selectedModelAccess: ModelAccessSummary | null;
+  t: Translator;
 }) {
   return (
     <div className="rounded-2xl border border-ds-border bg-ds-bg p-5">
-      <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Mission Draft</div>
+      <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">{t('onboarding.summary.title')}</div>
       <div className="mt-4 space-y-4">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Use case</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">{t('onboarding.summary.use_case')}</div>
           <div className="mt-1 text-sm font-medium text-ds-text">
-            {selectedUseCase?.title ?? 'Choose one goal to anchor the mission.'}
+            {selectedUseCase?.title ?? t('onboarding.summary.use_case_empty')}
           </div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Data plan</div>
-          <div className="mt-1 text-sm text-ds-text">{formatDataChoiceTitle(selectedDataChoiceId)}</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">{t('onboarding.summary.data_plan')}</div>
+          <div className="mt-1 text-sm text-ds-text">{formatDataChoiceTitle(selectedDataChoiceId, t)}</div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Deliverables</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">{t('onboarding.summary.deliverables')}</div>
           <div className="mt-1 text-sm text-ds-text">
             {selectedDeliverables.length > 0
-              ? selectedDeliverables.map((entry) => formatDeliverableTitle(entry)).join(', ')
-              : 'Pick at least one output.'}
+              ? selectedDeliverables.map((entry) => formatDeliverableTitle(entry, t)).join(', ')
+              : t('onboarding.summary.deliverables_empty')}
           </div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Mode</div>
-          <div className="mt-1 text-sm text-ds-text">{formatAutonomyModeTitle(selectedAutonomyMode)}</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">{t('onboarding.summary.mode')}</div>
+          <div className="mt-1 text-sm text-ds-text">{formatAutonomyModeTitle(selectedAutonomyMode, t)}</div>
           <div className="mt-1 text-[11px] leading-5 text-ds-muted">
-            Runtime: {mapAutonomyModeToExecutionMode(selectedAutonomyMode)} / Model preference:{' '}
-            {mapAutonomyModeToQualityPreset(selectedAutonomyMode)}
+            {t('onboarding.summary.runtime')}: {formatExecutionModeTitle(selectedAutonomyMode, t)} /{' '}
+            {t('onboarding.summary.model_preference')}: {formatAutonomyModeTitle(selectedAutonomyMode, t)}
           </div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Model</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">{t('onboarding.summary.model')}</div>
           <div className="mt-1 text-sm text-ds-text">
-            {selectedModel?.displayName ?? 'Choose the model and connection path.'}
+            {selectedModel?.displayName ?? t('onboarding.summary.model_empty')}
           </div>
           {selectedModelAccess && (
             <div className="mt-1 text-[11px] leading-5 text-ds-muted">
@@ -675,9 +701,9 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
 
   const allModels = useMemo(() => groups.flatMap((group) => group.models), [groups]);
   const useCases = useMemo(() => buildUseCases(t), [locale, t]);
-  const dataChoices = useMemo(() => buildDataChoices(sampleApiAvailable), [sampleApiAvailable]);
-  const deliverableChoices = useMemo(() => buildDeliverableChoices(), []);
-  const autonomyChoices = useMemo(() => buildAutonomyChoices(), []);
+  const dataChoices = useMemo(() => buildDataChoices(t, sampleApiAvailable), [sampleApiAvailable, t]);
+  const deliverableChoices = useMemo(() => buildDeliverableChoices(t), [t]);
+  const autonomyChoices = useMemo(() => buildAutonomyChoices(t), [t]);
   const observabilityChoices = useMemo(() => buildObservabilityChoices(t), [locale, t]);
   const selectedUseCase = useMemo(
     () => findUseCase(useCases, selectedUseCaseId),
@@ -933,7 +959,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
       return;
     }
     if (selectedDeliverables.length === 0) {
-      setFinishError('Choose at least one deliverable before starting the mission.');
+      setFinishError(t('onboarding.error.choose_deliverable'));
       return;
     }
 
@@ -966,7 +992,9 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
         if (window.electronAPI?.setApiKey) {
           const result = await window.electronAPI.setApiKey(selectedModel.provider, apiKey.trim());
           if (!result.ok) {
-            throw new Error(result.error ?? t('onboarding.error.api_key_save_failed'));
+            throw new Error(
+              resolveMainIpcErrorMessage(result, 'onboarding.error.api_key_save_failed'),
+            );
           }
         } else {
           await rpc('config.setApiKey', { provider: selectedModel.provider, key: apiKey.trim() });
@@ -1010,7 +1038,9 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
         }
         const sampleResult = await window.electronAPI.loadSampleForUseCase(selectedUseCase.id);
         if (!sampleResult.ok) {
-          throw new Error(sampleResult.error || t('onboarding.error.sample_load_failed'));
+          throw new Error(
+            resolveMainIpcErrorMessage(sampleResult, 'onboarding.error.sample_load_failed'),
+          );
         }
         const uploaded = await rpc('files.upload', {
           name: sampleResult.sample.filename,
@@ -1036,7 +1066,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
       });
       const finalizeResult = await finalizeOnboardingHandoff(finalizePayload);
       if (!finalizeResult.sessionId || finalizeResult.sessionId.trim().length === 0) {
-        throw new Error('Onboarding finalize did not return a session id.');
+        throw new Error(t('onboarding.error.finalize_missing_session'));
       }
 
       setFinalizedSessionId(finalizeResult.sessionId);
@@ -1087,7 +1117,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
           <h1 className="text-3xl font-bold text-ds-text">{t('onboarding.title')}</h1>
           <p className="mt-2 text-sm text-ds-muted">{t('onboarding.appSubtitle')}</p>
           <p className="mt-2 text-xs uppercase tracking-[0.18em] text-ds-muted">
-            Wave 2 onboarding: use case / data / deliverables / mode / model / mission start
+            {t('onboarding.flow.caption')}
           </p>
           <div className="mx-auto mt-5 max-w-xl rounded-2xl border border-ds-border bg-ds-surface p-4 text-left">
             <LocaleSelector
@@ -1119,7 +1149,9 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 <div className="text-[10px] uppercase tracking-[0.2em] text-ds-muted">
                   {t('onboarding.steps.label', { step: index + 1 })}
                 </div>
-                <div className="mt-1 text-sm font-medium text-ds-text">{entry.label}</div>
+                <div className="mt-1 text-sm font-medium text-ds-text">
+                  {t(`onboarding.steps.${entry.id}`)}
+                </div>
               </div>
             );
           })}
@@ -1179,7 +1211,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 disabled={!selectedUseCase}
                 className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Continue
+                {t('onboarding.continue')}
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -1190,11 +1222,12 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
           <div className="rounded-2xl border border-ds-border bg-ds-surface p-8">
             <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 2</div>
-                <h2 className="mt-2 text-2xl font-semibold text-ds-text">How will you start with data?</h2>
+                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">
+                  {t('onboarding.steps.label', { step: 2 })}
+                </div>
+                <h2 className="mt-2 text-2xl font-semibold text-ds-text">{t('onboarding.data.title')}</h2>
                 <p className="mt-2 text-sm leading-6 text-ds-muted">
-                  PLAN_05 targets three first-run paths here: bring your own file, load a sample, or
-                  defer database setup until the mission is already framed.
+                  {t('onboarding.data.description')}
                 </p>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -1236,6 +1269,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 selectedAutonomyMode={selectedAutonomyMode}
                 selectedModel={selectedModel}
                 selectedModelAccess={selectedModelAccess}
+                t={t}
               />
             </div>
 
@@ -1245,14 +1279,14 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 onClick={() => setStep('use_case')}
                 className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
               >
-                Back to use case
+                {t('onboarding.actions.back_to_use_case')}
               </button>
               <button
                 type="button"
                 onClick={() => setStep('deliverables')}
                 className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover"
               >
-                Continue
+                {t('onboarding.continue')}
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -1263,10 +1297,14 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
           <div className="rounded-2xl border border-ds-border bg-ds-surface p-8">
             <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 3</div>
-                <h2 className="mt-2 text-2xl font-semibold text-ds-text">Which outputs matter first?</h2>
+                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">
+                  {t('onboarding.steps.label', { step: 3 })}
+                </div>
+                <h2 className="mt-2 text-2xl font-semibold text-ds-text">
+                  {t('onboarding.deliverables.title')}
+                </h2>
                 <p className="mt-2 text-sm leading-6 text-ds-muted">
-                  Select the deliverables that should shape the mission. You can choose more than one.
+                  {t('onboarding.deliverables.description')}
                 </p>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -1291,7 +1329,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                           </div>
                           {selected && (
                             <span className="rounded-full bg-ds-success/15 px-2 py-0.5 text-[10px] font-medium text-ds-success">
-                              Selected
+                              {t('onboarding.selected')}
                             </span>
                           )}
                         </div>
@@ -1311,6 +1349,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 selectedAutonomyMode={selectedAutonomyMode}
                 selectedModel={selectedModel}
                 selectedModelAccess={selectedModelAccess}
+                t={t}
               />
             </div>
 
@@ -1320,7 +1359,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 onClick={() => setStep('data')}
                 className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
               >
-                Back to data
+                {t('onboarding.actions.back_to_data')}
               </button>
               <button
                 type="button"
@@ -1328,7 +1367,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 disabled={selectedDeliverables.length === 0}
                 className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Continue
+                {t('onboarding.continue')}
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -1339,11 +1378,14 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
           <div className="rounded-2xl border border-ds-border bg-ds-surface p-8">
             <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 4</div>
-                <h2 className="mt-2 text-2xl font-semibold text-ds-text">How much autonomy should the agent use?</h2>
+                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">
+                  {t('onboarding.steps.label', { step: 4 })}
+                </div>
+                <h2 className="mt-2 text-2xl font-semibold text-ds-text">
+                  {t('onboarding.mode.title')}
+                </h2>
                 <p className="mt-2 text-sm leading-6 text-ds-muted">
-                  This step keeps the new Fast / Balanced / Controlled language aligned with the current
-                  runtime modes and model-quality presets.
+                  {t('onboarding.mode.description')}
                 </p>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -1384,6 +1426,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 selectedAutonomyMode={selectedAutonomyMode}
                 selectedModel={selectedModel}
                 selectedModelAccess={selectedModelAccess}
+                t={t}
               />
             </div>
 
@@ -1393,14 +1436,14 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 onClick={() => setStep('deliverables')}
                 className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
               >
-                Back to deliverables
+                {t('onboarding.actions.back_to_deliverables')}
               </button>
               <button
                 type="button"
                 onClick={() => setStep('model')}
                 className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover"
               >
-                Continue
+                {t('onboarding.continue')}
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -1417,15 +1460,19 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 selectedAutonomyMode={selectedAutonomyMode}
                 selectedModel={selectedModel}
                 selectedModelAccess={selectedModelAccess}
+                t={t}
               />
 
               <div>
                 <div className="mb-6">
-                  <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 5</div>
-                  <h2 className="mt-2 text-2xl font-semibold text-ds-text">Choose the model and connection path</h2>
+                  <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">
+                    {t('onboarding.steps.label', { step: 5 })}
+                  </div>
+                  <h2 className="mt-2 text-2xl font-semibold text-ds-text">
+                    {t('onboarding.model_step.title')}
+                  </h2>
                   <p className="mt-2 text-sm text-ds-muted">
-                    Capability-first groups stay intact. Authentication remains inline here so the Wave 2
-                    flow does not break the current provider path.
+                    {t('onboarding.model_step.description')}
                   </p>
                 </div>
 
@@ -1577,7 +1624,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                         )}
 
                         <label className="block text-[10px] uppercase tracking-[0.18em] text-ds-muted">
-                          API key
+                          {t('onboarding.model_step.api_key_label')}
                         </label>
                         <input
                           type="password"
@@ -1592,8 +1639,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                           }}
                         />
                         <p className="mt-3 text-xs leading-5 text-ds-muted">
-                          The key is stored during the final handoff so the current provider connection
-                          flow stays unchanged.
+                          {t('onboarding.model_step.api_key_description')}
                         </p>
                       </div>
                     )}
@@ -1606,7 +1652,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                     onClick={() => setStep('mode')}
                     className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
                   >
-                    Back to mode
+                    {t('onboarding.actions.back_to_mode')}
                   </button>
                   <button
                     type="button"
@@ -1614,7 +1660,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                     disabled={!canContinueFromModel}
                     className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Continue
+                    {t('onboarding.continue')}
                     <ChevronRight size={16} />
                   </button>
                 </div>
@@ -1628,39 +1674,51 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
             <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-ds-success/20">
               <Check size={24} className="text-ds-success" />
             </div>
-            <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">Step 6</div>
-            <h2 className="mt-2 text-2xl font-semibold text-ds-text">Confirm the mission handoff</h2>
+            <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">
+              {t('onboarding.steps.label', { step: 6 })}
+            </div>
+            <h2 className="mt-2 text-2xl font-semibold text-ds-text">{t('onboarding.confirm.title')}</h2>
             <p className="mt-3 text-sm leading-6 text-ds-muted">
-              This final step bootstraps the backend session, preserves the current provider connection
-              path, and stages the first prompt so Mission can take over immediately.
+              {t('onboarding.confirm.description')}
             </p>
 
             <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-2xl border border-ds-border bg-ds-bg p-5">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Mission card</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
+                  {t('onboarding.confirm.mission_card')}
+                </div>
                 <div className="mt-4 space-y-4">
                   <div>
                     <div className="text-sm font-medium text-ds-text">{selectedUseCase.title}</div>
                     <p className="mt-1 text-xs leading-5 text-ds-muted">{selectedUseCase.description}</p>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Data</div>
-                    <p className="mt-1 text-sm text-ds-text">{formatDataChoiceTitle(selectedDataChoiceId)}</p>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
+                      {t('onboarding.confirm.data')}
+                    </div>
+                    <p className="mt-1 text-sm text-ds-text">{formatDataChoiceTitle(selectedDataChoiceId, t)}</p>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Deliverables</div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
+                      {t('onboarding.confirm.deliverables')}
+                    </div>
                     <p className="mt-1 text-sm text-ds-text">
-                      {selectedDeliverables.map((entry) => formatDeliverableTitle(entry)).join(', ')}
+                      {selectedDeliverables.map((entry) => formatDeliverableTitle(entry, t)).join(', ')}
                     </p>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Autonomy</div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
+                      {t('onboarding.confirm.autonomy')}
+                    </div>
                     <p className="mt-1 text-sm text-ds-text">
-                      {formatAutonomyModeTitle(selectedAutonomyMode)} / {mapAutonomyModeToExecutionMode(selectedAutonomyMode)}
+                      {formatAutonomyModeTitle(selectedAutonomyMode, t)} /{' '}
+                      {formatExecutionModeTitle(selectedAutonomyMode, t)}
                     </p>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">Model</div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-ds-muted">
+                      {t('onboarding.confirm.model')}
+                    </div>
                     <p className="mt-1 text-sm text-ds-text">{selectedModel.displayName}</p>
                     {selectedModelAccess && (
                       <p className="mt-1 text-[11px] leading-5 text-ds-muted">
@@ -1731,7 +1789,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                 onClick={() => setStep('model')}
                 className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
               >
-                Back to model
+                {t('onboarding.actions.back_to_model')}
               </button>
               <button
                 type="button"

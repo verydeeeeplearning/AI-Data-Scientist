@@ -8,6 +8,8 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useI18n } from '../../stores/i18nStore';
+import { resolveMainIpcErrorMessage } from '../../utils/mainIpcErrors';
 
 type StartupFailureReason =
   | 'binary_not_found'
@@ -67,54 +69,10 @@ interface RecoveryAction {
   label: string;
 }
 
-const REASON_COPY: Record<StartupFailureReason, ReasonCopy> = {
-  binary_not_found: {
-    title: 'Backend binary was not found',
-    description: 'The packaged backend executable is missing or was removed after installation.',
-    nextStep: 'Reinstall the app or restore the backend binary from the installer.',
-  },
-  binary_permission_denied: {
-    title: 'Backend could not be executed',
-    description: 'The operating system blocked execution permissions for the backend process.',
-    nextStep: 'Check file permissions and retry after reinstalling the app.',
-  },
-  port_in_use: {
-    title: 'Preferred startup port was unavailable',
-    description: 'Another process is already using the default backend port.',
-    nextStep: 'Close the conflicting process or restart the app to retry on a new port.',
-  },
-  python_error: {
-    title: 'Backend crashed during startup',
-    description: 'The Python backend exited before it reported readiness.',
-    nextStep: 'Review the technical details below and fix the backend error before retrying.',
-  },
-  startup_timeout: {
-    title: 'Backend startup timed out',
-    description: 'The backend process did not report readiness within the startup timeout window.',
-    nextStep: 'Retry after checking local security software and Python dependency health.',
-  },
-  antivirus_blocked: {
-    title: 'Security software blocked the backend',
-    description: 'The backend appears to have been blocked by Windows Defender or another security product.',
-    nextStep: 'Allow the DS Agent backend and retry the app.',
-  },
-  crash_loop: {
-    title: 'Backend entered a crash loop',
-    description: 'Multiple startup attempts failed before the backend became healthy.',
-    nextStep: 'Use the diagnostic details below to identify the repeated startup failure.',
-  },
-  health_check_failed: {
-    title: 'Backend failed health verification',
-    description: 'The backend emitted READY but did not answer the health check successfully.',
-    nextStep: 'Check for partial startup failures or port binding issues in the diagnostic log.',
-  },
-};
-
-const FALLBACK_REASON: ReasonCopy = {
-  title: 'Backend startup failed',
-  description: 'The desktop app could not establish a healthy backend process.',
-  nextStep: 'Review the diagnostic details below before retrying.',
-};
+type TranslateFn = (
+  key: string,
+  vars?: Record<string, string | number | undefined | null>
+) => string;
 
 function normalizePayload(payload: Record<string, unknown> | null): StartupPayload {
   if (!payload) {
@@ -132,118 +90,142 @@ function normalizePayload(payload: Record<string, unknown> | null): StartupPaylo
   };
 }
 
+function getReasonCopy(
+  t: TranslateFn,
+  reason: StartupFailureReason | undefined
+): ReasonCopy {
+  const baseKey = reason
+    ? `common.diagnostic.reason.${reason}`
+    : 'common.diagnostic.reason.fallback';
+
+  return {
+    title: t(`${baseKey}.title`),
+    description: t(`${baseKey}.description`),
+    nextStep: t(`${baseKey}.nextStep`),
+  };
+}
+
 function buildRecoveryPlan(
+  t: TranslateFn,
   reason: StartupFailureReason | undefined,
   diagnostics: StartupDiagnostics | undefined
 ): RecoveryPlan {
+  const recoveryKey = 'common.diagnostic.recovery';
   const platform = diagnostics?.platform?.toLowerCase() ?? '';
   const isWindows = platform.includes('win32') || platform.includes('windows');
   const resolvedPort = diagnostics?.resolvedPort ?? diagnostics?.requestedPort;
 
   switch (reason) {
-    case 'antivirus_blocked':
+    case 'antivirus_blocked': {
+      const antivirusStepsKey = isWindows
+        ? `${recoveryKey}.antivirus_blocked.windows`
+        : `${recoveryKey}.antivirus_blocked.generic`;
       return {
-        heading: 'Restore the backend from security quarantine',
-        steps: isWindows
-          ? [
-              'Open Windows Security, then go to Virus & threat protection and Protection history.',
-              'Restore or allow the DS Agent backend executable, then add an exclusion for its install folder if it is quarantined repeatedly.',
-              'Restart DS Agent. If startup still fails, export the support bundle and attach it when escalating.',
-            ]
-          : [
-              'Open your endpoint security or antivirus product and check whether the DS Agent backend executable was quarantined.',
-              'Allow the executable or add an exclusion for its install folder.',
-              'Restart DS Agent and export the support bundle if the block continues.',
-            ],
-        note: 'Use the buttons below to reveal the backend location and logs folder directly.',
+        heading: t(`${recoveryKey}.antivirus_blocked.heading`),
+        steps: [
+          t(`${antivirusStepsKey}.step1`),
+          t(`${antivirusStepsKey}.step2`),
+          t(`${antivirusStepsKey}.step3`),
+        ],
+        note: t(`${recoveryKey}.antivirus_blocked.note`),
       };
+    }
     case 'binary_not_found':
       return {
-        heading: 'Repair or reinstall the packaged backend',
+        heading: t(`${recoveryKey}.binary_not_found.heading`),
         steps: [
-          'Close DS Agent completely before reinstalling or restoring files.',
-          'Reveal the backend location and confirm that the packaged executable exists in the ds-agent-backend folder.',
-          'If the file is missing, reinstall from a fresh installer and then retry the app.',
+          t(`${recoveryKey}.binary_not_found.step1`),
+          t(`${recoveryKey}.binary_not_found.step2`),
+          t(`${recoveryKey}.binary_not_found.step3`),
         ],
-        note: 'If the file was removed by security software, follow the antivirus flow after reinstalling.',
+        note: t(`${recoveryKey}.binary_not_found.note`),
       };
     case 'binary_permission_denied':
       return {
-        heading: 'Clear file-permission or quarantine issues',
+        heading: t(`${recoveryKey}.binary_permission_denied.heading`),
         steps: [
-          'Reveal the backend location and check whether the executable is blocked, quarantined, or missing execute permission.',
-          'If your OS or security tool exposes an Unblock or Allow action, apply it to the backend executable.',
-          'Restart DS Agent after permissions are restored.',
+          t(`${recoveryKey}.binary_permission_denied.step1`),
+          t(`${recoveryKey}.binary_permission_denied.step2`),
+          t(`${recoveryKey}.binary_permission_denied.step3`),
         ],
       };
     case 'port_in_use':
       return {
-        heading: 'Clear repeated port conflicts',
+        heading: t(`${recoveryKey}.port_in_use.heading`),
         steps: [
-          'Close any duplicate DS Agent instances or stale backend processes.',
-          `If the failure repeats, inspect what is binding port ${resolvedPort ?? DEFAULT_PORT_LABEL} and stop the conflicting process.`,
-          'Start DS Agent again. The app can fall back to another port, but repeated conflicts should still be investigated.',
+          t(`${recoveryKey}.port_in_use.step1`),
+          t(`${recoveryKey}.port_in_use.step2`, { port: resolvedPort ?? DEFAULT_PORT_LABEL }),
+          t(`${recoveryKey}.port_in_use.step3`),
         ],
       };
     case 'health_check_failed':
       return {
-        heading: 'Investigate partial backend startup',
+        heading: t(`${recoveryKey}.health_check_failed.heading`),
         steps: [
-          'Export the support bundle so the startup handshake and follow-up health failure are captured together.',
-          'Review the stderr summary and recent logs for import errors, port bind issues, or immediate shutdown after READY.',
-          'Retry the app after addressing the failing dependency or environment issue.',
+          t(`${recoveryKey}.health_check_failed.step1`),
+          t(`${recoveryKey}.health_check_failed.step2`),
+          t(`${recoveryKey}.health_check_failed.step3`),
         ],
       };
     case 'startup_timeout':
       return {
-        heading: 'Narrow down a slow or blocked startup',
+        heading: t(`${recoveryKey}.startup_timeout.heading`),
         steps: [
-          'Reveal the logs folder and check whether the backend is starting slowly, blocked by security software, or waiting on an unavailable dependency.',
-          'Export the support bundle before retrying so the timeout context is preserved.',
-          'Restart the app after addressing the blocking condition.',
+          t(`${recoveryKey}.startup_timeout.step1`),
+          t(`${recoveryKey}.startup_timeout.step2`),
+          t(`${recoveryKey}.startup_timeout.step3`),
         ],
       };
     case 'python_error':
       return {
-        heading: 'Fix the backend error before retrying',
+        heading: t(`${recoveryKey}.python_error.heading`),
         steps: [
-          'Read the stderr summary and technical details for the first concrete Python or dependency error.',
-          'Reveal the logs folder and export the support bundle so the failing startup path is preserved.',
-          'Retry the app only after the root cause is fixed.',
+          t(`${recoveryKey}.python_error.step1`),
+          t(`${recoveryKey}.python_error.step2`),
+          t(`${recoveryKey}.python_error.step3`),
         ],
       };
     case 'crash_loop':
       return {
-        heading: 'Stop the repeated startup failure loop',
+        heading: t(`${recoveryKey}.crash_loop.heading`),
         steps: [
-          'Export the support bundle so all recent startup attempts are captured in one artifact.',
-          'Use the technical details and logs to identify what is crashing the backend before it stabilizes.',
-          'If the backend executable is missing or quarantined, use the recovery buttons below before retrying.',
+          t(`${recoveryKey}.crash_loop.step1`),
+          t(`${recoveryKey}.crash_loop.step2`),
+          t(`${recoveryKey}.crash_loop.step3`),
         ],
       };
     default:
       return {
-        heading: 'Collect context before retrying',
+        heading: t(`${recoveryKey}.fallback.heading`),
         steps: [
-          'Export the support bundle so the current startup failure state is preserved.',
-          'Review the diagnostic details and logs for the first actionable error.',
-          'Retry the app after the underlying issue is addressed.',
+          t(`${recoveryKey}.fallback.step1`),
+          t(`${recoveryKey}.fallback.step2`),
+          t(`${recoveryKey}.fallback.step3`),
         ],
       };
   }
 }
 
 function buildRecoveryActions(
+  t: TranslateFn,
   diagnostics: StartupDiagnostics | undefined
 ): RecoveryAction[] {
-  const actions: RecoveryAction[] = [{ id: 'copy_steps', label: 'Copy Steps' }];
+  const actions: RecoveryAction[] = [
+    { id: 'copy_steps', label: t('common.diagnostic.actions.copySteps') },
+  ];
 
   if (diagnostics?.binaryPath) {
-    actions.unshift({ id: 'reveal_binary', label: 'Reveal Backend' });
+    actions.unshift({
+      id: 'reveal_binary',
+      label: t('common.diagnostic.actions.revealBackend'),
+    });
   }
 
   if (diagnostics?.logsPath) {
-    actions.push({ id: 'reveal_logs', label: 'Open Logs Folder' });
+    actions.push({
+      id: 'reveal_logs',
+      label: t('common.diagnostic.actions.openLogsFolder'),
+    });
   }
 
   return actions;
@@ -252,14 +234,21 @@ function buildRecoveryActions(
 const DEFAULT_PORT_LABEL = '18790';
 
 export function DiagnosticPanel({ payload }: Props) {
+  const { t } = useI18n();
   const normalized = useMemo(() => normalizePayload(payload), [payload]);
   const [copied, setCopied] = useState(false);
   const [actionState, setActionState] = useState<string | null>(null);
   const reason = normalized.reason;
-  const copy = reason ? REASON_COPY[reason] : FALLBACK_REASON;
   const diagnostics = normalized.diagnostics;
-  const recoveryPlan = useMemo(() => buildRecoveryPlan(reason, diagnostics), [reason, diagnostics]);
-  const recoveryActions = useMemo(() => buildRecoveryActions(diagnostics), [diagnostics]);
+  const copy = useMemo(() => getReasonCopy(t, reason), [reason, t]);
+  const recoveryPlan = useMemo(
+    () => buildRecoveryPlan(t, reason, diagnostics),
+    [diagnostics, reason, t]
+  );
+  const recoveryActions = useMemo(
+    () => buildRecoveryActions(t, diagnostics),
+    [diagnostics, t]
+  );
   const diagnosticsText = useMemo(
     () => JSON.stringify({ reason: normalized.reason, diagnostics }, null, 2),
     [diagnostics, normalized.reason]
@@ -293,7 +282,7 @@ export function DiagnosticPanel({ payload }: Props) {
 
   const handleExport = async () => {
     if (!window.electronAPI?.saveDiagnosticBundle) {
-      setActionState('Support-bundle export is not available in this environment.');
+      setActionState(t('common.diagnostic.actionState.exportUnavailable'));
       return;
     }
 
@@ -305,56 +294,69 @@ export function DiagnosticPanel({ payload }: Props) {
         supportBundlePayload
       );
       if (result.canceled) {
-        setActionState('Export cancelled.');
+        setActionState(t('common.diagnostic.actionState.exportCanceled'));
         return;
       }
-      setActionState(result.path ? `Support bundle saved to ${result.path}` : 'Support bundle saved.');
+      setActionState(
+        result.path
+          ? t('common.diagnostic.actionState.exportSavedAt', { path: result.path })
+          : t('common.diagnostic.actionState.exportSaved')
+      );
     } catch (error) {
       console.error('[diagnostic] failed to export diagnostics:', error);
-      setActionState('Failed to export support bundle.');
+      setActionState(t('common.diagnostic.actionState.exportFailed'));
     }
   };
 
   const handleRevealPath = async (targetPath: string | undefined, label: string) => {
     if (!targetPath) {
-      setActionState(`${label} is not available for this failure.`);
+      setActionState(t('common.diagnostic.actionState.pathUnavailable', { label }));
       return;
     }
     if (!window.electronAPI?.revealPath) {
-      setActionState('Path reveal is not available in this environment.');
+      setActionState(t('common.diagnostic.actionState.revealUnavailable'));
       return;
     }
 
     try {
       const result = await window.electronAPI.revealPath(targetPath);
       if (!result.ok) {
-        setActionState(result.error ?? `Unable to reveal ${label.toLowerCase()}.`);
+        setActionState(
+          resolveMainIpcErrorMessage(
+            result,
+            'common.diagnostic.actionState.revealError',
+            { label },
+          )
+        );
         return;
       }
-      setActionState(`${label} opened.`);
+      setActionState(t('common.diagnostic.actionState.pathOpened', { label }));
     } catch (error) {
       console.error('[diagnostic] failed to reveal path:', error);
-      setActionState(`Failed to open ${label.toLowerCase()}.`);
+      setActionState(t('common.diagnostic.actionState.pathOpenFailed', { label }));
     }
   };
 
   const handleCopyRecoverySteps = async () => {
     try {
       await navigator.clipboard.writeText(recoveryText);
-      setActionState('Recovery steps copied.');
+      setActionState(t('common.diagnostic.actionState.recoveryCopied'));
     } catch (error) {
       console.error('[diagnostic] failed to copy recovery steps:', error);
-      setActionState('Failed to copy recovery steps.');
+      setActionState(t('common.diagnostic.actionState.recoveryCopyFailed'));
     }
   };
 
   const handleRecoveryAction = async (action: RecoveryAction) => {
     if (action.id === 'reveal_binary') {
-      await handleRevealPath(diagnostics?.binaryPath, 'Backend location');
+      await handleRevealPath(
+        diagnostics?.binaryPath,
+        t('common.diagnostic.labels.backendLocation')
+      );
       return;
     }
     if (action.id === 'reveal_logs') {
-      await handleRevealPath(diagnostics?.logsPath, 'Logs folder');
+      await handleRevealPath(diagnostics?.logsPath, t('common.diagnostic.labels.logsFolder'));
       return;
     }
     await handleCopyRecoverySteps();
@@ -369,11 +371,13 @@ export function DiagnosticPanel({ payload }: Props) {
               <AlertTriangle size={28} />
             </div>
             <div className="min-w-0">
-              <div className="text-xs uppercase tracking-[0.3em] text-ds-muted">Startup Diagnostics</div>
+              <div className="text-xs uppercase tracking-[0.3em] text-ds-muted">
+                {t('common.diagnostic.title')}
+              </div>
               <h1 id="diagnostic-title" className="mt-2 text-2xl font-semibold text-ds-text">{copy.title}</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-ds-muted">{copy.description}</p>
               <p className="mt-4 text-sm text-ds-text">
-                <span className="text-ds-muted">Next step:</span> {copy.nextStep}
+                <span className="text-ds-muted">{t('common.diagnostic.nextStep')}</span> {copy.nextStep}
               </p>
             </div>
           </div>
@@ -384,7 +388,7 @@ export function DiagnosticPanel({ payload }: Props) {
             <div className="rounded-2xl border border-ds-border bg-ds-bg/60 p-5">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-ds-muted">
                 {reason === 'antivirus_blocked' ? <ShieldAlert size={14} /> : <Wrench size={14} />}
-                Guided Recovery
+                {t('common.diagnostic.guidedRecovery')}
               </div>
               <h2 className="mt-3 text-lg font-semibold text-ds-text">{recoveryPlan.heading}</h2>
               <div className="mt-4 space-y-3">
@@ -417,17 +421,24 @@ export function DiagnosticPanel({ payload }: Props) {
 
             <div className="rounded-2xl border border-ds-border bg-ds-bg/60 p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.25em] text-ds-muted">
-                Failure Summary
+                {t('common.diagnostic.failureSummary')}
               </div>
               <dl className="mt-4 space-y-3 text-sm">
-                <SummaryRow label="Reason" value={reason ?? 'unknown'} mono />
-                <SummaryRow label="Detail" value={diagnostics?.detail ?? 'No detail captured.'} />
                 <SummaryRow
-                  label="Attempts"
+                  label={t('common.diagnostic.summary.reason')}
+                  value={reason ?? t('common.diagnostic.values.unknown')}
+                  mono
+                />
+                <SummaryRow
+                  label={t('common.diagnostic.summary.detail')}
+                  value={diagnostics?.detail ?? t('common.diagnostic.values.noDetail')}
+                />
+                <SummaryRow
+                  label={t('common.diagnostic.summary.attempts')}
                   value={diagnostics?.attempts !== undefined ? String(diagnostics.attempts) : '-'}
                 />
                 <SummaryRow
-                  label="Port"
+                  label={t('common.diagnostic.summary.port')}
                   value={
                     diagnostics?.resolvedPort !== undefined
                       ? `${diagnostics.resolvedPort}`
@@ -435,7 +446,7 @@ export function DiagnosticPanel({ payload }: Props) {
                   }
                 />
                 <SummaryRow
-                  label="Exit Code"
+                  label={t('common.diagnostic.summary.exitCode')}
                   value={
                     diagnostics?.exitCode !== undefined && diagnostics.exitCode !== null
                       ? String(diagnostics.exitCode)
@@ -448,7 +459,7 @@ export function DiagnosticPanel({ payload }: Props) {
             <div className="rounded-2xl border border-ds-border bg-ds-bg/60 p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs font-semibold uppercase tracking-[0.25em] text-ds-muted">
-                  Technical Details
+                  {t('common.diagnostic.technicalDetails')}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -457,7 +468,7 @@ export function DiagnosticPanel({ payload }: Props) {
                     className="inline-flex items-center gap-2 rounded-full border border-ds-border px-3 py-1.5 text-xs text-ds-muted transition-colors hover:text-ds-text"
                   >
                     <Download size={14} />
-                    Export Bundle
+                    {t('common.diagnostic.buttons.exportBundle')}
                   </button>
                   <button
                     type="button"
@@ -465,7 +476,9 @@ export function DiagnosticPanel({ payload }: Props) {
                     className="inline-flex items-center gap-2 rounded-full border border-ds-border px-3 py-1.5 text-xs text-ds-muted transition-colors hover:text-ds-text"
                   >
                     <ClipboardCopy size={14} />
-                    {copied ? 'Copied' : 'Copy'}
+                    {copied
+                      ? t('common.diagnostic.buttons.copied')
+                      : t('common.diagnostic.buttons.copy')}
                   </button>
                 </div>
               </div>
@@ -481,39 +494,49 @@ export function DiagnosticPanel({ payload }: Props) {
           <section className="space-y-4">
             <div className="rounded-2xl border border-ds-border bg-ds-bg/60 p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.25em] text-ds-muted">
-                Environment
+                {t('common.diagnostic.environment')}
               </div>
               <dl className="mt-4 space-y-3 text-sm">
-                <SummaryRow label="App Version" value={diagnostics?.appVersion ?? '-'} mono />
-                <SummaryRow label="Platform" value={diagnostics?.platform ?? '-'} />
-                <SummaryRow label="Architecture" value={diagnostics?.arch ?? '-'} />
                 <SummaryRow
-                  label="App Path"
+                  label={t('common.diagnostic.summary.appVersion')}
+                  value={diagnostics?.appVersion ?? '-'}
+                  mono
+                />
+                <SummaryRow
+                  label={t('common.diagnostic.summary.platform')}
+                  value={diagnostics?.platform ?? '-'}
+                />
+                <SummaryRow
+                  label={t('common.diagnostic.summary.architecture')}
+                  value={diagnostics?.arch ?? '-'}
+                />
+                <SummaryRow
+                  label={t('common.diagnostic.summary.appPath')}
                   value={diagnostics?.appPath ?? '-'}
                   mono
                 />
                 <SummaryRow
-                  label="Binary"
+                  label={t('common.diagnostic.summary.binary')}
                   value={diagnostics?.binaryPath ?? diagnostics?.command ?? '-'}
                   mono
                 />
                 <SummaryRow
-                  label="Logs Path"
+                  label={t('common.diagnostic.summary.logsPath')}
                   value={diagnostics?.logsPath ?? '-'}
                   mono
                 />
                 <SummaryRow
-                  label="Binary Exists"
+                  label={t('common.diagnostic.summary.binaryExists')}
                   value={
                     diagnostics?.binaryExists === undefined
                       ? '-'
                       : diagnostics.binaryExists
-                        ? 'yes'
-                        : 'no'
+                        ? t('common.diagnostic.values.yes')
+                        : t('common.diagnostic.values.no')
                   }
                 />
                 <SummaryRow
-                  label="Timestamp"
+                  label={t('common.diagnostic.summary.timestamp')}
                   value={diagnostics?.timestamp ?? '-'}
                   mono
                 />
@@ -522,7 +545,7 @@ export function DiagnosticPanel({ payload }: Props) {
 
             <div className="rounded-2xl border border-ds-border bg-ds-bg/60 p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.25em] text-ds-muted">
-                Quick Actions
+                {t('common.diagnostic.quickActions')}
               </div>
               <div className="mt-4 space-y-3">
                 <button
@@ -531,16 +554,15 @@ export function DiagnosticPanel({ payload }: Props) {
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ds-accent px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
                 >
                   <RefreshCw size={16} />
-                  Reload Window
+                  {t('common.diagnostic.buttons.reloadWindow')}
                 </button>
                 <p className="text-xs leading-6 text-ds-muted">
-                  Reloading retries the renderer only. If the backend binary or Python process is still
-                  unhealthy, restart the full app after addressing the issue shown above.
+                  {t('common.diagnostic.reloadHelp')}
                 </p>
                 {diagnostics?.stderrSummary && (
                   <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs leading-6 text-amber-100">
                     <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-amber-300">
-                      Stderr Summary
+                      {t('common.diagnostic.stderrSummary')}
                     </div>
                     <div className="whitespace-pre-wrap break-words">{diagnostics.stderrSummary}</div>
                   </div>

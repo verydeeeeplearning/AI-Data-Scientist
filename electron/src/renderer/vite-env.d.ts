@@ -337,15 +337,17 @@ interface ElectronAPI {
       subject?: string | null;
       source?: 'config' | 'env' | null;
       error?: string;
+      reason?: string;
     }>;
     registerSubscription: (payload: {
       endpoint: string;
       p256dhKey: string;
       authKey: string;
-    }) => Promise<{ ok: boolean; error?: string }>;
+    }) => Promise<{ ok: boolean; error?: string; reason?: string }>;
     unregisterSubscription: (payload: { endpoint: string }) => Promise<{
       ok: boolean;
       error?: string;
+      reason?: string;
     }>;
   };
 }

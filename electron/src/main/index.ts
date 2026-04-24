@@ -22,6 +22,30 @@ import { createDiagnosticWindow, createMainWindow, getMainWindow } from './windo
 
 initializeMainObservability();
 
+if (process.env.DS_AGENT_E2E_DISABLE_CHROMIUM_SANDBOX === '1') {
+  app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+  app.commandLine.appendSwitch(
+    'disable-features',
+    [
+      'NetworkServiceSandbox',
+      'NetworkServiceCodeIntegrity',
+      'RendererAppContainer',
+      'GpuAppContainer',
+      'PrintCompositorLPAC',
+      'WinSboxNetworkServiceSandboxIsLPAC',
+      'WinSboxDisableExtensionPoint',
+    ].join(',')
+  );
+  app.commandLine.appendSwitch('disable-crash-reporter');
+  app.commandLine.appendSwitch('disable-breakpad');
+  app.commandLine.appendSwitch('disable-in-process-stack-traces');
+  app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+  app.commandLine.appendSwitch('disk-cache-size', '0');
+  app.commandLine.appendSwitch('media-cache-size', '0');
+  app.disableHardwareAcceleration();
+}
+
 const e2eUserDataDir = process.env.DS_AGENT_E2E_USER_DATA_DIR;
 if (e2eUserDataDir && e2eUserDataDir.trim().length > 0) {
   app.setPath('userData', e2eUserDataDir);
@@ -41,6 +65,21 @@ function extractDeepLinkFromArgv(argv: readonly string[]): string | null {
 }
 
 let pendingDeepLinkUri: string | null = extractDeepLinkFromArgv(process.argv.slice(1));
+
+function getExistingBackendForE2E(): { port: number; token: string } | null {
+  const rawPort = process.env.DS_AGENT_E2E_EXISTING_BACKEND_PORT;
+  if (!rawPort) {
+    return null;
+  }
+  const port = Number.parseInt(rawPort, 10);
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    throw new Error(`Invalid DS_AGENT_E2E_EXISTING_BACKEND_PORT: ${rawPort}`);
+  }
+  return {
+    port,
+    token: process.env.DS_AGENT_E2E_EXISTING_BACKEND_TOKEN ?? '',
+  };
+}
 
 function deliverDeepLink(rawUri: string): void {
   const win = getMainWindow();
@@ -85,6 +124,17 @@ app.on('open-url', (event, url) => {
 app.whenReady().then(async () => {
   registerMainIpcHandlers();
   recordDiagnosticLog('info', 'main', 'Electron app is ready.');
+  const existingBackend = getExistingBackendForE2E();
+  if (existingBackend) {
+    console.log(`[main] Using existing E2E backend on port ${existingBackend.port}`);
+    recordDiagnosticLog('info', 'main', 'Using existing E2E backend.', {
+      port: existingBackend.port,
+      hasToken: existingBackend.token.length > 0,
+    });
+    createMainWindow(existingBackend.port, existingBackend.token);
+    return;
+  }
+
   console.log('[main] Starting Python backend...');
   recordDiagnosticLog('info', 'main', 'Starting Python backend.');
   const result = await startPythonBackend();

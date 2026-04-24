@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useIntegrationHealth } from '../../hooks/useIntegrationHealth';
 import type { ConnectorHealthView } from '../../hooks/useIntegrationHealth';
+import { useI18n } from '../../stores/i18nStore';
 
 const STATUS_STYLES: Record<string, string> = {
   healthy: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
@@ -8,6 +9,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 function ConnectorCard({ connector }: { connector: ConnectorHealthView }) {
+  const { t } = useI18n();
   const statusKey = connector.healthy ? 'healthy' : 'unhealthy';
   return (
     <div
@@ -17,7 +19,9 @@ function ConnectorCard({ connector }: { connector: ConnectorHealthView }) {
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide">{connector.system}</span>
         <span className="text-[10px]">
-          {connector.healthy ? 'Connected' : 'Unavailable'}
+          {connector.healthy
+            ? t('workspace.workflow.integrations.status.connected')
+            : t('workspace.workflow.integrations.status.unavailable')}
         </span>
       </div>
       <p className="mt-1 text-[11px] opacity-70">{connector.message}</p>
@@ -29,6 +33,7 @@ function ConnectorCard({ connector }: { connector: ConnectorHealthView }) {
 }
 
 export function IntegrationSettings() {
+  const { t } = useI18n();
   const { connectors, allHealthy, loading, error, refresh } = useIntegrationHealth();
 
   useEffect(() => {
@@ -42,10 +47,14 @@ export function IntegrationSettings() {
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-ds-text">Integration Connectors</h3>
+          <h3 className="text-sm font-semibold text-ds-text">
+            {t('workspace.workflow.integrations.title')}
+          </h3>
           {allHealthy !== null && (
             <p className="mt-1 text-[11px] text-ds-muted">
-              {allHealthy ? 'All connectors healthy' : 'Some connectors need attention'}
+              {allHealthy
+                ? t('workspace.workflow.integrations.allHealthy')
+                : t('workspace.workflow.integrations.needsAttention')}
             </p>
           )}
         </div>
@@ -55,7 +64,9 @@ export function IntegrationSettings() {
           className="rounded-lg border border-ds-border px-3 py-1.5 text-[11px] text-ds-muted hover:border-ds-accent hover:text-ds-text disabled:opacity-40"
           data-testid="integration-health-check-btn"
         >
-          {loading ? 'Checking...' : 'Health Check'}
+          {loading
+            ? t('workspace.workflow.integrations.checking')
+            : t('workspace.workflow.integrations.healthCheck')}
         </button>
       </div>
 
@@ -75,7 +86,9 @@ export function IntegrationSettings() {
 
       {!loading && connectors.length === 0 && !error && (
         <p className="mt-3 text-xs text-ds-muted">
-          Click "Health Check" to test connector availability.
+          {t('workspace.workflow.integrations.empty', {
+            action: t('workspace.workflow.integrations.healthCheck'),
+          })}
         </p>
       )}
     </section>

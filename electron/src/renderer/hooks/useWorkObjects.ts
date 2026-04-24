@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useChatStore } from '../stores/chatStore';
+import { translateKey } from '../stores/i18nStore';
+import { resolveMainIpcErrorMessage } from '../utils/mainIpcErrors';
 import { useWs } from './WsProvider';
 import type { WorkObjectDetailView, WorkObjectListItemView, WorkObjectPhase } from '../types/workObject';
 
@@ -44,7 +46,7 @@ export function useWorkObjects(
     });
     if (!result.ok) {
       setItems([]);
-      setError(result.error);
+      setError(resolveMainIpcErrorMessage(result, 'common.mainIpc.workObject.listFailed'));
       setLoading(false);
       return;
     }
@@ -67,7 +69,7 @@ export function useWorkObjects(
     });
     if (!result.ok) {
       setDetail(null);
-      setDetailError(result.error);
+      setDetailError(resolveMainIpcErrorMessage(result, 'common.mainIpc.workObject.getFailed'));
       setDetailLoading(false);
       return;
     }
@@ -122,14 +124,16 @@ export function useWorkObjects(
     tags?: string[];
   }) => {
     if (!window.electronAPI?.workObject) {
-      throw new Error('WorkObject API not available.');
+      throw new Error(translateKey('common.workObject.apiUnavailable'));
     }
     const result = await window.electronAPI.workObject.intake({
       ...params,
       taskContractId: params.taskContractId ?? '',
     });
     if (!result.ok) {
-      throw new Error(result.error ?? 'Failed to create work object.');
+      throw new Error(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.workObject.createFailed'),
+      );
     }
     await refresh();
     return result.result;
@@ -137,11 +141,13 @@ export function useWorkObjects(
 
   const advance = useCallback(async (workObjectId: string, toPhase: string, runId?: string) => {
     if (!window.electronAPI?.workObject) {
-      throw new Error('WorkObject API not available.');
+      throw new Error(translateKey('common.workObject.apiUnavailable'));
     }
     const result = await window.electronAPI.workObject.advance({ workObjectId, toPhase, runId });
     if (!result.ok) {
-      throw new Error(result.error ?? 'Failed to advance work object phase.');
+      throw new Error(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.workObject.advanceFailed'),
+      );
     }
     await refresh();
     await refreshDetail();
@@ -149,11 +155,13 @@ export function useWorkObjects(
 
   const close = useCallback(async (workObjectId: string, reason: string) => {
     if (!window.electronAPI?.workObject) {
-      throw new Error('WorkObject API not available.');
+      throw new Error(translateKey('common.workObject.apiUnavailable'));
     }
     const result = await window.electronAPI.workObject.close({ workObjectId, reason });
     if (!result.ok) {
-      throw new Error(result.error ?? 'Failed to close work object.');
+      throw new Error(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.workObject.closeFailed'),
+      );
     }
     await refresh();
     await refreshDetail();

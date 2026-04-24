@@ -8,6 +8,7 @@ import {
   RECOVERY_TASK_CONTRACT_USE_CASE_LABELS,
   resolveRecoveryTaskContractDefaults,
 } from '../../application/onboarding/recoveryTaskContractDefaults';
+import { useI18n } from '../../stores/i18nStore';
 import type { TaskContractCreatePayload } from '../../types/taskContract';
 
 interface CreateContractModalProps {
@@ -17,6 +18,25 @@ interface CreateContractModalProps {
   saving: boolean;
   onClose: () => void;
   onSubmit: (payload: TaskContractCreatePayload) => Promise<void>;
+}
+
+type Translator = (
+  key: string,
+  vars?: Record<string, string | number | null | undefined>,
+) => string;
+
+function getUseCaseLabel(useCaseId: OnboardingUseCaseId, t: Translator): string {
+  const key = {
+    data_analysis: 'onboarding.use_case.option.data_analysis.title',
+    reporting: 'onboarding.use_case.option.reporting.title',
+    prediction: 'onboarding.use_case.option.prediction.title',
+    dashboard: 'onboarding.use_case.option.dashboard.title',
+    sql_exploration: 'onboarding.use_case.option.sql_exploration.title',
+    weekly_kpi_triage: 'onboarding.use_case.option.weekly_kpi_triage.title',
+    ab_test_analysis: 'onboarding.use_case.option.ab_test_analysis.title',
+    general: 'onboarding.use_case.option.general.title',
+  }[useCaseId];
+  return t(key);
 }
 
 export function buildRecoveryTaskContractDraft(args: {
@@ -59,6 +79,7 @@ export function CreateContractModal({
   onClose,
   onSubmit,
 }: CreateContractModalProps) {
+  const { t } = useI18n();
   const [useCaseId, setUseCaseId] = useState<OnboardingUseCaseId>(DEFAULT_USE_CASE_ID);
   const [businessGoal, setBusinessGoal] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -98,13 +119,13 @@ export function CreateContractModal({
               id="mission-brief-create-title"
               className="text-base font-semibold text-ds-text"
             >
-              Draft Task Contract
+              {t('mission.brief.create.title')}
             </h2>
             <p
               id="mission-brief-create-description"
               className="mt-1 text-xs text-ds-muted"
             >
-              Create a manual recovery draft for the current session when no active contract is present.
+              {t('mission.brief.create.description')}
             </p>
           </div>
           <button
@@ -113,7 +134,7 @@ export function CreateContractModal({
             disabled={saving}
             className="rounded-lg border border-ds-border px-3 py-1.5 text-xs text-ds-muted hover:border-ds-accent hover:text-ds-text disabled:opacity-60"
           >
-            Cancel
+            {t('mission.brief.create.cancel')}
           </button>
         </div>
 
@@ -122,7 +143,7 @@ export function CreateContractModal({
             event.preventDefault();
             const normalizedGoal = businessGoal.trim();
             if (!normalizedGoal) {
-              setValidationError('Business goal is required.');
+              setValidationError(t('mission.brief.create.goal_required'));
               return;
             }
             setValidationError(null);
@@ -137,11 +158,11 @@ export function CreateContractModal({
         >
           <div className="grid gap-4 p-5">
             <div className="rounded-xl border border-ds-border bg-ds-bg/50 px-3 py-2 text-[11px] text-ds-muted">
-              Session: <span className="font-mono text-ds-text">{sessionId}</span>
+              {t('mission.header.session')}: <span className="font-mono text-ds-text">{sessionId}</span>
             </div>
 
             <label className="grid gap-2 text-xs text-ds-muted">
-              Use Case
+              {t('mission.brief.create.use_case')}
               <select
                 value={useCaseId}
                 onChange={(event) => setUseCaseId(event.target.value as OnboardingUseCaseId)}
@@ -150,35 +171,43 @@ export function CreateContractModal({
               >
                 {ONBOARDING_USE_CASE_IDS.map((value) => (
                   <option key={value} value={value}>
-                    {RECOVERY_TASK_CONTRACT_USE_CASE_LABELS[value]}
+                    {getUseCaseLabel(value, t) || RECOVERY_TASK_CONTRACT_USE_CASE_LABELS[value]}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className="grid gap-2 text-xs text-ds-muted">
-              Business Goal
+              {t('mission.brief.create.business_goal')}
               <textarea
                 value={businessGoal}
                 onChange={(event) => setBusinessGoal(event.target.value)}
                 rows={4}
                 data-testid="mission-brief-create-contract-business-goal"
-                placeholder="Describe the decision, question, or analysis goal for this session."
+                placeholder={t('mission.brief.create.goal_placeholder')}
                 className="rounded-xl border border-ds-border bg-ds-bg px-3 py-2 text-sm text-ds-text outline-none focus:border-ds-accent"
               />
             </label>
 
             <div className="rounded-xl border border-ds-border bg-ds-bg/60 px-4 py-3">
-              <p className="text-[11px] uppercase tracking-wide text-ds-muted">Draft Defaults</p>
+              <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+                {t('mission.brief.create.defaults.title')}
+              </p>
               <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                 <span className="rounded-full border border-ds-border bg-ds-surface px-2 py-1 text-ds-text">
-                  Contract Type: {useCaseSpec.contractType}
+                  {t('mission.brief.create.defaults.contract_type', {
+                    value: useCaseSpec.contractType,
+                  })}
                 </span>
                 <span className="rounded-full border border-ds-border bg-ds-surface px-2 py-1 text-ds-text">
-                  Authority: {useCaseSpec.defaultAuthority}
+                  {t('mission.brief.labels.authority', {
+                    value: useCaseSpec.defaultAuthority,
+                  })}
                 </span>
                 <span className="rounded-full border border-ds-border bg-ds-surface px-2 py-1 text-ds-text">
-                  Audience: {useCaseSpec.defaultAudience}
+                  {t('mission.brief.labels.audience', {
+                    value: useCaseSpec.defaultAudience,
+                  })}
                 </span>
               </div>
               <div className="mt-3 grid gap-2">
@@ -208,7 +237,7 @@ export function CreateContractModal({
               data-testid="mission-brief-create-contract-submit"
               className="rounded-xl bg-ds-accent px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? 'Drafting...' : 'Create Draft'}
+              {saving ? t('mission.brief.create.drafting') : t('mission.brief.create.submit')}
             </button>
           </div>
         </form>

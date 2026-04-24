@@ -78,6 +78,25 @@ async function screenshot(page, targetPath) {
     ensureDir(node_path_1.default.dirname(targetPath));
     await page.screenshot({ path: targetPath, fullPage: true });
 }
+async function clickTestId(page, testId) {
+    const element = page.getByTestId(testId);
+    await element.waitFor({ state: 'visible', timeout: 30000 });
+    await element.evaluate((node) => node.click());
+}
+async function clickLocator(locator) {
+    await locator.waitFor({ state: 'visible', timeout: 30000 });
+    await locator.evaluate((node) => node.click());
+}
+async function openSeededSession(page) {
+    const testId = `open-session-${SEEDED_SESSION_ID}`;
+    const button = page.getByTestId(testId);
+    await button.waitFor({ state: 'visible', timeout: 30000 });
+    await button.evaluate((node) => node.click());
+    await page.waitForFunction(({ currentTestId }) => {
+        const node = document.querySelector(`[data-testid="${currentTestId}"]`);
+        return Boolean(node?.textContent?.includes('Opened'));
+    }, { currentTestId: testId }, { timeout: 30000 });
+}
 async function run() {
     if (!node_fs_1.default.existsSync(BACKEND_BIN)) {
         throw new Error(`Backend binary not found at ${BACKEND_BIN}. ` +
@@ -96,8 +115,10 @@ async function run() {
             DS_AGENT_SENTRY_DSN: '',
             DS_AGENT_ERROR_REPORTING_ENABLED: '0',
             DS_AGENT_TELEMETRY_ENABLED: '0',
+            DS_AGENT_E2E_USER_DATA_DIR: node_path_1.default.join(paths.rootDir, 'userData'),
             DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
             DS_AGENT_E2E_SKIP_ONBOARDING: '1',
+            DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
         },
         timeout: 60000,
     });
@@ -107,14 +128,10 @@ async function run() {
         await page.waitForLoadState('domcontentloaded');
         await page.getByTestId('open-settings').waitFor({ state: 'visible', timeout: 60000 });
         // ── Step 1: Attach to the seeded session ────────────────────────────
-        await page.getByTestId('sidebar-tab-runtime').click();
-        await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).waitFor({
-            state: 'visible',
-            timeout: 30000,
-        });
-        await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).click();
+        await clickTestId(page, 'sidebar-tab-runtime');
+        await openSeededSession(page);
         // ── Step 2: Navigate to Workflow tab ────────────────────────────────
-        await page.getByTestId('sidebar-tab-workflow').click();
+        await clickTestId(page, 'sidebar-tab-workflow');
         await page.getByTestId('work-object-panel').waitFor({
             state: 'visible',
             timeout: 30000,
@@ -122,8 +139,7 @@ async function run() {
         await screenshot(page, node_path_1.default.join(artifactsDir, 'workflow-panel-loaded.png'));
         // ── Step 3: Verify seeded work object is visible ────────────────────
         const woItem = page.locator(`[data-testid="work-object-item-${SEEDED_WORK_OBJECT_ID}"]`);
-        await woItem.waitFor({ state: 'visible', timeout: 30000 });
-        await woItem.click();
+        await clickLocator(woItem);
         // Work object detail should appear with intake phase
         await page.getByTestId('work-object-detail').waitFor({
             state: 'visible',
@@ -139,8 +155,7 @@ async function run() {
         await screenshot(page, node_path_1.default.join(artifactsDir, 'work-object-timeline.png'));
         // ── Step 5: Advance work object phase (intake → executing) ──────────
         const advanceBtn = page.getByTestId('work-object-advance-btn');
-        await advanceBtn.waitFor({ state: 'visible', timeout: 30000 });
-        await advanceBtn.click();
+        await clickLocator(advanceBtn);
         // After advance the detail should refresh — wait for the Advance button
         // to change (next target is "review") or for a notice to appear.
         await page.waitForFunction(() => {
@@ -152,13 +167,12 @@ async function run() {
         await screenshot(page, node_path_1.default.join(artifactsDir, 'after-advance-phase.png'));
         // ── Step 6: Close the work object ───────────────────────────────────
         const closeBtn = page.getByTestId('work-object-close-btn');
-        await closeBtn.waitFor({ state: 'visible', timeout: 30000 });
-        await closeBtn.click();
+        await clickLocator(closeBtn);
         const reasonInput = page.getByTestId('work-object-close-reason');
         await reasonInput.waitFor({ state: 'visible', timeout: 30000 });
         await reasonInput.fill('E2E test closure — all criteria verified.');
         const confirmBtn = page.getByTestId('work-object-close-confirm');
-        await confirmBtn.click();
+        await clickLocator(confirmBtn);
         // Wait for the close notice or the phase badge to reflect closed state
         await page.waitForFunction(() => {
             const panel = document.querySelector('[data-testid="work-object-detail"]');
@@ -172,8 +186,7 @@ async function run() {
             timeout: 30000,
         });
         const healthBtn = page.getByTestId('integration-health-check-btn');
-        await healthBtn.waitFor({ state: 'visible', timeout: 30000 });
-        await healthBtn.click();
+        await clickLocator(healthBtn);
         // Wait for at least one connector card to appear
         await page.waitForFunction(() => {
             const cards = document.querySelectorAll('[data-testid^="connector-"]');

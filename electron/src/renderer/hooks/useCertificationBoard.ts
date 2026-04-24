@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { translateKey } from '../stores/i18nStore';
 import { useWs } from './WsProvider';
+import { resolveMainIpcErrorMessage } from '../utils/mainIpcErrors';
 import type {
   CertificationStatusView,
   CertificationSubmissionView,
@@ -26,7 +28,7 @@ export function useCertificationBoard() {
     if (!result.ok) {
       setMissions([]);
       setSelectedMissionName(null);
-      setError(result.error);
+      setError(resolveMainIpcErrorMessage(result, 'common.mainIpc.certification.listFailed'));
       setLoading(false);
       return;
     }
@@ -74,12 +76,14 @@ export function useCertificationBoard() {
     evidenceRef?: string;
   }) => {
     if (!window.electronAPI?.certification) {
-      throw new Error('Certification API is unavailable.');
+      throw new Error(translateKey('common.certification.apiUnavailable'));
     }
 
     const result = await window.electronAPI.certification.submit(params);
     if (!result.ok) {
-      throw new Error(result.error);
+      throw new Error(
+        resolveMainIpcErrorMessage(result, 'common.mainIpc.certification.submitFailed'),
+      );
     }
     setLastSubmission(result.result);
     await refresh();

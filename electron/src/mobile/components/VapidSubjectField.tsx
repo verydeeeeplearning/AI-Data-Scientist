@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  getPushSubjectErrorKey,
+  resolvePushErrorCode,
+} from '../errors/mobileError';
 
 type SubjectSource = 'config' | 'env' | null;
 
@@ -44,32 +48,38 @@ export function VapidSubjectField(): ReactElement {
   const [source, setSource] = useState<SubjectSource>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     if (!bridge) {
       setIsLoading(false);
-      setErrorMessage(t('mobile.push.error.bridgeMissing'));
+      setErrorKey('mobile.push.error.bridgeMissing');
       return () => {
         cancelled = true;
       };
     }
 
     (async () => {
-      const response = await bridge.getSubject();
-      if (cancelled) return;
-      if (!response.ok) {
-        setErrorMessage(response.reason ?? t('mobile.push.subject.error.load'));
+      try {
+        const response = await bridge.getSubject();
+        if (cancelled) return;
+        if (!response.ok) {
+          setErrorKey(getPushSubjectErrorKey(resolvePushErrorCode(response.reason), 'load'));
+          setIsLoading(false);
+          return;
+        }
+        setSubject(response.subject ?? '');
+        setSource(response.source ?? null);
+        setErrorKey(null);
+        setSavedMessage(null);
         setIsLoading(false);
-        return;
+      } catch (error) {
+        if (cancelled) return;
+        setErrorKey(getPushSubjectErrorKey(resolvePushErrorCode(error), 'load'));
+        setIsLoading(false);
       }
-      setSubject(response.subject ?? '');
-      setSource(response.source ?? null);
-      setErrorMessage(null);
-      setSavedMessage(null);
-      setIsLoading(false);
     })();
 
     return () => {
@@ -82,31 +92,30 @@ export function VapidSubjectField(): ReactElement {
 
   const handleSave = async () => {
     if (!bridge) {
-      setErrorMessage(t('mobile.push.error.bridgeMissing'));
+      setErrorKey('mobile.push.error.bridgeMissing');
       return;
     }
     const trimmed = normalizeVapidSubject(subject);
     if (!isValidVapidSubject(trimmed)) {
-      setErrorMessage(t('mobile.push.subject.error.format'));
+      setErrorKey('mobile.push.subject.error.format');
       setSavedMessage(null);
       return;
     }
 
     setIsSaving(true);
-    setErrorMessage(null);
+    setErrorKey(null);
     setSavedMessage(null);
     try {
       const response = await bridge.setSubject({ subject: trimmed });
       if (!response.ok) {
-        setErrorMessage(response.error ?? t('mobile.push.subject.error.save'));
+        setErrorKey(getPushSubjectErrorKey(resolvePushErrorCode(response.error), 'save'));
         return;
       }
       setSubject(response.subject ?? trimmed);
       setSource(response.source ?? 'config');
       setSavedMessage(t('mobile.push.subject.status.saved'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : t('mobile.push.subject.error.save');
-      setErrorMessage(message);
+      setErrorKey(getPushSubjectErrorKey(resolvePushErrorCode(error), 'save'));
     } finally {
       setIsSaving(false);
     }
@@ -134,7 +143,7 @@ export function VapidSubjectField(): ReactElement {
           value={subject}
           onChange={(event) => {
             setSubject(event.target.value);
-            setErrorMessage(null);
+            setErrorKey(null);
             setSavedMessage(null);
           }}
           placeholder={t('mobile.push.subject.placeholder')}
@@ -153,9 +162,9 @@ export function VapidSubjectField(): ReactElement {
           {savedMessage}
         </p>
       ) : null}
-      {errorMessage ? (
+      {errorKey ? (
         <p className="mt-2 text-xs text-rose-300" role="alert">
-          {errorMessage}
+          {t(errorKey)}
         </p>
       ) : null}
       <div className="mt-3 flex items-center justify-between gap-3">

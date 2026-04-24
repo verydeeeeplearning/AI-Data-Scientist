@@ -1,4 +1,5 @@
 import type { DeliveryArtifactView } from '../../types/taskContract';
+import { useI18n } from '../../stores/i18nStore';
 
 export interface AudienceSelectionOption {
   audience: string;
@@ -15,10 +16,12 @@ interface Props {
 }
 
 export function AudienceSelector({ options, disabled = false, onToggle }: Props) {
+  const { t } = useI18n();
+
   if (options.length === 0) {
     return (
       <div className="rounded-xl border border-ds-border bg-ds-surface px-3 py-3 text-xs text-ds-muted">
-        No audience-specific deliverables were declared for this contract.
+        {t('workspace.workflow.audience.empty')}
       </div>
     );
   }
@@ -56,7 +59,7 @@ export function AudienceSelector({ options, disabled = false, onToggle }: Props)
                   {option.audience}
                 </span>
                 <span className="rounded-full border border-ds-border px-2 py-0.5 text-[10px] text-ds-muted">
-                  {artifactStatus}
+                  {translateAudienceArtifactStatus(artifactStatus, t)}
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-ds-muted">
@@ -68,4 +71,18 @@ export function AudienceSelector({ options, disabled = false, onToggle }: Props)
       })}
     </div>
   );
+}
+
+function translateAudienceArtifactStatus(
+  value: string,
+  t: (key: string, vars?: Record<string, string | number | undefined | null>) => string,
+): string {
+  const keyByStatus: Record<string, string> = {
+    rendered: 'workspace.workflow.audience.status.rendered',
+    ready: 'workspace.workflow.audience.status.ready',
+    planned: 'workspace.workflow.audience.status.planned',
+    'not built': 'workspace.workflow.audience.status.notBuilt',
+  };
+  const key = keyByStatus[value];
+  return key ? t(key) : value;
 }

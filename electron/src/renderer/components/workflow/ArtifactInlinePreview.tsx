@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useI18n } from '../../stores/i18nStore';
+import { resolveMainIpcErrorMessage } from '../../utils/mainIpcErrors';
 import type {
   DeliveryArtifactView,
   PptxPreviewSlideView,
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export function ArtifactInlinePreview({ artifact, renderedUri }: Props) {
+  const { t } = useI18n();
   const [preview, setPreview] = useState<RenderedArtifactPreviewView | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +41,9 @@ export function ArtifactInlinePreview({ artifact, renderedUri }: Props) {
           return;
         }
         if (!result.ok) {
-          setError(result.error);
+          setError(
+            resolveMainIpcErrorMessage(result, 'common.mainIpc.taskContract.previewFailed'),
+          );
           setPreview(null);
           return;
         }
@@ -48,7 +53,8 @@ export function ArtifactInlinePreview({ artifact, renderedUri }: Props) {
         if (cancelled) {
           return;
         }
-        setError(err instanceof Error ? err.message : String(err));
+        console.error('[ArtifactInlinePreview] preview failed:', err);
+        setError(t('common.mainIpc.taskContract.previewFailed'));
         setPreview(null);
       })
       .finally(() => {
@@ -60,7 +66,7 @@ export function ArtifactInlinePreview({ artifact, renderedUri }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [artifact, renderedUri]);
+  }, [artifact, renderedUri, t]);
 
   const pptxFallbackSlides = useMemo(() => {
     if (!artifact) {

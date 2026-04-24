@@ -13,16 +13,13 @@ import {
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useSessionHistory } from '../../hooks/useSessionHistory';
+import { useI18n } from '../../stores/i18nStore';
 import { useRuntimeEventStore, type RuntimeEventEntry } from '../../stores/runtimeEventStore';
 import { useRuntimeStore } from '../../stores/runtimeStore';
-
-function formatAge(ts: number): string {
-  const diffSeconds = Math.max(0, Math.round((Date.now() - ts * 1000) / 1000));
-  if (diffSeconds < 60) return `${diffSeconds}s ago`;
-  if (diffSeconds < 3600) return `${Math.round(diffSeconds / 60)}m ago`;
-  if (diffSeconds < 86_400) return `${Math.round(diffSeconds / 3600)}h ago`;
-  return `${Math.round(diffSeconds / 86_400)}d ago`;
-}
+import {
+  formatRuntimeRelativeAge,
+  translateRuntimeEventCategory,
+} from './runtimeI18n';
 
 function eventIcon(event: RuntimeEventEntry) {
   if (event.category === 'recovery') return Clock3;
@@ -40,6 +37,7 @@ function severityClasses(severity: RuntimeEventEntry['severity']): string {
 }
 
 export function RuntimeAlertsPanel() {
+  const { t } = useI18n();
   const events = useRuntimeEventStore((s) => s.events);
   const lastUpdatedAt = useRuntimeEventStore((s) => s.lastUpdatedAt);
   const selectRun = useRuntimeStore((s) => s.selectRun);
@@ -58,27 +56,27 @@ export function RuntimeAlertsPanel() {
     <div className="px-3 py-2">
       <div className="flex items-center gap-2 text-[10px] font-semibold text-ds-muted uppercase tracking-wider mb-2">
         <AlertTriangle size={12} />
-        Timeline
+        {t('run.runtime.alerts.title')}
         <span className="ml-auto text-ds-text normal-case text-xs">{events.length}</span>
       </div>
 
       <div className="mb-2 grid grid-cols-3 gap-2 text-[10px]">
         <div className="rounded border border-ds-border bg-ds-bg/70 px-2 py-1.5">
-          <div className="text-ds-muted">Warnings</div>
+          <div className="text-ds-muted">{t('run.runtime.alerts.summary.warnings')}</div>
           <div className="mt-1 font-mono text-ds-text">{summary.warnings}</div>
         </div>
         <div className="rounded border border-ds-border bg-ds-bg/70 px-2 py-1.5">
-          <div className="text-ds-muted">Recovery</div>
+          <div className="text-ds-muted">{t('run.runtime.alerts.summary.recoveries')}</div>
           <div className="mt-1 font-mono text-ds-text">{summary.recoveries}</div>
         </div>
         <div className="rounded border border-ds-border bg-ds-bg/70 px-2 py-1.5">
-          <div className="text-ds-muted">Approvals</div>
+          <div className="text-ds-muted">{t('run.runtime.alerts.summary.approvals')}</div>
           <div className="mt-1 font-mono text-ds-text">{summary.approvals}</div>
         </div>
       </div>
 
       {events.length === 0 ? (
-        <div className="text-xs text-ds-muted">No runtime alerts yet.</div>
+        <div className="text-xs text-ds-muted">{t('run.runtime.alerts.empty')}</div>
       ) : (
         <div className="space-y-2">
           {events.slice(0, 24).map((event) => {
@@ -95,9 +93,11 @@ export function RuntimeAlertsPanel() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] uppercase tracking-wider">
-                        {event.category}
+                        {translateRuntimeEventCategory(event.category, t)}
                       </span>
-                      <span className="text-[10px] opacity-80">{formatAge(event.createdAt)}</span>
+                      <span className="text-[10px] opacity-80">
+                        {formatRuntimeRelativeAge(t, event.createdAt)}
+                      </span>
                     </div>
                     <div className="mt-1 text-xs text-ds-text">{event.message}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-ds-muted">
@@ -122,10 +122,10 @@ export function RuntimeAlertsPanel() {
                           >
                             <ExternalLink size={10} />
                             {openingSessionId === event.sessionId
-                              ? 'Opening...'
+                              ? t('run.runtime.sessions.action.opening')
                               : selectedSession
-                                ? 'Opened'
-                                : 'Open session'}
+                                ? t('run.runtime.sessions.action.opened')
+                                : t('run.runtime.sessions.action.open')}
                           </button>
                         )}
                         {event.runId && (
@@ -134,7 +134,7 @@ export function RuntimeAlertsPanel() {
                             className="inline-flex items-center gap-1 rounded border border-ds-border px-2 py-1 text-[10px] text-ds-muted hover:text-ds-text"
                           >
                             <CheckCircle2 size={10} />
-                            Inspect run
+                            {t('run.runtime.runs.action.inspect')}
                           </button>
                         )}
                       </div>
@@ -149,7 +149,9 @@ export function RuntimeAlertsPanel() {
 
       {lastUpdatedAt && (
         <div className="mt-2 text-[10px] text-ds-muted">
-          Timeline synced {new Date(lastUpdatedAt).toLocaleTimeString()}
+          {t('run.runtime.alerts.synced', {
+            time: new Date(lastUpdatedAt).toLocaleTimeString(),
+          })}
         </div>
       )}
     </div>

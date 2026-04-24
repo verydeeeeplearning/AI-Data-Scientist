@@ -11,6 +11,7 @@ import {
   getEventSchema,
   validateEventPayload,
 } from '../infrastructure/ws/eventSchemaRegistry';
+import { translateKey } from '../stores/i18nStore';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 export type DisconnectReason =
@@ -121,6 +122,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function wsMessage(key: string, vars?: Record<string, string | number>): string {
+  return translateKey(key, vars);
+}
+
 export function useWebSocket(port: number, token?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
@@ -184,7 +189,9 @@ export function useWebSocket(port: number, token?: string) {
             if (msg.ok) {
               pending.resolve(msg.payload ?? {});
             } else {
-              pending.reject(new Error(msg.error?.message ?? 'RPC error'));
+              pending.reject(
+                new Error(msg.error?.message ?? wsMessage('common.webSocket.rpcError')),
+              );
             }
           }
         } else if (msg.type === 'event') {
@@ -240,7 +247,7 @@ export function useWebSocket(port: number, token?: string) {
       if (wsRef.current !== ws) return;
       console.log('[ws] disconnected');
       wsRef.current = null;
-      rejectPending('WebSocket disconnected');
+      rejectPending(wsMessage('common.webSocket.disconnected'));
 
       if (disposedRef.current || manualCloseRef.current) {
         setStatus('disconnected');
@@ -282,7 +289,7 @@ export function useWebSocket(port: number, token?: string) {
     return () => {
       disposedRef.current = true;
       clearTimeout(reconnectTimer.current);
-      rejectPending('WebSocket closed');
+      rejectPending(wsMessage('common.webSocket.closed'));
       if (wsRef.current) {
         manualCloseRef.current = true;
         wsRef.current.close();
@@ -296,7 +303,7 @@ export function useWebSocket(port: number, token?: string) {
       return new Promise((resolve, reject) => {
         const ws = wsRef.current;
         if (!ws || ws.readyState !== WebSocket.OPEN) {
-          reject(new Error('WebSocket not connected'));
+          reject(new Error(wsMessage('common.webSocket.notConnected')));
           return;
         }
 
@@ -307,7 +314,7 @@ export function useWebSocket(port: number, token?: string) {
           if (pendingRef.current.has(id)) {
             clearTimeout(timer);
             pendingRef.current.delete(id);
-            reject(new Error(`RPC timeout: ${method}`));
+            reject(new Error(wsMessage('common.webSocket.timeout', { method })));
           }
         }, 30_000);
 
@@ -317,7 +324,11 @@ export function useWebSocket(port: number, token?: string) {
         } catch (error) {
           clearTimeout(timer);
           pendingRef.current.delete(id);
-          reject(error instanceof Error ? error : new Error('WebSocket send failed'));
+          reject(
+            error instanceof Error
+              ? error
+              : new Error(wsMessage('common.webSocket.sendFailed')),
+          );
         }
       });
     },

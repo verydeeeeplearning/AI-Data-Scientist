@@ -38,6 +38,7 @@ import {
 import { Badge, Button, Card } from '../../design-system/primitives';
 import { useFilesStore, type FileEntry, type FileGroup } from '../../stores/filesStore';
 import { useI18n } from '../../stores/i18nStore';
+import { resolveMainIpcErrorMessage } from '../../utils/mainIpcErrors';
 import { useWs } from '../../hooks/WsProvider';
 import { FilePreviewModal } from './FilePreviewModal';
 
@@ -333,7 +334,11 @@ function FileRow({
           needsPdfRender: staged.needsPdfRender,
         });
         if (!result.canceled && result.error) {
-          window.alert(t('sidebar.exportFailed', { message: result.error }));
+          window.alert(
+            t('sidebar.exportFailed', {
+              message: resolveMainIpcErrorMessage(result, 'common.mainIpc.export.finishFailed'),
+            }),
+          );
         }
       } catch (err) {
         console.error('[FileExplorer] export failed:', err);

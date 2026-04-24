@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useWs } from './WsProvider';
+import { getBackendBase } from '../utils/backendUrl';
 
 export interface ConnectorHealthView {
   system: string;
@@ -33,7 +34,7 @@ export function useIntegrationHealth(): IntegrationHealthState {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/integrations/health');
+      const response = await fetch(`${getBackendBase()}/api/integrations/health`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }

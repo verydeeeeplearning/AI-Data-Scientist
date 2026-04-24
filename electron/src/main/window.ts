@@ -9,6 +9,10 @@ import type { BackendStartResult } from './python-backend';
 
 let mainWindow: BrowserWindow | null = null;
 
+function shouldDisableRendererSandboxForE2E(): boolean {
+  return process.env.DS_AGENT_E2E_DISABLE_CHROMIUM_SANDBOX === '1';
+}
+
 export function createMainWindow(backendPort: number, wsToken: string = ''): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -21,7 +25,7 @@ export function createMainWindow(backendPort: number, wsToken: string = ''): Bro
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: !shouldDisableRendererSandboxForE2E(),
     },
   });
 
@@ -33,6 +37,9 @@ export function createMainWindow(backendPort: number, wsToken: string = ''): Bro
   if (wsToken) query.token = wsToken;
   if (process.env.DS_AGENT_E2E_SKIP_ONBOARDING === '1') {
     query.e2e_skip_onboarding = '1';
+  }
+  if (process.env.DS_AGENT_E2E_FORCE_LEGACY_IA === '1') {
+    query.e2e_force_legacy_ia = '1';
   }
   loadRenderer(mainWindow, query);
 
@@ -55,7 +62,7 @@ export function createDiagnosticWindow(result: Extract<BackendStartResult, { ok:
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: !shouldDisableRendererSandboxForE2E(),
     },
   });
 
@@ -89,6 +96,9 @@ export function navigateMainWindowToBackend(backendPort: number, wsToken: string
   if (wsToken) query.token = wsToken;
   if (process.env.DS_AGENT_E2E_SKIP_ONBOARDING === '1') {
     query.e2e_skip_onboarding = '1';
+  }
+  if (process.env.DS_AGENT_E2E_FORCE_LEGACY_IA === '1') {
+    query.e2e_force_legacy_ia = '1';
   }
   loadRenderer(mainWindow, query);
 }

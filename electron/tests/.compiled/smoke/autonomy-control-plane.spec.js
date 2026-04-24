@@ -89,6 +89,21 @@ async function screenshot(page, targetPath) {
     ensureDir(node_path_1.default.dirname(targetPath));
     await page.screenshot({ path: targetPath, fullPage: true });
 }
+async function clickTestId(page, testId) {
+    const element = page.getByTestId(testId);
+    await element.waitFor({ state: 'visible', timeout: 30000 });
+    await element.evaluate((node) => node.click());
+}
+async function openSeededSession(page) {
+    const testId = `open-session-${SEEDED_SESSION_ID}`;
+    const button = page.getByTestId(testId);
+    await button.waitFor({ state: 'visible', timeout: 30000 });
+    await button.evaluate((node) => node.click());
+    await page.waitForFunction(({ currentTestId }) => {
+        const node = document.querySelector(`[data-testid="${currentTestId}"]`);
+        return Boolean(node?.textContent?.includes('Opened'));
+    }, { currentTestId: testId }, { timeout: 30000 });
+}
 async function run() {
     if (!node_fs_1.default.existsSync(BACKEND_BIN)) {
         throw new Error(`Backend binary not found at ${BACKEND_BIN}. ` +
@@ -107,8 +122,10 @@ async function run() {
             DS_AGENT_SENTRY_DSN: '',
             DS_AGENT_ERROR_REPORTING_ENABLED: '0',
             DS_AGENT_TELEMETRY_ENABLED: '0',
+            DS_AGENT_E2E_USER_DATA_DIR: node_path_1.default.join(paths.rootDir, 'userData'),
             DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
             DS_AGENT_E2E_SKIP_ONBOARDING: '1',
+            DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
         },
         timeout: 60000,
     });
@@ -117,7 +134,7 @@ async function run() {
         page = await app.firstWindow({ timeout: 60000 });
         await page.waitForLoadState('domcontentloaded');
         await page.getByTestId('open-settings').waitFor({ state: 'visible', timeout: 60000 });
-        await page.getByTestId('sidebar-tab-runtime').click();
+        await clickTestId(page, 'sidebar-tab-runtime');
         await page.getByText('Runtime Console').waitFor({ state: 'visible', timeout: 30000 });
         await page.getByTestId('certification-board').waitFor({ state: 'visible', timeout: 30000 });
         await page.getByTestId('runtime-authority-overlay').selectOption('freeze');
@@ -127,7 +144,7 @@ async function run() {
             timeout: 30000,
         });
         await screenshot(page, node_path_1.default.join(artifactsDir, 'runtime-console-freeze.png'));
-        await page.getByTestId(`open-session-${SEEDED_SESSION_ID}`).click();
+        await openSeededSession(page);
         await page.getByTestId('open-settings').click();
         await page.getByTestId('policy-studio').waitFor({ state: 'visible', timeout: 30000 });
         await page.getByTestId('policy-contract-card').waitFor({ state: 'visible', timeout: 30000 });

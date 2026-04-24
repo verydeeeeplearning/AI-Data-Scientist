@@ -7,6 +7,7 @@ const strict_1 = __importDefault(require("node:assert/strict"));
 const mobile_json_1 = __importDefault(require("../../public/locales/en/mobile.json"));
 const mobile_json_2 = __importDefault(require("../../public/locales/ko/mobile.json"));
 const mobile_json_3 = __importDefault(require("../../public/locales/ja/mobile.json"));
+const meta_1 = require("../../src/shared/i18n/meta");
 const i18n_1 = require("../../src/mobile/i18n");
 function createStorage(initialLocale = null) {
     const values = new Map();
@@ -35,8 +36,8 @@ function test(name, fn) {
     tests.push({ name, fn });
 }
 test('mobile locale registry stays bounded to the 3 shared locales', () => {
-    strict_1.default.deepEqual([...i18n_1.MOBILE_SUPPORTED_LNGS], ['ko', 'en', 'ja']);
-    strict_1.default.deepEqual([...i18n_1.MOBILE_I18N_NAMESPACES], ['mobile']);
+    strict_1.default.deepEqual([...i18n_1.MOBILE_SUPPORTED_LNGS], [...meta_1.SHARED_I18N_LOCALES]);
+    strict_1.default.deepEqual([...i18n_1.MOBILE_I18N_NAMESPACES], [...meta_1.MOBILE_I18N_NAMESPACES]);
 });
 test('resolveInitialMobileLocale prefers saved locale over browser language', () => {
     const storage = createStorage('ja');

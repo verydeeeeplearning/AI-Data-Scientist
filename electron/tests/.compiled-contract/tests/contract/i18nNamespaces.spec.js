@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
+const meta_1 = require("../../src/shared/i18n/meta");
 // Resolve repository electron/ root regardless of compiled output depth.
 function findElectronRoot(start) {
     let dir = start;
@@ -22,24 +23,8 @@ function findElectronRoot(start) {
 }
 const ELECTRON_ROOT = findElectronRoot(__dirname);
 const LOCALES_DIR = (0, node_path_1.join)(ELECTRON_ROOT, 'public', 'locales');
-const NAMESPACES = [
-    'common',
-    'area',
-    'mission',
-    'workspace',
-    'execution',
-    'llm',
-    'sidebar',
-    'onboarding',
-    'settings',
-    'approval',
-    'trust',
-    'run',
-    'cards',
-    'chat',
-    'share',
-];
-const LOCALES = ['ko', 'en', 'ja'];
+const NAMESPACES = meta_1.ALL_I18N_NAMESPACES;
+const LOCALES = meta_1.SHARED_I18N_LOCALES;
 function flatten(tree, prefix = '') {
     const out = new Map();
     for (const [k, v] of Object.entries(tree)) {
@@ -60,7 +45,7 @@ function flatten(tree, prefix = '') {
 }
 function loadFlat(lng, ns) {
     const filePath = (0, node_path_1.join)(LOCALES_DIR, lng, `${ns}.json`);
-    const data = JSON.parse((0, node_fs_1.readFileSync)(filePath, 'utf8'));
+    const data = JSON.parse((0, node_fs_1.readFileSync)(filePath, 'utf8').replace(/^\uFEFF/, ''));
     return flatten(data);
 }
 function extractInterpolationVars(template) {
@@ -120,6 +105,16 @@ test('interpolation variables match across locales for every key', () => {
                 for (const v of enVars) {
                     strict_1.default.ok(lngVars.has(v), `[${ns}.${key}] ${lng} missing interpolation var {${v}} present in en`);
                 }
+            }
+        }
+    }
+});
+test('locale values use runtime interpolation syntax (`{var}` only)', () => {
+    for (const ns of NAMESPACES) {
+        for (const lng of LOCALES) {
+            const flat = loadFlat(lng, ns);
+            for (const [key, value] of flat.entries()) {
+                strict_1.default.equal(/\{\{\s*\w+\s*\}\}/.test(value), false, `[${ns}.${key}] ${lng} uses '{{var}}' instead of '{var}'`);
             }
         }
     }
@@ -233,9 +228,9 @@ test('area namespace preserves Wave 2 IA keys', () => {
         }
     }
 });
-test('approval / trust / run / cards / chat / share namespaces exist (placeholder ok)', () => {
+test('approval / trust / run / cards / chat / cmd / share / mobile namespaces exist (placeholder ok)', () => {
     for (const lng of LOCALES) {
-        for (const ns of ['approval', 'trust', 'run', 'cards', 'chat', 'share']) {
+        for (const ns of ['approval', 'trust', 'run', 'cards', 'chat', 'cmd', 'share', 'mobile']) {
             const flat = loadFlat(lng, ns);
             strict_1.default.ok(flat instanceof Map, `${lng}/${ns}.json failed to load`);
         }

@@ -4,6 +4,7 @@
 
 import { Bot, Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import type { ConnectionStatus } from '../../hooks/useWebSocket';
+import { useI18n } from '../../stores/i18nStore';
 
 interface Props {
   status: ConnectionStatus;
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export function SplashScreen({ status, onRetry }: Props) {
+  const { t } = useI18n();
+
   return (
     <div className="fixed inset-0 z-50 bg-ds-bg flex flex-col items-center justify-center">
       {/* Animated logo */}
@@ -31,22 +34,22 @@ export function SplashScreen({ status, onRetry }: Props) {
       </div>
 
       {/* Title */}
-      <h1 className="text-xl font-bold text-ds-text mb-1">DS Agent</h1>
-      <p className="text-xs text-ds-muted mb-6">AI Data Scientist</p>
+      <h1 className="text-xl font-bold text-ds-text mb-1">{t('common.splash.title')}</h1>
+      <p className="text-xs text-ds-muted mb-6">{t('common.splash.subtitle')}</p>
 
       {/* Status */}
       {status === 'connecting' && (
         <div className="flex items-center gap-2 text-sm text-ds-muted">
           <Loader2 size={14} className="animate-spin" />
-          <span>Starting backend...</span>
+          <span>{t('common.splash.starting')}</span>
         </div>
       )}
 
       {status === 'disconnected' && (
         <div className="flex flex-col items-center gap-3">
-          <p className="text-sm text-ds-error">Unable to connect to backend</p>
+          <p className="text-sm text-ds-error">{t('common.splash.disconnected')}</p>
           <p className="text-xs text-ds-muted max-w-xs text-center">
-            Make sure the Python backend is running, or wait for it to start automatically.
+            {t('common.splash.waiting')}
           </p>
           {onRetry && (
             <button
@@ -57,7 +60,7 @@ export function SplashScreen({ status, onRetry }: Props) {
               "
             >
               <RefreshCw size={14} />
-              Retry
+              {t('common.splash.retry')}
             </button>
           )}
         </div>

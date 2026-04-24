@@ -19,6 +19,7 @@ exports.subscriptionToPayload = subscriptionToPayload;
 exports.subscribeToWebPush = subscribeToWebPush;
 exports.unsubscribeFromWebPush = unsubscribeFromWebPush;
 exports.getCurrentSubscription = getCurrentSubscription;
+const mobileError_1 = require("../errors/mobileError");
 /**
  * Detect the current permission state without prompting the user.
  *
@@ -45,11 +46,18 @@ function detectPushPermissionState(globalRef) {
 function base64UrlToUint8Array(base64Url) {
     const trimmed = base64Url.trim();
     if (!trimmed) {
-        throw new Error('VAPID public key is empty');
+        throw (0, mobileError_1.createMobileError)('push_vapid_public_key_empty', 'VAPID public key is empty');
     }
     const padding = '='.repeat((4 - (trimmed.length % 4)) % 4);
     const base64 = (trimmed + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const raw = globalThis.atob(base64);
+    let raw = '';
+    try {
+        raw = globalThis.atob(base64);
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid VAPID public key';
+        throw (0, mobileError_1.createMobileError)('push_invalid_public_key', message);
+    }
     const out = new Uint8Array(raw.length);
     for (let i = 0; i < raw.length; i += 1) {
         out[i] = raw.charCodeAt(i);
@@ -81,7 +89,7 @@ function subscriptionToPayload(subscription) {
     const p256dh = arrayBufferToBase64Url(subscription.getKey('p256dh'));
     const auth = arrayBufferToBase64Url(subscription.getKey('auth'));
     if (!p256dh || !auth) {
-        throw new Error('PushSubscription is missing p256dh or auth key');
+        throw (0, mobileError_1.createMobileError)('push_subscription_invalid', 'PushSubscription is missing p256dh or auth key');
     }
     return {
         endpoint: subscription.endpoint,
@@ -97,10 +105,17 @@ function subscriptionToPayload(subscription) {
  */
 async function subscribeToWebPush(registration, vapidPublicKey) {
     const applicationServerKey = base64UrlToUint8Array(vapidPublicKey);
-    const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey,
-    });
+    let subscription;
+    try {
+        subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
+        });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to register subscription';
+        throw (0, mobileError_1.createMobileError)('push_register_failed', message);
+    }
     return subscriptionToPayload(subscription);
 }
 /**
@@ -108,18 +123,38 @@ async function subscribeToWebPush(registration, vapidPublicKey) {
  * was actually present and the browser confirmed removal.
  */
 async function unsubscribeFromWebPush(registration) {
-    const current = await registration.pushManager.getSubscription();
+    let current;
+    try {
+        current = await registration.pushManager.getSubscription();
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load subscription';
+        throw (0, mobileError_1.createMobileError)('push_unregister_failed', message);
+    }
     if (!current) {
         return false;
     }
-    return current.unsubscribe();
+    try {
+        return await current.unsubscribe();
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to unregister subscription';
+        throw (0, mobileError_1.createMobileError)('push_unregister_failed', message);
+    }
 }
 /**
  * Return the current subscription as the JSON payload, or `null` if the
  * device has never subscribed (or has been revoked).
  */
 async function getCurrentSubscription(registration) {
-    const current = await registration.pushManager.getSubscription();
+    let current;
+    try {
+        current = await registration.pushManager.getSubscription();
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load subscription';
+        throw (0, mobileError_1.createMobileError)('push_register_failed', message);
+    }
     if (!current) {
         return null;
     }

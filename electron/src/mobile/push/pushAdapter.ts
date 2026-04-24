@@ -11,6 +11,8 @@
  * registration that already exists.
  */
 
+import { createMobileError } from '../errors/mobileError';
+
 export type PushPermissionState = 'granted' | 'denied' | 'default' | 'unsupported';
 
 export interface PushSubscriptionPayload {
@@ -76,11 +78,17 @@ export function detectPushPermissionState(
 export function base64UrlToUint8Array(base64Url: string): Uint8Array {
   const trimmed = base64Url.trim();
   if (!trimmed) {
-    throw new Error('VAPID public key is empty');
+    throw createMobileError('push_vapid_public_key_empty', 'VAPID public key is empty');
   }
   const padding = '='.repeat((4 - (trimmed.length % 4)) % 4);
   const base64 = (trimmed + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = globalThis.atob(base64);
+  let raw = '';
+  try {
+    raw = globalThis.atob(base64);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid VAPID public key';
+    throw createMobileError('push_invalid_public_key', message);
+  }
   const out = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i += 1) {
     out[i] = raw.charCodeAt(i);
@@ -116,7 +124,10 @@ export function subscriptionToPayload(
   const p256dh = arrayBufferToBase64Url(subscription.getKey('p256dh'));
   const auth = arrayBufferToBase64Url(subscription.getKey('auth'));
   if (!p256dh || !auth) {
-    throw new Error('PushSubscription is missing p256dh or auth key');
+    throw createMobileError(
+      'push_subscription_invalid',
+      'PushSubscription is missing p256dh or auth key',
+    );
   }
   return {
     endpoint: subscription.endpoint,
@@ -136,10 +147,16 @@ export async function subscribeToWebPush(
   vapidPublicKey: string,
 ): Promise<PushSubscriptionPayload> {
   const applicationServerKey = base64UrlToUint8Array(vapidPublicKey);
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey,
-  });
+  let subscription: MockPushSubscription;
+  try {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to register subscription';
+    throw createMobileError('push_register_failed', message);
+  }
   return subscriptionToPayload(subscription);
 }
 
@@ -150,11 +167,22 @@ export async function subscribeToWebPush(
 export async function unsubscribeFromWebPush(
   registration: PushCapableRegistration,
 ): Promise<boolean> {
-  const current = await registration.pushManager.getSubscription();
+  let current: MockPushSubscription | null;
+  try {
+    current = await registration.pushManager.getSubscription();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load subscription';
+    throw createMobileError('push_unregister_failed', message);
+  }
   if (!current) {
     return false;
   }
-  return current.unsubscribe();
+  try {
+    return await current.unsubscribe();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to unregister subscription';
+    throw createMobileError('push_unregister_failed', message);
+  }
 }
 
 /**
@@ -164,7 +192,13 @@ export async function unsubscribeFromWebPush(
 export async function getCurrentSubscription(
   registration: PushCapableRegistration,
 ): Promise<PushSubscriptionPayload | null> {
-  const current = await registration.pushManager.getSubscription();
+  let current: MockPushSubscription | null;
+  try {
+    current = await registration.pushManager.getSubscription();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load subscription';
+    throw createMobileError('push_register_failed', message);
+  }
   if (!current) {
     return null;
   }

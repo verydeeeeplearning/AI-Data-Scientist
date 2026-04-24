@@ -9,6 +9,7 @@ const WsProvider_1 = require("../../renderer/hooks/WsProvider");
 const workflowStore_1 = require("../../renderer/stores/workflowStore");
 const useAccessRole_1 = require("../../renderer/hooks/useAccessRole");
 const approvalAdapter_1 = require("../approvals/approvalAdapter");
+const mobileError_1 = require("../errors/mobileError");
 const indexedDbOutbox_1 = require("../outbox/indexedDbOutbox");
 function ApprovalsPage() {
     const { t } = (0, react_i18next_1.useTranslation)('mobile');
@@ -17,7 +18,7 @@ function ApprovalsPage() {
     const { isViewer } = (0, useAccessRole_1.useAccessRole)();
     const [busyId, setBusyId] = (0, react_1.useState)(null);
     const [errorId, setErrorId] = (0, react_1.useState)(null);
-    const [errorMessage, setErrorMessage] = (0, react_1.useState)(null);
+    const [errorKey, setErrorKey] = (0, react_1.useState)(null);
     const [pending, setPending] = (0, react_1.useState)(null);
     const [queuedCount, setQueuedCount] = (0, react_1.useState)(0);
     const [queueMessage, setQueueMessage] = (0, react_1.useState)(null);
@@ -43,7 +44,7 @@ function ApprovalsPage() {
     }, []);
     const handleClick = (approval, decision) => {
         setErrorId(null);
-        setErrorMessage(null);
+        setErrorKey(null);
         if (decision === 'rejected' || approval.requiresConfirmation) {
             setPending({ approval, decision });
             return;
@@ -52,22 +53,32 @@ function ApprovalsPage() {
     };
     const runDecision = async (approval, decision) => {
         setBusyId(approval.approvalId);
-        const outcome = await (0, approvalAdapter_1.submitMobileApproval)(rpc, {
-            approvalId: approval.approvalId,
-            decision,
-            response: decision === 'approved' ? approval.defaultResponse : null,
-            actor: 'mobile',
-        });
+        let outcome;
+        try {
+            outcome = await (0, approvalAdapter_1.submitMobileApproval)(rpc, {
+                approvalId: approval.approvalId,
+                decision,
+                response: decision === 'approved' ? approval.defaultResponse : null,
+                actor: 'mobile',
+            });
+        }
+        catch (error) {
+            setBusyId(null);
+            setErrorId(approval.approvalId);
+            setErrorKey((0, mobileError_1.getApprovalErrorKey)((0, mobileError_1.resolveApprovalErrorCode)(error)));
+            return;
+        }
         setBusyId(null);
         if (outcome.queued) {
             setErrorId(null);
-            setErrorMessage(null);
+            setErrorKey(null);
             setQueueMessage(t('approvals.queue.saved'));
             return;
         }
         if (!outcome.ok) {
             setErrorId(approval.approvalId);
-            setErrorMessage(outcome.error ?? 'unknown error');
+            setQueueMessage(null);
+            setErrorKey((0, mobileError_1.getApprovalErrorKey)(outcome.errorCode ?? 'approval_submit_failed'));
             return;
         }
         setQueueMessage(null);
@@ -82,9 +93,9 @@ function ApprovalsPage() {
     const handleCancel = () => {
         setPending(null);
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "flex flex-col gap-3 p-4", children: [(0, jsx_runtime_1.jsx)("h1", { className: "text-lg font-semibold text-ds-text", children: t('nav.approvals') }), (0, jsx_runtime_1.jsx)("p", { className: "text-sm text-ds-muted", children: t('approvals.description') }), isViewer && ((0, jsx_runtime_1.jsxs)("section", { role: "status", className: "rounded-2xl border border-ds-border bg-ds-surface/70 p-4 text-sm text-ds-muted", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center gap-2 text-ds-text", children: [(0, jsx_runtime_1.jsx)(lucide_react_1.ShieldAlert, { size: 16, "aria-hidden": "true" }), (0, jsx_runtime_1.jsx)("span", { className: "font-medium", children: t('approvals.viewer.title') })] }), (0, jsx_runtime_1.jsx)("p", { className: "mt-2", children: t('approvals.viewer.description') })] })), !connected && ((0, jsx_runtime_1.jsx)("section", { role: "status", className: "rounded-2xl border border-ds-border bg-ds-surface/70 p-4 text-sm text-ds-muted", children: t('approvals.connection.waiting') })), (queuedCount > 0 || queueMessage) && ((0, jsx_runtime_1.jsxs)("section", { role: "status", className: "rounded-2xl border border-ds-border bg-ds-surface/70 p-4 text-sm text-ds-muted", children: [(0, jsx_runtime_1.jsx)("div", { className: "font-medium text-ds-text", children: t('approvals.queue.title') }), queuedCount > 0 ? ((0, jsx_runtime_1.jsx)("p", { className: "mt-2", children: t('approvals.queue.count', { count: queuedCount }) })) : null, queueMessage ? (0, jsx_runtime_1.jsx)("p", { className: "mt-2", children: queueMessage }) : null] })), (0, jsx_runtime_1.jsxs)("section", { className: "rounded-2xl border border-ds-border bg-ds-surface/70 p-4", children: [(0, jsx_runtime_1.jsx)("h2", { className: "text-sm font-semibold text-ds-text", children: t('approvals.list.title') }), (0, jsx_runtime_1.jsx)("div", { className: "mt-4 space-y-3", children: views.length === 0 ? ((0, jsx_runtime_1.jsx)("div", { className: "rounded-xl border border-ds-border/70 bg-ds-bg/50 p-3 text-sm text-ds-muted", children: t('approvals.list.empty') })) : (views.map((view) => ((0, jsx_runtime_1.jsx)(ApprovalRow, { view: view, disabled: isViewer || !connected || busyId === view.approvalId, busy: busyId === view.approvalId, error: errorId === view.approvalId ? errorMessage : null, onAct: (decision) => handleClick(view, decision), t: t }, view.approvalId)))) })] }), pending && ((0, jsx_runtime_1.jsx)(ConfirmSheet, { view: pending.approval, decision: pending.decision, onConfirm: () => void handleConfirm(), onCancel: handleCancel }))] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "flex flex-col gap-3 p-4", children: [(0, jsx_runtime_1.jsx)("h1", { className: "text-lg font-semibold text-ds-text", children: t('nav.approvals') }), (0, jsx_runtime_1.jsx)("p", { className: "text-sm text-ds-muted", children: t('approvals.description') }), isViewer && ((0, jsx_runtime_1.jsxs)("section", { role: "status", className: "rounded-2xl border border-ds-border bg-ds-surface/70 p-4 text-sm text-ds-muted", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center gap-2 text-ds-text", children: [(0, jsx_runtime_1.jsx)(lucide_react_1.ShieldAlert, { size: 16, "aria-hidden": "true" }), (0, jsx_runtime_1.jsx)("span", { className: "font-medium", children: t('approvals.viewer.title') })] }), (0, jsx_runtime_1.jsx)("p", { className: "mt-2", children: t('approvals.viewer.description') })] })), !connected && ((0, jsx_runtime_1.jsx)("section", { role: "status", className: "rounded-2xl border border-ds-border bg-ds-surface/70 p-4 text-sm text-ds-muted", children: t('approvals.connection.waiting') })), (queuedCount > 0 || queueMessage) && ((0, jsx_runtime_1.jsxs)("section", { role: "status", className: "rounded-2xl border border-ds-border bg-ds-surface/70 p-4 text-sm text-ds-muted", children: [(0, jsx_runtime_1.jsx)("div", { className: "font-medium text-ds-text", children: t('approvals.queue.title') }), queuedCount > 0 ? ((0, jsx_runtime_1.jsx)("p", { className: "mt-2", children: t('approvals.queue.count', { count: queuedCount }) })) : null, queueMessage ? (0, jsx_runtime_1.jsx)("p", { className: "mt-2", children: queueMessage }) : null] })), (0, jsx_runtime_1.jsxs)("section", { className: "rounded-2xl border border-ds-border bg-ds-surface/70 p-4", children: [(0, jsx_runtime_1.jsx)("h2", { className: "text-sm font-semibold text-ds-text", children: t('approvals.list.title') }), (0, jsx_runtime_1.jsx)("div", { className: "mt-4 space-y-3", children: views.length === 0 ? ((0, jsx_runtime_1.jsx)("div", { className: "rounded-xl border border-ds-border/70 bg-ds-bg/50 p-3 text-sm text-ds-muted", children: t('approvals.list.empty') })) : (views.map((view) => ((0, jsx_runtime_1.jsx)(ApprovalRow, { view: view, disabled: isViewer || !connected || busyId === view.approvalId, busy: busyId === view.approvalId, errorKey: errorId === view.approvalId ? errorKey : null, onAct: (decision) => handleClick(view, decision), t: t }, view.approvalId)))) })] }), pending && ((0, jsx_runtime_1.jsx)(ConfirmSheet, { view: pending.approval, decision: pending.decision, onConfirm: () => void handleConfirm(), onCancel: handleCancel }))] }));
 }
-function ApprovalRow({ view, disabled, busy, error, onAct, t, }) {
+function ApprovalRow({ view, disabled, busy, errorKey, onAct, t, }) {
     return ((0, jsx_runtime_1.jsxs)("article", { className: "rounded-xl border border-ds-border/70 bg-ds-bg/50 p-3", "aria-busy": busy, children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-start justify-between gap-3", children: [(0, jsx_runtime_1.jsxs)("div", { className: "min-w-0", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-sm font-medium text-ds-text", children: view.question }), (0, jsx_runtime_1.jsx)("div", { className: "mt-1 break-all text-[11px] text-ds-muted", children: view.approvalId })] }), view.risk && ((0, jsx_runtime_1.jsx)("span", { className: `shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${view.risk === 'high'
                             ? 'bg-rose-500/10 text-rose-200'
                             : view.risk === 'medium'
@@ -121,7 +132,7 @@ function ApprovalRow({ view, disabled, busy, error, onAct, t, }) {
                             justifyContent: 'center',
                             gap: '6px',
                             cursor: disabled ? 'not-allowed' : 'pointer',
-                        }, children: [(0, jsx_runtime_1.jsx)(lucide_react_1.X, { size: 16, "aria-hidden": "true" }), t('approvals.action.reject')] })] }), error && ((0, jsx_runtime_1.jsxs)("div", { role: "alert", className: "mt-3 text-xs text-rose-300", children: [t('approvals.error.submit'), ": ", error] }))] }));
+                        }, children: [(0, jsx_runtime_1.jsx)(lucide_react_1.X, { size: 16, "aria-hidden": "true" }), t('approvals.action.reject')] })] }), errorKey && ((0, jsx_runtime_1.jsxs)("div", { role: "alert", className: "mt-3 text-xs text-rose-300", children: [t('approvals.error.submit'), ": ", t(errorKey)] }))] }));
 }
 function ConfirmSheet({ view, decision, onConfirm, onCancel, }) {
     const { t } = (0, react_i18next_1.useTranslation)('mobile');

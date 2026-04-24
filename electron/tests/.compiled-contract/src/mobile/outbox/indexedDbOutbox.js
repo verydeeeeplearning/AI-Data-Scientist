@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.indexedDbOutbox = exports.OUTBOX_SYNC_TAG = exports.OUTBOX_CHANGED_EVENT = void 0;
 exports.createIndexedDbOutbox = createIndexedDbOutbox;
 exports.registerOutboxBackgroundSync = registerOutboxBackgroundSync;
+const mobileError_1 = require("../errors/mobileError");
 const DB_NAME = 'ds-agent-outbox';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending';
@@ -12,21 +13,21 @@ exports.OUTBOX_SYNC_TAG = 'ds-agent-outbox-flush';
 function getIndexedDb(factory) {
     const resolved = factory ?? globalThis.indexedDB;
     if (!resolved) {
-        throw new Error('indexedDB is unavailable');
+        throw (0, mobileError_1.createMobileError)('outbox_unavailable', 'indexedDB is unavailable');
     }
     return resolved;
 }
 function requestToPromise(request) {
     return new Promise((resolve, reject) => {
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
+        request.onerror = () => reject((0, mobileError_1.createMobileError)('outbox_request_failed', request.error?.message ?? 'IndexedDB request failed', request.error?.message));
     });
 }
 function transactionDone(transaction) {
     return new Promise((resolve, reject) => {
         transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed'));
-        transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted'));
+        transaction.onerror = () => reject((0, mobileError_1.createMobileError)('outbox_transaction_failed', transaction.error?.message ?? 'IndexedDB transaction failed', transaction.error?.message));
+        transaction.onabort = () => reject((0, mobileError_1.createMobileError)('outbox_transaction_aborted', transaction.error?.message ?? 'IndexedDB transaction aborted', transaction.error?.message));
     });
 }
 function buildId() {
@@ -116,7 +117,7 @@ function createIndexedDbOutbox(factory) {
         },
         async incrementAttemptCount(id) {
             if (!id.trim()) {
-                throw new Error('id is required');
+                throw (0, mobileError_1.createMobileError)('outbox_id_required', 'id is required');
             }
             const db = await openDatabase(factory);
             const transaction = db.transaction(STORE_NAME, 'readwrite');

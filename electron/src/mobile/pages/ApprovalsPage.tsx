@@ -11,7 +11,12 @@ import {
   toMobileApprovalView,
   type ApprovalDecision,
   type MobileApprovalView,
+  type SubmitApprovalResult,
 } from '../approvals/approvalAdapter';
+import {
+  getApprovalErrorKey,
+  resolveApprovalErrorCode,
+} from '../errors/mobileError';
 import { OUTBOX_CHANGED_EVENT } from '../outbox/indexedDbOutbox';
 
 interface PendingDecision {
@@ -27,7 +32,7 @@ export function ApprovalsPage(): ReactElement {
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingDecision | null>(null);
   const [queuedCount, setQueuedCount] = useState(0);
   const [queueMessage, setQueueMessage] = useState<string | null>(null);
@@ -63,7 +68,7 @@ export function ApprovalsPage(): ReactElement {
 
   const handleClick = (approval: MobileApprovalView, decision: ApprovalDecision): void => {
     setErrorId(null);
-    setErrorMessage(null);
+    setErrorKey(null);
     if (decision === 'rejected' || approval.requiresConfirmation) {
       setPending({ approval, decision });
       return;
@@ -76,22 +81,31 @@ export function ApprovalsPage(): ReactElement {
     decision: ApprovalDecision,
   ): Promise<void> => {
     setBusyId(approval.approvalId);
-    const outcome = await submitMobileApproval(rpc, {
-      approvalId: approval.approvalId,
-      decision,
-      response: decision === 'approved' ? approval.defaultResponse : null,
-      actor: 'mobile',
-    });
+    let outcome: SubmitApprovalResult;
+    try {
+      outcome = await submitMobileApproval(rpc, {
+        approvalId: approval.approvalId,
+        decision,
+        response: decision === 'approved' ? approval.defaultResponse : null,
+        actor: 'mobile',
+      });
+    } catch (error) {
+      setBusyId(null);
+      setErrorId(approval.approvalId);
+      setErrorKey(getApprovalErrorKey(resolveApprovalErrorCode(error)));
+      return;
+    }
     setBusyId(null);
     if (outcome.queued) {
       setErrorId(null);
-      setErrorMessage(null);
+      setErrorKey(null);
       setQueueMessage(t('approvals.queue.saved'));
       return;
     }
     if (!outcome.ok) {
       setErrorId(approval.approvalId);
-      setErrorMessage(outcome.error ?? 'unknown error');
+      setQueueMessage(null);
+      setErrorKey(getApprovalErrorKey(outcome.errorCode ?? 'approval_submit_failed'));
       return;
     }
     setQueueMessage(null);
@@ -162,7 +176,7 @@ export function ApprovalsPage(): ReactElement {
                 view={view}
                 disabled={isViewer || !connected || busyId === view.approvalId}
                 busy={busyId === view.approvalId}
-                error={errorId === view.approvalId ? errorMessage : null}
+                errorKey={errorId === view.approvalId ? errorKey : null}
                 onAct={(decision) => handleClick(view, decision)}
                 t={t}
               />
@@ -187,7 +201,7 @@ interface ApprovalRowProps {
   readonly view: MobileApprovalView;
   readonly disabled: boolean;
   readonly busy: boolean;
-  readonly error: string | null;
+  readonly errorKey: string | null;
   readonly onAct: (decision: ApprovalDecision) => void;
   readonly t: (key: string) => string;
 }
@@ -196,7 +210,7 @@ function ApprovalRow({
   view,
   disabled,
   busy,
-  error,
+  errorKey,
   onAct,
   t,
 }: ApprovalRowProps): ReactElement {
@@ -291,9 +305,9 @@ function ApprovalRow({
         </button>
       </div>
 
-      {error && (
+      {errorKey && (
         <div role="alert" className="mt-3 text-xs text-rose-300">
-          {t('approvals.error.submit')}: {error}
+          {t('approvals.error.submit')}: {t(errorKey)}
         </div>
       )}
     </article>

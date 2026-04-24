@@ -1,5 +1,9 @@
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import {
+  DESKTOP_I18N_NAMESPACES,
+  SHARED_I18N_LOCALES,
+} from '../shared/i18n/meta';
 
 import koCommon from '../../public/locales/ko/common.json';
 import koArea from '../../public/locales/ko/area.json';
@@ -52,27 +56,10 @@ import jaChat from '../../public/locales/ja/chat.json';
 import jaCmd from '../../public/locales/ja/cmd.json';
 import jaShare from '../../public/locales/ja/share.json';
 
-export const SUPPORTED_LNGS = ['ko', 'en', 'ja'] as const;
+export const SUPPORTED_LNGS = SHARED_I18N_LOCALES;
 export type SupportedLng = (typeof SUPPORTED_LNGS)[number];
 
-export const I18N_NAMESPACES = [
-  'common',
-  'area',
-  'mission',
-  'workspace',
-  'execution',
-  'llm',
-  'sidebar',
-  'onboarding',
-  'settings',
-  'approval',
-  'trust',
-  'run',
-  'cards',
-  'chat',
-  'cmd',
-  'share',
-] as const;
+export const I18N_NAMESPACES = DESKTOP_I18N_NAMESPACES;
 export type I18nNamespace = (typeof I18N_NAMESPACES)[number];
 
 export const I18N_LANGUAGE_KEY = 'i18nextLng';
