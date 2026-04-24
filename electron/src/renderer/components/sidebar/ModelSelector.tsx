@@ -119,7 +119,7 @@ export function ModelSelector({ onChangeModel, onChangeQualityPreset, groups }: 
         aria-controls={panelId}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="w-full justify-between rounded-ds-lg px-ds-3 py-ds-3 text-left"
+        className="w-full justify-between !rounded-ds-xl px-ds-3 py-ds-3 text-left"
         onClick={() => setOpen(!open)}
       >
         <div className="flex items-start justify-between gap-2">
