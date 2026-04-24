@@ -5568,31 +5568,6 @@ class AppState:
     def create_project(self, name: str, task_type: str | None = None) -> str:
         return self._workspace.create_project(name, task_type)
 
-    @staticmethod
-    def _import_tools() -> None:
-        """Import tool modules to trigger self-registration."""
-        import importlib
-
-        for module_name in [
-            "ds_agent.tools.code_execution",
-            "ds_agent.tools.data_loader",
-            "ds_agent.tools.data_profiler",
-            "ds_agent.tools.deployment",
-            "ds_agent.tools.eda",
-            "ds_agent.tools.evaluation",
-            "ds_agent.tools.feature_eng",
-            "ds_agent.tools.file_ops",
-            "ds_agent.tools.memory_tools",
-            "ds_agent.tools.modeling",
-            "ds_agent.tools.reporting",
-            "ds_agent.tools.schema_tools",
-            "ds_agent.tools.skill_tools",
-            "ds_agent.tools.sql_tools",
-            "ds_agent.tools.user_interaction",
-            "ds_agent.tools.web_search",
-        ]:
-            importlib.import_module(module_name)
-
 
 def _apply_review_sampling_metadata(run, review_sampling):
     metadata = dict(run.metadata)

@@ -17,7 +17,7 @@ from ds_agent.domain.entities.delivery_pack import (
     NarrativeBlocks,
     NarrativeVerification,
 )
-from ds_agent.infrastructure.artifact.pptx_exporter import PptxExporter
+from ds_agent.infrastructure.exporters.pptx_exporter import PptxExporter
 
 
 def test_pptx_exporter_creates_slides_and_footer(tmp_path: Path) -> None:

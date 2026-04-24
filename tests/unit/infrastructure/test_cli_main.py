@@ -8,7 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from rich.console import Console
 
-from ds_agent.cli.main import _create_provider, _import_tools, _print_banner, _print_status_line
+from ds_agent.agent.factory import import_all_tools
+from ds_agent.cli.main import _create_provider, _print_banner, _print_status_line
 from ds_agent.config.schema import DSAgentConfig, OAuthConfig, ProviderConfig
 
 
@@ -394,8 +395,8 @@ class TestMain:
 
 class TestImportTools:
     def test_import_tools_no_crash(self):
-        """_import_tools should import all tool modules without error."""
-        _import_tools()
+        """import_all_tools should import all tool modules without error."""
+        import_all_tools()
 
 
 class TestInteractiveLoop:

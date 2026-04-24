@@ -156,33 +156,6 @@ async def _run_agent_turn(
         context["tool_calls"] = summary.get("iterations_used", 0)
 
 
-def _import_tools() -> None:
-    """Import all tool modules to trigger self-registration."""
-    import importlib
-
-    for module_name in [
-        "ds_agent.tools.code_execution",
-        "ds_agent.tools.data_loader",
-        "ds_agent.tools.data_profiler",
-        "ds_agent.tools.deployment",
-        "ds_agent.tools.eda",
-        "ds_agent.tools.evaluation",
-        "ds_agent.tools.feature_eng",
-        "ds_agent.tools.file_ops",
-        "ds_agent.tools.memory_tools",
-        "ds_agent.tools.modeling",
-        "ds_agent.tools.reporting",
-        "ds_agent.tools.schema_tools",
-        "ds_agent.tools.skill_tools",
-        "ds_agent.tools.sql_tools",
-        "ds_agent.tools.user_interaction",
-        "ds_agent.tools.web_search",
-        "ds_agent.tools.portfolio_tools",
-        "ds_agent.tools.learning_tools",
-    ]:
-        importlib.import_module(module_name)
-
-
 def _create_provider(
     model: str,
     config: DSAgentConfig | None = None,

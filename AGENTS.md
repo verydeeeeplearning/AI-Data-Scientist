@@ -78,7 +78,7 @@ src/ds_agent/
 │   ├── code_security.py — Regex + AST code scanner (30+ blocked patterns)
 │   ├── path_utils.py    — Workspace boundary validation (is_relative_to)
 │   ├── data_loader.py, data_profiler.py, eda.py, feature_eng.py, modeling.py,
-│   │   evaluation.py, reporting.py, deployment.py, sampling_utils.py
+│   │   evaluation.py, reporting.py, deployment.py
 │   ├── ab_test_tools.py, drift_tools.py, schema_tools.py, sql_tools.py,
 │   │   sql_result_summarizer.py, integration_tools.py, governance_tools.py,
 │   │   distributed_tools.py, artifact_tools.py

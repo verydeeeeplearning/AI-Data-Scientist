@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 
 from ds_agent.application.services.artifact_generator import ArtifactGenerator
-from ds_agent.application.services.audience_adapter import AudienceAdapter
 from ds_agent.domain.value_objects.artifact import ArtifactSpec, ArtifactType
 from ds_agent.infrastructure.artifact.dashboard_engine import DashboardSpecEngine
 from ds_agent.infrastructure.artifact.notebook_engine import NotebookEngine
@@ -68,22 +67,6 @@ class TestDashboardEngine:
         assert '"name": "revenue"' in json_spec
         assert "metrics:" in yaml_spec
         assert "name: revenue" in yaml_spec
-
-
-class TestAudienceAdapter:
-    def test_adapts_for_executive_and_slack(self):
-        adapter = AudienceAdapter()
-        content = {
-            "summary": "Churn risk increased in SMB customers.",
-            "key_findings": ["SMB churn rose 4%", "Price sensitivity is the main driver"],
-            "recommendations": ["Offer retention credit"],
-            "next_steps": ["Measure response in two weeks"],
-        }
-
-        executive = adapter.adapt(content, "executive")
-        slack = adapter.adapt(content, "slack")
-        assert "## So What" in executive
-        assert slack.count("\n") <= 3
 
 
 class TestExternalClientPayloads:

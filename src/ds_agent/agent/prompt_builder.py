@@ -52,11 +52,6 @@ class PromptSection:
         return max(1, len(self.content) // 4)
 
 
-# ---------------------------------------------------------------------------
-# Legacy constant kept for backward-compat in tests that import it directly.
-# ---------------------------------------------------------------------------
-DEFAULT_SYSTEM_PROMPT = CORE_IDENTITY + "\n\n" + QUALITY_PRINCIPLES
-
 _STAGE_RULES: dict[AnalysisStage, tuple[str, ...]] = {
     AnalysisStage.SCOPING: (
         (

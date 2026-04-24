@@ -20,7 +20,7 @@ from ds_agent.domain.entities.delivery_pack import (
     DeliveryTemplate,
     NarrativeVerification,
 )
-from ds_agent.infrastructure.artifact.pptx_exporter import PptxExporter
+from ds_agent.infrastructure.exporters.pptx_exporter import PptxExporter
 
 
 class FakeGenerator:

@@ -21,11 +21,11 @@ from ds_agent.domain.entities.delivery_pack import (
 from ds_agent.domain.value_objects.artifact import ArtifactSpec, ArtifactType
 from ds_agent.infrastructure.artifact.dashboard_engine import DashboardSpecEngine
 from ds_agent.infrastructure.artifact.notebook_engine import NotebookEngine
-from ds_agent.infrastructure.artifact.pptx_exporter import PptxExporter
 from ds_agent.infrastructure.artifact.stakeholder_exporters import (
     default_stakeholder_exporters,
 )
 from ds_agent.infrastructure.artifact.template_registry import StaticTemplateRegistry
+from ds_agent.infrastructure.exporters.pptx_exporter import PptxExporter
 from ds_agent.tools.registry import tool
 
 

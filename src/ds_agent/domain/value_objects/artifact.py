@@ -25,12 +25,3 @@ class ArtifactSpec:
     format: str = "markdown"
     content_sections: list[str] = field(default_factory=list)
     metadata: dict[str, object] = field(default_factory=dict)
-
-
-@dataclass(frozen=True, slots=True)
-class AudienceProfile:
-    """Audience-specific rendering preferences."""
-
-    role: str
-    technical_level: str = "medium"
-    preferred_format: str = "markdown"
