@@ -1,25 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useWorkObjects } from '../../hooks/useWorkObjects';
+import { useI18n } from '../../stores/i18nStore';
 import type { WorkObjectPhase } from '../../types/workObject';
 import {
   canAdvance,
   canClose,
   filterWorkObjectItems,
   formatExternalReferenceLabel,
-  formatWorkObjectPhaseLabel,
   getPendingPolicyActionCount,
   nextPhase,
 } from './workObjectPanelModel';
 
-const PHASE_OPTIONS: Array<{ value: WorkObjectPhase | 'all'; label: string }> = [
-  { value: 'all', label: 'All phases' },
-  { value: 'intake', label: 'Intake' },
-  { value: 'executing', label: 'Executing' },
-  { value: 'review', label: 'Review' },
-  { value: 'documenting', label: 'Documenting' },
-  { value: 'followup', label: 'Follow-up' },
-  { value: 'closed', label: 'Closed' },
-  { value: 'failed', label: 'Failed' },
+type TranslateFn = (
+  key: string,
+  vars?: Record<string, string | number | undefined | null>,
+) => string;
+
+const PHASE_OPTIONS: Array<WorkObjectPhase | 'all'> = [
+  'all',
+  'intake',
+  'executing',
+  'review',
+  'documenting',
+  'followup',
+  'closed',
+  'failed',
 ];
 
 const PHASE_BADGES: Record<WorkObjectPhase, string> = {
@@ -33,6 +38,7 @@ const PHASE_BADGES: Record<WorkObjectPhase, string> = {
 };
 
 export function WorkObjectPanel() {
+  const { t } = useI18n();
   const [phaseFilter, setPhaseFilter] = useState<WorkObjectPhase | 'all'>('all');
   const [searchText, setSearchText] = useState('');
   const [selectedWorkObjectId, setSelectedWorkObjectId] = useState<string | null>(null);
@@ -71,23 +77,34 @@ export function WorkObjectPanel() {
     () => filterWorkObjectItems(items, searchText),
     [items, searchText],
   );
+  const nextDetailPhase = detail
+    ? nextPhase(detail.work_object.execution.current_phase)
+    : null;
 
   useEffect(() => {
     if (filteredItems.length === 0) {
       setSelectedWorkObjectId(null);
       return;
     }
-    if (!selectedWorkObjectId || !filteredItems.some((item) => item.work_object_id === selectedWorkObjectId)) {
+    if (
+      !selectedWorkObjectId
+      || !filteredItems.some((item) => item.work_object_id === selectedWorkObjectId)
+    ) {
       setSelectedWorkObjectId(filteredItems[0].work_object_id);
     }
   }, [filteredItems, selectedWorkObjectId]);
 
   if (!sessionId) {
     return (
-      <section className="mx-3 rounded-2xl border border-ds-border bg-ds-bg px-4 py-3">
-        <h3 className="text-sm font-semibold text-ds-text">Work Objects</h3>
+      <section
+        className="mx-3 rounded-2xl border border-ds-border bg-ds-bg px-4 py-3"
+        data-testid="work-object-panel"
+      >
+        <h3 className="text-sm font-semibold text-ds-text">
+          {t('workspace.workflow.workObject.title')}
+        </h3>
         <p className="mt-2 text-xs leading-5 text-ds-muted">
-          Start a chat turn first. Workflow-linked work objects appear here for the active session.
+          {t('workspace.workflow.workObject.noSession')}
         </p>
       </section>
     );
@@ -100,14 +117,18 @@ export function WorkObjectPanel() {
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-ds-text">Work Objects</h3>
-          <p className="mt-1 text-[11px] text-ds-muted">Session: {sessionId}</p>
+          <h3 className="text-sm font-semibold text-ds-text">
+            {t('workspace.workflow.workObject.title')}
+          </h3>
+          <p className="mt-1 text-[11px] text-ds-muted">
+            {t('workspace.workflow.workObject.session', { sessionId })}
+          </p>
         </div>
         <button
           onClick={() => void refresh()}
           className="rounded-lg border border-ds-border px-3 py-1.5 text-[11px] text-ds-muted hover:border-ds-accent hover:text-ds-text"
         >
-          Refresh
+          {t('workspace.workflow.workObject.refresh')}
         </button>
       </div>
 
@@ -116,27 +137,31 @@ export function WorkObjectPanel() {
           <input
             value={searchText}
             onChange={(event) => setSearchText(event.target.value)}
-            placeholder="Search work object or task id"
+            placeholder={t('workspace.workflow.workObject.searchPlaceholder')}
             data-testid="work-object-search"
             className="min-w-0 rounded-xl border border-ds-border bg-ds-surface px-3 py-2 text-xs text-ds-text"
           />
           <select
             value={phaseFilter}
             onChange={(event) => setPhaseFilter(event.target.value as WorkObjectPhase | 'all')}
-            aria-label="Filter work objects by phase"
+            aria-label={t('workspace.workflow.workObject.phaseFilterAria')}
             data-testid="work-object-phase-filter"
             className="rounded-xl border border-ds-border bg-ds-surface px-3 py-2 text-xs text-ds-text"
           >
             {PHASE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+              <option key={option} value={option}>
+                {t(`workspace.workflow.workObject.phase.${option}`)}
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      {loading && <p className="mt-3 text-xs text-ds-muted">Loading work objects...</p>}
+      {loading && (
+        <p className="mt-3 text-xs text-ds-muted">
+          {t('workspace.workflow.workObject.loading')}
+        </p>
+      )}
 
       {error && (
         <div className="mt-3 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
@@ -146,7 +171,7 @@ export function WorkObjectPanel() {
 
       {!loading && filteredItems.length === 0 && !error && (
         <p className="mt-3 text-xs leading-5 text-ds-muted">
-          No workflow-linked work objects for this session yet.
+          {t('workspace.workflow.workObject.empty')}
         </p>
       )}
 
@@ -170,12 +195,16 @@ export function WorkObjectPanel() {
                   <span
                     className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${PHASE_BADGES[item.phase]}`}
                   >
-                    {formatWorkObjectPhaseLabel(item.phase)}
+                    {t(`workspace.workflow.workObject.phase.${item.phase}`)}
                   </span>
                 </div>
                 <p className="mt-2 text-sm font-medium text-ds-text">{item.title}</p>
                 <p className="mt-1 text-[11px] text-ds-muted">
-                  {item.task_contract_id} | refs {item.reference_count} | follow-up {item.follow_up_count}
+                  {t('workspace.workflow.workObject.itemMeta', {
+                    taskId: item.task_contract_id,
+                    referenceCount: item.reference_count,
+                    followUpCount: item.follow_up_count,
+                  })}
                 </p>
               </button>
             ))}
@@ -183,7 +212,7 @@ export function WorkObjectPanel() {
 
           {detailLoading && (
             <div className="rounded-2xl border border-ds-border bg-ds-surface px-4 py-3 text-xs text-ds-muted">
-              Loading selected work object...
+              {t('workspace.workflow.workObject.detailLoading')}
             </div>
           )}
 
@@ -202,13 +231,16 @@ export function WorkObjectPanel() {
                 <div>
                   <p className="text-sm font-semibold text-ds-text">{detail.work_object.title}</p>
                   <p className="mt-1 text-[11px] text-ds-muted">
-                    {detail.work_object.work_object_id} | task {detail.work_object.execution.task_contract_id}
+                    {t('workspace.workflow.workObject.detailTask', {
+                      workObjectId: detail.work_object.work_object_id,
+                      taskId: detail.work_object.execution.task_contract_id,
+                    })}
                   </p>
                 </div>
                 <span
                   className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${PHASE_BADGES[detail.work_object.execution.current_phase]}`}
                 >
-                  {formatWorkObjectPhaseLabel(detail.work_object.execution.current_phase)}
+                  {t(`workspace.workflow.workObject.phase.${detail.work_object.execution.current_phase}`)}
                 </span>
               </div>
 
@@ -224,42 +256,53 @@ export function WorkObjectPanel() {
               )}
 
               <div className="mt-3 flex items-center gap-2" data-testid="work-object-actions">
-                {canAdvance(detail.work_object.execution.current_phase) && (
+                {canAdvance(detail.work_object.execution.current_phase) && nextDetailPhase && (
                   <button
                     disabled={actionBusy}
                     onClick={() => {
-                      const next = nextPhase(detail.work_object.execution.current_phase);
-                      if (!next) return;
                       void runAction(async () => {
-                        await advance(detail.work_object.work_object_id, next);
-                        setActionNotice(`Advanced to ${formatWorkObjectPhaseLabel(next)}.`);
+                        await advance(detail.work_object.work_object_id, nextDetailPhase);
+                        setActionNotice(
+                          t('workspace.workflow.workObject.action.advanced', {
+                            phase: t(`workspace.workflow.workObject.phase.${nextDetailPhase}`),
+                          }),
+                        );
                       });
                     }}
                     data-testid="work-object-advance-btn"
                     className="rounded-lg border border-ds-accent bg-ds-accent/10 px-3 py-1.5 text-[11px] font-medium text-ds-accent hover:bg-ds-accent/20 disabled:opacity-40"
                   >
-                    {actionBusy ? 'Processing...' : `Advance to ${formatWorkObjectPhaseLabel(nextPhase(detail.work_object.execution.current_phase)!)}`}
+                    {actionBusy
+                      ? t('workspace.workflow.workObject.action.processing')
+                      : t('workspace.workflow.workObject.action.advanceTo', {
+                        phase: t(`workspace.workflow.workObject.phase.${nextDetailPhase}`),
+                      })}
                   </button>
                 )}
                 {canClose(detail.work_object.execution.current_phase) && (
                   <button
                     disabled={actionBusy}
-                    onClick={() => { setShowCloseModal(true); setCloseReason(''); }}
+                    onClick={() => {
+                      setShowCloseModal(true);
+                      setCloseReason('');
+                    }}
                     data-testid="work-object-close-btn"
                     className="rounded-lg border border-ds-border px-3 py-1.5 text-[11px] text-ds-muted hover:border-rose-500/50 hover:text-rose-300 disabled:opacity-40"
                   >
-                    Close
+                    {t('workspace.workflow.workObject.action.close')}
                   </button>
                 )}
               </div>
 
               {showCloseModal && (
                 <div className="mt-2 rounded-xl border border-ds-border bg-ds-bg/80 px-3 py-3">
-                  <p className="text-xs font-medium text-ds-text">Close reason</p>
+                  <p className="text-xs font-medium text-ds-text">
+                    {t('workspace.workflow.workObject.closeReason')}
+                  </p>
                   <input
                     value={closeReason}
-                    onChange={(e) => setCloseReason(e.target.value)}
-                    placeholder="Enter close reason..."
+                    onChange={(event) => setCloseReason(event.target.value)}
+                    placeholder={t('workspace.workflow.workObject.closePlaceholder')}
                     data-testid="work-object-close-reason"
                     className="mt-2 w-full rounded-lg border border-ds-border bg-ds-surface px-3 py-2 text-xs text-ds-text"
                   />
@@ -268,21 +311,21 @@ export function WorkObjectPanel() {
                       disabled={actionBusy || !closeReason.trim()}
                       onClick={() => {
                         void runAction(async () => {
-                          await close(detail!.work_object.work_object_id, closeReason.trim());
+                          await close(detail.work_object.work_object_id, closeReason.trim());
                           setShowCloseModal(false);
-                          setActionNotice('Work object closed.');
+                          setActionNotice(t('workspace.workflow.workObject.action.closed'));
                         });
                       }}
                       data-testid="work-object-close-confirm"
                       className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-[11px] text-rose-300 hover:bg-rose-500/20 disabled:opacity-40"
                     >
-                      Confirm Close
+                      {t('workspace.workflow.workObject.action.confirmClose')}
                     </button>
                     <button
                       onClick={() => setShowCloseModal(false)}
                       className="rounded-lg border border-ds-border px-3 py-1.5 text-[11px] text-ds-muted hover:text-ds-text"
                     >
-                      Cancel
+                      {t('workspace.workflow.workObject.action.cancel')}
                     </button>
                   </div>
                 </div>
@@ -290,13 +333,31 @@ export function WorkObjectPanel() {
 
               <div className="mt-3 grid gap-2 text-xs text-ds-muted">
                 <div>
-                  Request: {detail.work_object.request.source} by {detail.work_object.request.requestor_display}
-                  {detail.work_object.request.channel ? ` in ${detail.work_object.request.channel}` : ''}
+                  {detail.work_object.request.channel
+                    ? t('workspace.workflow.workObject.requestWithChannel', {
+                      source: detail.work_object.request.source,
+                      requestor: detail.work_object.request.requestor_display,
+                      channel: detail.work_object.request.channel,
+                    })
+                    : t('workspace.workflow.workObject.requestWithoutChannel', {
+                      source: detail.work_object.request.source,
+                      requestor: detail.work_object.request.requestor_display,
+                    })}
                 </div>
-                <div>Runs: {detail.work_object.execution.run_ids.join(', ') || '-'}</div>
-                <div>Tags: {detail.work_object.tags.join(', ') || '-'}</div>
                 <div>
-                  Pending policy actions: {getPendingPolicyActionCount(detail.work_object.metadata)}
+                  {t('workspace.workflow.workObject.runs', {
+                    value: detail.work_object.execution.run_ids.join(', ') || '-',
+                  })}
+                </div>
+                <div>
+                  {t('workspace.workflow.workObject.tags', {
+                    value: detail.work_object.tags.join(', ') || '-',
+                  })}
+                </div>
+                <div>
+                  {t('workspace.workflow.workObject.pendingPolicyActions', {
+                    count: getPendingPolicyActionCount(detail.work_object.metadata),
+                  })}
                 </div>
                 <div className="rounded-xl border border-ds-border bg-ds-bg/60 px-3 py-2 leading-5">
                   {detail.work_object.request.original_text}
@@ -305,9 +366,13 @@ export function WorkObjectPanel() {
 
               <div className="mt-4 space-y-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-ds-muted">Documentation</p>
+                  <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+                    {t('workspace.workflow.workObject.documentation')}
+                  </p>
                   {detail.work_object.documentation.references.length === 0 ? (
-                    <p className="mt-2 text-xs text-ds-muted">No external documentation references yet.</p>
+                    <p className="mt-2 text-xs text-ds-muted">
+                      {t('workspace.workflow.workObject.noDocumentation')}
+                    </p>
                   ) : (
                     <div className="mt-2 space-y-2">
                       {detail.work_object.documentation.references.map((reference) => (
@@ -323,9 +388,13 @@ export function WorkObjectPanel() {
                 </div>
 
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-ds-muted">Follow-up</p>
+                  <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+                    {t('workspace.workflow.workObject.followUp')}
+                  </p>
                   {detail.work_object.follow_up.actions.length === 0 ? (
-                    <p className="mt-2 text-xs text-ds-muted">No follow-up actions recorded yet.</p>
+                    <p className="mt-2 text-xs text-ds-muted">
+                      {t('workspace.workflow.workObject.noFollowUp')}
+                    </p>
                   ) : (
                     <div className="mt-2 space-y-2">
                       {detail.work_object.follow_up.actions.map((action) => (
@@ -335,7 +404,9 @@ export function WorkObjectPanel() {
                         >
                           <div className="text-ds-text">{action.description}</div>
                           <div className="mt-1">
-                            {action.action_type} | {action.status} | {formatExternalReferenceLabel(action.external_ref)}
+                            {translateFollowUpActionType(action.action_type, t)} |{' '}
+                            {translateFollowUpStatus(action.status, t)} |{' '}
+                            {formatExternalReferenceLabel(action.external_ref)}
                           </div>
                         </div>
                       ))}
@@ -344,9 +415,13 @@ export function WorkObjectPanel() {
                 </div>
 
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-ds-muted">Timeline</p>
+                  <p className="text-[11px] uppercase tracking-wide text-ds-muted">
+                    {t('workspace.workflow.workObject.timeline')}
+                  </p>
                   {detail.timeline.length === 0 ? (
-                    <p className="mt-2 text-xs text-ds-muted">No integration events recorded yet.</p>
+                    <p className="mt-2 text-xs text-ds-muted">
+                      {t('workspace.workflow.workObject.noTimeline')}
+                    </p>
                   ) : (
                     <div className="mt-2 space-y-2" data-testid="work-object-timeline">
                       {detail.timeline.map((event) => (
@@ -356,7 +431,7 @@ export function WorkObjectPanel() {
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-ds-text">{event.system}.{event.action}</span>
-                            <span>{event.status}</span>
+                            <span>{translateTimelineStatus(event.status, t)}</span>
                           </div>
                           <div className="mt-1">
                             {new Date(event.started_at).toLocaleString()} | {formatExternalReferenceLabel(event.external_ref)}
@@ -374,4 +449,37 @@ export function WorkObjectPanel() {
       )}
     </section>
   );
+}
+
+function translateFollowUpActionType(value: string, t: TranslateFn): string {
+  const keyByActionType: Record<string, string> = {
+    ticket: 'workspace.workflow.workObject.followUp.actionType.ticket',
+    calendar: 'workspace.workflow.workObject.followUp.actionType.calendar',
+    message: 'workspace.workflow.workObject.followUp.actionType.message',
+    dashboard_update: 'workspace.workflow.workObject.followUp.actionType.dashboardUpdate',
+  };
+  const key = keyByActionType[value];
+  return key ? t(key) : value;
+}
+
+function translateFollowUpStatus(value: string, t: TranslateFn): string {
+  const keyByStatus: Record<string, string> = {
+    pending: 'workspace.workflow.workObject.followUp.status.pending',
+    completed: 'workspace.workflow.workObject.followUp.status.completed',
+    cancelled: 'workspace.workflow.workObject.followUp.status.cancelled',
+  };
+  const key = keyByStatus[value];
+  return key ? t(key) : value;
+}
+
+function translateTimelineStatus(value: string, t: TranslateFn): string {
+  const keyByStatus: Record<string, string> = {
+    pending: 'workspace.workflow.workObject.timeline.status.pending',
+    success: 'workspace.workflow.workObject.timeline.status.success',
+    failed: 'workspace.workflow.workObject.timeline.status.failed',
+    dlq: 'workspace.workflow.workObject.timeline.status.dlq',
+    duplicate: 'workspace.workflow.workObject.timeline.status.duplicate',
+  };
+  const key = keyByStatus[value];
+  return key ? t(key) : value;
 }

@@ -23,6 +23,38 @@ let pythonProcess: ChildProcess | null = null;
 let intentionalStop = false;
 let currentBackendConnection: { port: number; token: string } | null = null;
 
+// EPIPE on the Electron main process's own stdout/stderr (e.g. when a parent
+// runner like Playwright closes the host pipe mid-test) must not bubble up as
+// an uncaughtException — that pops the "JavaScript error in main process"
+// dialog and tears the app down. Attach a swallow-only error listener once.
+const swallowEpipe = (err: NodeJS.ErrnoException): void => {
+  if (err && err.code !== 'EPIPE') {
+    throw err;
+  }
+};
+process.stdout.on('error', swallowEpipe);
+process.stderr.on('error', swallowEpipe);
+
+function safeConsoleLog(message: string): void {
+  try {
+    console.log(message);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== 'EPIPE') {
+      throw err;
+    }
+  }
+}
+
+function safeConsoleError(message: string): void {
+  try {
+    console.error(message);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== 'EPIPE') {
+      throw err;
+    }
+  }
+}
+
 const MAX_RESTARTS = 3;
 const STARTUP_TIMEOUT_MS = 30_000;
 const DEFAULT_PORT = 18790;
@@ -298,7 +330,7 @@ async function spawnBackend(
       spawnEnv.DS_AGENT_WS_TOKEN = options.wsToken;
     }
 
-    console.log(`[backend] Starting: ${commandSpec.command} ${args.join(' ')}`);
+    safeConsoleLog(`[backend] Starting: ${commandSpec.command} ${args.join(' ')}`);
     recordDiagnosticLog('info', 'backend', 'Starting backend process.', {
       command: commandSpec.command,
       args,
@@ -340,7 +372,7 @@ async function spawnBackend(
     child.stdout?.on('data', (data: Buffer) => {
       const output = data.toString();
       const sanitizedOutput = sanitizeText(output.trim());
-      console.log(`[backend:stdout] ${sanitizedOutput}`);
+      safeConsoleLog(`[backend:stdout] ${sanitizedOutput}`);
       if (sanitizedOutput) {
         recordDiagnosticLog('info', 'backend:stdout', sanitizedOutput);
       }
@@ -364,7 +396,7 @@ async function spawnBackend(
         return;
       }
       stderrChunks.push(chunk);
-      console.error(`[backend:stderr] ${chunk}`);
+      safeConsoleError(`[backend:stderr] ${chunk}`);
       recordDiagnosticLog('error', 'backend:stderr', chunk);
     });
 
@@ -383,7 +415,7 @@ async function spawnBackend(
     });
 
     child.on('exit', (code) => {
-      console.log(`[backend] Process exited with code ${code}`);
+      safeConsoleLog(`[backend] Process exited with code ${code}`);
       recordDiagnosticLog('warn', 'backend', 'Backend process exited.', {
         code,
         intentionalStop,
@@ -536,7 +568,7 @@ function sanitizeText(value: string): string {
 export function stopPythonBackend(): void {
   intentionalStop = true;
   if (pythonProcess) {
-    console.log('[backend] Stopping Python backend...');
+    safeConsoleLog('[backend] Stopping Python backend...');
     recordDiagnosticLog('info', 'backend', 'Stopping Python backend.');
     pythonProcess.kill();
     pythonProcess = null;
