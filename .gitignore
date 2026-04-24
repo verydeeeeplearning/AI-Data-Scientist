@@ -193,8 +193,7 @@ openclaw/
 #  Loose root-level images & scratch files
 # ─────────────────────────────────────────────────────────────
 /image.png
-/image\ copy.png
-/image\ copy\ 2.png
+/image\ copy*.png
 /probe_*.py
 
 # ─────────────────────────────────────────────────────────────
