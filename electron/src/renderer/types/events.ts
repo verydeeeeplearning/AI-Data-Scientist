@@ -217,6 +217,12 @@ export interface StreamDoneEvent {
   cards?: ResultCardPayload[];
 }
 
+export interface StreamErrorEvent {
+  message?: string;
+  code?: string;
+  messageId?: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Approval events
 // ---------------------------------------------------------------------------
@@ -313,6 +319,7 @@ export interface EventPayloadMap {
   'plan.replanned': PlanReplannedEvent;
   'reasoning.emitted': ReasoningEmittedEvent;
   'stream.done': StreamDoneEvent;
+  'stream.error': StreamErrorEvent;
   'card.created': CardLifecycleEvent;
   'card.updated': CardLifecycleEvent;
   'card.pinned': CardLifecycleEvent;

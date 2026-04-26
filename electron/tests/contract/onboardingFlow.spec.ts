@@ -12,9 +12,9 @@ import {
 function run(): void {
   assert.deepEqual(
     ONBOARDING_PRIMARY_STEPS.map((entry) => entry.id),
-    ['use_case', 'data', 'deliverables', 'mode', 'model', 'confirm'],
+    ['use_case', 'data', 'deliverables', 'mode', 'model', 'notify', 'confirm'],
   );
-  assert.equal(ONBOARDING_PRIMARY_STEPS.length, 6);
+  assert.equal(ONBOARDING_PRIMARY_STEPS.length, 7);
 
   const reportingDefaults = deriveUseCaseDefaults('reporting');
   assert.deepEqual(reportingDefaults.deliverables, ['report', 'presentation']);

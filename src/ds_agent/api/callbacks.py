@@ -128,6 +128,21 @@ class WsAgentCallbacks:
             payload["cards"] = cards
         await self._emit("stream.done", payload)
 
+    async def emit_stream_error(
+        self,
+        message: str,
+        *,
+        code: str | None = None,
+        message_id: str | None = None,
+    ) -> None:
+        """Emit a terminal stream.error event after a failed agent turn."""
+        payload: dict[str, object] = {"message": message}
+        if code:
+            payload["code"] = code
+        if message_id:
+            payload["messageId"] = message_id
+        await self._emit("stream.error", payload)
+
     async def emit_file_created(self, path: str, file_type: str, size: int) -> None:
         """Emit file.created event when agent produces an artifact."""
         await self._emit("file.created", {"path": path, "type": file_type, "size": size})

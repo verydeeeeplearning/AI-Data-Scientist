@@ -1,10 +1,12 @@
 import { useState } from 'react';
 
 import { useConfigStore } from '../../stores/configStore';
+import { useI18n } from '../../stores/i18nStore';
 import { useUsageStore } from '../../stores/usageStore';
 import type { RpcFn } from './types';
 
 export function CostSettings({ rpc }: { rpc: RpcFn }) {
+  const { t } = useI18n();
   const {
     maxBudgetUsd,
     budgetWarningThresholdPct,
@@ -42,9 +44,11 @@ export function CostSettings({ rpc }: { rpc: RpcFn }) {
       <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-medium text-ds-text">Monthly AI Budget</div>
+            <div className="text-xs font-medium text-ds-text">
+              {t('settings.cost.monthlyBudget.title')}
+            </div>
             <div className="text-[11px] text-ds-muted">
-              Track monthly spend, cache savings, and block new analyses when the limit is reached.
+              {t('settings.cost.monthlyBudget.description')}
             </div>
           </div>
           <div className="text-right">
@@ -52,7 +56,9 @@ export function CostSettings({ rpc }: { rpc: RpcFn }) {
               ${summary?.monthlyCostUsd.toFixed(2) ?? '0.00'}
             </div>
             <div className="text-[11px] text-ds-muted">
-              {summary?.monthlyBudgetUsd == null ? 'Unlimited' : `$${summary.monthlyBudgetUsd.toFixed(0)} limit`}
+              {summary?.monthlyBudgetUsd == null
+                ? t('settings.cost.unlimited')
+                : t('settings.cost.limit', { value: summary.monthlyBudgetUsd.toFixed(0) })}
             </div>
           </div>
         </div>
@@ -64,7 +70,7 @@ export function CostSettings({ rpc }: { rpc: RpcFn }) {
             value={maxBudgetUsd}
             min={0}
             step={1}
-            aria-label="Maximum budget in USD"
+            aria-label={t('settings.cost.maxBudgetAria')}
             onChange={(event) => setMaxBudget(parseFloat(event.target.value) || 0)}
             onBlur={(event) => {
               const value = parseFloat(event.target.value) || 0;
@@ -72,15 +78,15 @@ export function CostSettings({ rpc }: { rpc: RpcFn }) {
             }}
             className="w-28 rounded border border-ds-border bg-ds-surface px-3 py-1.5 text-xs font-mono text-ds-text focus:border-ds-accent focus:outline-none"
           />
-          <span className="text-xs text-ds-muted">0 = unlimited</span>
-          {saving && <span className="text-[11px] text-ds-muted">Saving…</span>}
+          <span className="text-xs text-ds-muted">{t('settings.cost.unlimitedHint')}</span>
+          {saving && <span className="text-[11px] text-ds-muted">{t('settings.cost.saving')}</span>}
         </div>
 
         <div className="mt-3 flex items-center gap-2">
-          <span className="text-xs text-ds-muted">Warn at</span>
+          <span className="text-xs text-ds-muted">{t('settings.cost.warnAt')}</span>
           <select
             value={budgetWarningThresholdPct}
-            aria-label="Budget warning threshold percentage"
+            aria-label={t('settings.cost.warningThresholdAria')}
             onChange={(event) => {
               const value = Number(event.target.value) || 80;
               setBudgetWarningThresholdPct(value);
@@ -90,11 +96,11 @@ export function CostSettings({ rpc }: { rpc: RpcFn }) {
           >
             {[60, 80, 90].map((value) => (
               <option key={value} value={value}>
-                {value}%{value === 60 ? ' (Recommended)' : ''}
+                {value}%{value === 60 ? ` (${t('settings.cost.recommended')})` : ''}
               </option>
             ))}
           </select>
-          <span className="text-xs text-ds-muted">100% always blocks new analyses</span>
+          <span className="text-xs text-ds-muted">{t('settings.cost.blockHint')}</span>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -104,7 +110,9 @@ export function CostSettings({ rpc }: { rpc: RpcFn }) {
               onClick={() => void applyPreset(value)}
               className="rounded-full border border-ds-border bg-ds-surface px-3 py-1 text-[11px] text-ds-text transition-colors hover:border-ds-accent/50"
             >
-              {value === 0 ? 'Unlimited' : `$${value}/month`}
+              {value === 0
+                ? t('settings.cost.unlimited')
+                : t('settings.cost.presetMonthly', { value })}
             </button>
           ))}
         </div>
@@ -112,27 +120,29 @@ export function CostSettings({ rpc }: { rpc: RpcFn }) {
 
       {summary && (
         <div className="grid gap-3 md:grid-cols-3">
-          <StatCard label="This Month" value={`$${summary.monthlyCostUsd.toFixed(2)}`} />
-          <StatCard label="Today" value={`$${summary.todayCostUsd.toFixed(2)}`} />
-          <StatCard label="Current Session" value={`$${summary.sessionCostUsd.toFixed(2)}`} />
+          <StatCard label={t('settings.cost.stat.thisMonth')} value={`$${summary.monthlyCostUsd.toFixed(2)}`} />
+          <StatCard label={t('settings.cost.stat.today')} value={`$${summary.todayCostUsd.toFixed(2)}`} />
+          <StatCard label={t('settings.cost.stat.currentSession')} value={`$${summary.sessionCostUsd.toFixed(2)}`} />
         </div>
       )}
 
       {summary && summary.cacheSavingsUsd > 0 && (
         <div className="rounded-lg border border-ds-success/30 bg-ds-success/10 px-3 py-2 text-[11px] text-ds-success">
-          Prompt caching saved ${summary.cacheSavingsUsd.toFixed(2)} this month.
+          {t('settings.cost.cacheSavings', { value: summary.cacheSavingsUsd.toFixed(2) })}
         </div>
       )}
 
       {summary && summary.byModel.length > 0 && (
         <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
-          <div className="text-xs font-medium text-ds-text">Cost by Model</div>
+          <div className="text-xs font-medium text-ds-text">{t('settings.cost.byModel')}</div>
           <div className="mt-2 space-y-2">
             {summary.byModel.slice(0, 4).map((item) => (
               <div key={item.model} className="flex items-center justify-between gap-3 text-[11px]">
                 <div className="min-w-0">
                   <div className="truncate text-ds-text">{item.model}</div>
-                  <div className="text-ds-muted">{item.runCount} runs</div>
+                  <div className="text-ds-muted">
+                    {t('settings.cost.runCount', { count: item.runCount })}
+                  </div>
                 </div>
                 <div className="font-mono text-ds-text">${item.costUsd.toFixed(2)}</div>
               </div>

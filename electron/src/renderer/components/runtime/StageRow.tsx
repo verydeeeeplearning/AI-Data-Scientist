@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 import { prefersReducedMotion } from '../../application/a11y/reducedMotion';
+import { localizeOutcomeSummary } from '../../application/runtime/localizeOutcomeSummary';
 import type { Stage, StageStatus } from '../../domain/execution/stage';
 import { useI18n } from '../../stores/i18nStore';
 import { RawToolLog } from './RawToolLog';
@@ -70,6 +71,9 @@ export function StageRow({
   const stageLabel = t(`execution.stage.${stage.key}`) || stage.label;
   const statusLabel = t(`execution.status.${stage.status}`) || stage.status;
   const toggleLabel = expanded ? t('execution.row.collapse') : t('execution.row.expand');
+  const outcomeSummary = stage.outcome?.summary
+    ? localizeOutcomeSummary(t, stage.outcome.summary)
+    : null;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -99,8 +103,8 @@ export function StageRow({
               {statusLabel}
             </span>
           </div>
-          {stage.outcome?.summary && (
-            <div className="mt-1 text-[11px] text-ds-muted">{stage.outcome.summary}</div>
+          {outcomeSummary && (
+            <div className="mt-1 text-[11px] text-ds-muted">{outcomeSummary}</div>
           )}
           {(stage.status === 'completed' || stage.status === 'failed') && (
             <StageOutcomeLink

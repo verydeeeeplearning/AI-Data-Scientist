@@ -82,24 +82,24 @@ function resolveFileCommandTarget(
 
   if (PLOT_FILE_EXTENSIONS.has(normalizedType)) {
     return {
-      path: '/artifacts/workspace/charts',
-      surfaceLabel: 'Open in Workspace Charts',
-      searchTerms: ['chart', 'plot', 'gallery', 'workspace'],
+      path: '/artifacts/files',
+      surfaceLabel: 'Open in Artifacts Files',
+      searchTerms: ['chart', 'plot', 'gallery', 'artifacts', 'files'],
     };
   }
 
   if (TABLE_FILE_EXTENSIONS.has(normalizedType)) {
     return {
-      path: '/artifacts/workspace/tables',
-      surfaceLabel: 'Open in Workspace Tables',
-      searchTerms: ['table', 'dataset', 'metrics', 'workspace'],
+      path: '/artifacts/files',
+      surfaceLabel: 'Open in Artifacts Files',
+      searchTerms: ['table', 'dataset', 'metrics', 'artifacts', 'files'],
     };
   }
 
   return {
-    path: '/artifacts/workspace/files',
-    surfaceLabel: 'Open in Workspace Files',
-    searchTerms: ['file', 'artifact', 'workspace'],
+    path: '/artifacts/files',
+    surfaceLabel: 'Open in Artifacts Files',
+    searchTerms: ['file', 'artifact', 'artifacts', 'files'],
   };
 }
 
@@ -141,8 +141,8 @@ function buildNavigationCommands(
       category: 'navigation',
       title: 'Evidence Workspace',
       subtitle: 'Open the workspace evidence hub',
-      searchTerms: ['workspace', 'evidence', 'artifacts', '/artifacts/workspace'],
-      execute: () => navigate('/artifacts/workspace'),
+      searchTerms: ['workspace', 'evidence', 'artifacts', '/artifacts/workspace', '/artifacts/workspace/overview'],
+      execute: () => navigate('/artifacts/workspace/overview'),
     },
     {
       id: 'nav:artifacts:experiments',

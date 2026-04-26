@@ -159,6 +159,12 @@ interface MissionContextUpdatedPayload {
   };
 }
 
+interface StreamErrorEvent {
+  message?: string;
+  code?: string;
+  messageId?: string | null;
+}
+
 registerEventSchema<MissionContextUpdatedPayload>({
   type: 'mission.context.updated',
   version: '1.0',
@@ -202,6 +208,23 @@ registerEventSchema<StreamDoneEvent>({
     }
 
     return true;
+  },
+});
+
+registerEventSchema<StreamErrorEvent>({
+  type: 'stream.error',
+  version: '1.0',
+  validate(p): p is StreamErrorEvent {
+    if (!isRecord(p)) {
+      return false;
+    }
+    if (p.message !== undefined && typeof p.message !== 'string') {
+      return false;
+    }
+    if (p.code !== undefined && typeof p.code !== 'string') {
+      return false;
+    }
+    return p.messageId === undefined || p.messageId === null || isNonEmptyString(p.messageId);
   },
 });
 

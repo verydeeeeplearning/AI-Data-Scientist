@@ -10,10 +10,10 @@ function run() {
     strict_1.default.deepEqual(policyStudioCatalog_1.POLICY_STUDIO_PRESETS.map((preset) => preset.id), ['delegate-peer', 'executive-review', 'audit-guard', 'mentor-walkthrough']);
     strict_1.default.deepEqual(policyStudioCatalog_1.POLICY_STUDIO_PRESETS.find((preset) => preset.id === 'executive-review'), {
         id: 'executive-review',
-        label: 'Executive Review',
+        label: 'settings.policyStudio.preset.executiveReview.label',
         authority: 'supervised',
         audience: 'executive',
-        summary: 'Keep approvals in the loop and shape the output as an executive brief.',
+        summary: 'settings.policyStudio.preset.executiveReview.summary',
     });
     const exact = (0, policyStudioCatalog_1.buildLegacyModeMigrationPreview)('supervised');
     strict_1.default.equal(exact.legacyMode, 'supervised');

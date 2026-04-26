@@ -126,7 +126,9 @@ class TelegramPlugin(BaseChannelPlugin):
 
         from_user = getattr(msg, "from_user", None)
         sender_id = str(from_user.id) if from_user else ""
-        if self._allow_from and sender_id not in self._allow_from:
+        text = str(getattr(msg, "text", "") or "")
+        is_pairing_message = text.strip().lower().startswith("/pair ")
+        if self._allow_from and sender_id not in self._allow_from and not is_pairing_message:
             return
 
         inbound = InboundMessage(

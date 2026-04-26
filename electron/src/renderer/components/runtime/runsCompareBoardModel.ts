@@ -1,5 +1,3 @@
-import type { RuntimeRunEntry } from '../../stores/runtimeStore';
-
 export type RunCompareSortKey =
   | 'newest'
   | 'oldest'
@@ -13,12 +11,29 @@ export interface RunCompareScorecardSummary {
   readonly toolCallCount?: number | null;
 }
 
+export interface RunCompareEntry {
+  readonly runId: string;
+  readonly sessionId: string;
+  readonly sessionLabel?: string | null;
+  readonly threadLabel?: string | null;
+  readonly surface: string;
+  readonly status: string;
+  readonly message: string;
+  readonly taskId?: string | null;
+  readonly error?: string | null;
+  readonly resultPreview?: string | null;
+  readonly costUsd: number;
+  readonly createdAt: number;
+  readonly startedAt: number;
+  readonly finishedAt?: number | null;
+}
+
 export interface RunCompareFilters {
   readonly minCostUsd: number | null;
   readonly maxWeightedScore: number | null;
 }
 
-function runTimestamp(run: RuntimeRunEntry): number {
+function runTimestamp(run: RunCompareEntry): number {
   return run.startedAt || run.createdAt;
 }
 
@@ -40,10 +55,10 @@ export function parseCompareThreshold(value: string): number | null {
 }
 
 export function sortRunsForComparison(
-  runs: readonly RuntimeRunEntry[],
+  runs: readonly RunCompareEntry[],
   sortKey: RunCompareSortKey,
   scorecardsByRunId: ReadonlyMap<string, RunCompareScorecardSummary | null>,
-): RuntimeRunEntry[] {
+): RunCompareEntry[] {
   const scored = [...runs];
 
   scored.sort((left, right) => {
@@ -86,10 +101,10 @@ export function sortRunsForComparison(
 }
 
 export function filterRunsForComparison(
-  runs: readonly RuntimeRunEntry[],
+  runs: readonly RunCompareEntry[],
   filters: RunCompareFilters,
   scorecardsByRunId: ReadonlyMap<string, RunCompareScorecardSummary | null>,
-): RuntimeRunEntry[] {
+): RunCompareEntry[] {
   return runs.filter((run) => {
     if (filters.minCostUsd !== null && run.costUsd <= filters.minCostUsd) {
       return false;
@@ -109,12 +124,18 @@ export function filterRunsForComparison(
 }
 
 export function formatRunCompareOption(
-  run: RuntimeRunEntry,
+  run: RunCompareEntry,
   scorecardsByRunId: ReadonlyMap<string, RunCompareScorecardSummary | null>,
+  labels?: {
+    readonly score?: string;
+    readonly scoreUnavailable?: string;
+  },
 ): string {
   const sessionLabel = run.sessionLabel || run.sessionId;
   const timestamp = new Date((run.finishedAt ?? run.startedAt ?? run.createdAt) * 1000);
   const weightedScore = getRunWeightedScore(run.runId, scorecardsByRunId);
-  const scorePart = weightedScore === null ? 'score n/a' : `score ${weightedScore.toFixed(3)}`;
+  const scorePart = weightedScore === null
+    ? (labels?.scoreUnavailable ?? 'score n/a')
+    : `${labels?.score ?? 'score'} ${weightedScore.toFixed(3)}`;
   return `${run.runId} | ${run.status} | ${sessionLabel} | ${scorePart} | $${run.costUsd.toFixed(4)} | ${timestamp.toLocaleString()}`;
 }

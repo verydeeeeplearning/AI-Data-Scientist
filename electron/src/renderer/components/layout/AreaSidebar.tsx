@@ -2,8 +2,6 @@ import {
   Archive,
   Bot,
   Brain,
-  ChevronDown,
-  ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
   Play,
@@ -17,6 +15,7 @@ import { prefersReducedMotion, subscribeReducedMotion } from '../../application/
 import {
   ADMIN_SECTION_DESCRIPTORS,
   AREA_DESCRIPTORS,
+  isLegacyV3AreaId,
   type AreaId,
   type AreaSelection,
 } from '../../domain/navigation/area';
@@ -46,17 +45,10 @@ export function AreaSidebar({ selection, onNavigate }: Props) {
   const navRef = useRef<HTMLElement | null>(null);
   const shouldFocusActiveItemRef = useRef(false);
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => prefersReducedMotion());
-  const [adminExpanded, setAdminExpanded] = useState(selection.areaId === 'admin');
   const sidebarWidth = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
   const toggleLabel = collapsed ? t('sidebar.toggle.expand') : t('sidebar.toggle.collapse');
 
   useEffect(() => subscribeReducedMotion(setReducedMotion, { emitInitial: true }), []);
-
-  useEffect(() => {
-    if (selection.areaId === 'admin') {
-      setAdminExpanded(true);
-    }
-  }, [selection.areaId]);
 
   useEffect(() => {
     announce(collapsed ? t('sidebar.announce.collapsed') : t('sidebar.announce.expanded'));
@@ -84,16 +76,12 @@ export function AreaSidebar({ selection, onNavigate }: Props) {
   useKeyboardShortcut('ctrl+\\', handleToggleSidebar);
   useKeyboardShortcut('meta+\\', handleToggleSidebar);
 
-  useKeyboardShortcut('ctrl+1', () => onNavigate('/mission'));
-  useKeyboardShortcut('meta+1', () => onNavigate('/mission'));
+  useKeyboardShortcut('ctrl+1', () => onNavigate('/artifacts/files'));
+  useKeyboardShortcut('meta+1', () => onNavigate('/artifacts/files'));
   useKeyboardShortcut('ctrl+2', () => onNavigate('/runs'));
   useKeyboardShortcut('meta+2', () => onNavigate('/runs'));
-  useKeyboardShortcut('ctrl+3', () => onNavigate('/artifacts/files'));
-  useKeyboardShortcut('meta+3', () => onNavigate('/artifacts/files'));
-  useKeyboardShortcut('ctrl+4', () => onNavigate('/governance/review'));
-  useKeyboardShortcut('meta+4', () => onNavigate('/governance/review'));
-  useKeyboardShortcut('ctrl+5', () => onNavigate('/memory/learning'));
-  useKeyboardShortcut('meta+5', () => onNavigate('/memory/learning'));
+  useKeyboardShortcut('ctrl+3', () => onNavigate('/governance/review'));
+  useKeyboardShortcut('meta+3', () => onNavigate('/governance/review'));
   useKeyboardShortcut('ctrl+,', () => onNavigate('/admin/settings'));
   useKeyboardShortcut('meta+,', () => onNavigate('/admin/settings'));
 
@@ -135,7 +123,7 @@ export function AreaSidebar({ selection, onNavigate }: Props) {
               <>
                 <span className="truncate text-sm font-semibold text-ds-text">DS Agent</span>
                 <span className="rounded bg-ds-bg px-1.5 py-0.5 text-[10px] text-ds-muted">
-                  IA v2
+                  IA v3
                 </span>
               </>
             )}
@@ -156,36 +144,31 @@ export function AreaSidebar({ selection, onNavigate }: Props) {
       <div className="flex-1 overflow-y-auto px-2 py-2">
         <div className="space-y-1">
           {AREA_DESCRIPTORS.map((descriptor) => {
+            // v3 hides Mission and Memory — they're folded into the
+            // MissionContextBar (top strip) and Admin > Memory respectively.
+            if (isLegacyV3AreaId(descriptor.id)) {
+              return null;
+            }
             const Icon = AREA_ICONS[descriptor.id];
             const isAdmin = descriptor.id === 'admin';
             const isActive = selection.areaId === descriptor.id;
+            // v3 visually separates the admin "ring" from the primary triad.
+            const showDivider = isAdmin;
             return (
               <div key={descriptor.id}>
+                {showDivider && (
+                  <div className="my-2 border-t border-ds-border" aria-hidden />
+                )}
                 <SidebarItem
                   icon={Icon}
                   label={t(descriptor.labelKey)}
                   active={isActive}
                   collapsed={collapsed}
-                  onClick={() => {
-                    if (isAdmin && !collapsed) {
-                      setAdminExpanded((value) => !value);
-                    }
-                    onNavigate(descriptor.defaultPath);
-                  }}
+                  onClick={() => onNavigate(descriptor.defaultPath)}
                   dataTestId={`area-nav-${descriptor.id}`}
                 />
                 {!collapsed && isAdmin && (
-                  <div className="mt-1">
-                    <button
-                      type="button"
-                      onClick={() => setAdminExpanded((value) => !value)}
-                      className="ml-8 flex items-center gap-1 rounded px-2 py-1 text-[10px] uppercase tracking-wider text-ds-muted hover:bg-ds-bg hover:text-ds-text"
-                    >
-                      {adminExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                      {t('area.admin.sections')}
-                    </button>
-                    {adminExpanded && <div className="mt-1 space-y-1">{adminSectionButtons}</div>}
-                  </div>
+                  <div className="mt-1 space-y-1">{adminSectionButtons}</div>
                 )}
               </div>
             );

@@ -2,8 +2,9 @@
  * Synchronizes project list/create surfaces with backend project RPCs.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useProjectStore, type ProjectEntry } from '../stores/projectStore';
+import { useVisiblePolling } from './useVisiblePolling';
 
 type RpcFn = (
   method: string,
@@ -56,6 +57,7 @@ export function useProjects(rpc: RpcFn, connected: boolean) {
   const setLoading = useProjectStore((s) => s.setLoading);
   const selectProject = useProjectStore((s) => s.selectProject);
   const resetProjects = useProjectStore((s) => s.resetProjects);
+  const refreshGenerationRef = useRef(0);
 
   const refreshProjects = useCallback(async () => {
     setLoading(true);
@@ -75,30 +77,28 @@ export function useProjects(rpc: RpcFn, connected: boolean) {
   }, [rpc, selectProject, setLoading, setProjects]);
 
   useEffect(() => {
+    refreshGenerationRef.current += 1;
     if (!connected) {
       resetProjects();
-      return;
     }
 
-    let cancelled = false;
-    const guardedRefresh = async () => {
-      try {
-        await refreshProjects();
-      } catch (err) {
-        if (!cancelled) {
-          console.warn('[useProjects] refresh failed:', err);
-        }
-      }
-    };
-
-    void guardedRefresh();
-    const timer = window.setInterval(() => {
-      void guardedRefresh();
-    }, 15_000);
-
     return () => {
-      cancelled = true;
-      window.clearInterval(timer);
+      refreshGenerationRef.current += 1;
     };
   }, [connected, refreshProjects, resetProjects]);
+
+  const guardedRefresh = useCallback(async () => {
+    const generation = refreshGenerationRef.current;
+    try {
+      await refreshProjects();
+    } catch (err) {
+      if (refreshGenerationRef.current === generation) {
+        console.warn('[useProjects] refresh failed:', err);
+      }
+    }
+  }, [refreshProjects]);
+
+  useVisiblePolling(() => {
+    void guardedRefresh();
+  }, { intervalMs: 15_000, enabled: connected });
 }

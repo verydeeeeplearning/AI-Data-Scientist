@@ -11,10 +11,7 @@ import {
 import type { FileEntry, PlotEntry } from './filesStore';
 
 export const EVIDENCE_WORKSPACE_TABS = [
-  'summary',
-  'tables',
-  'charts',
-  'files',
+  'overview',
   'export',
 ] as const;
 
@@ -410,32 +407,11 @@ export function buildWorkspaceReadModel(
     exportCandidateCount,
     sections: [
       buildSection(
-        'summary',
-        'Summary',
+        'overview',
+        'Overview',
         'Workspace readiness, pinned evidence projection, and artifact coverage.',
         pinnedProjection.count + (hasArtifacts ? 1 : 0),
         hasArtifacts || pinnedProjection.count > 0,
-      ),
-      buildSection(
-        'tables',
-        'Tables',
-        'Structured datasets and metric tables discoverable from current artifacts.',
-        tableFiles.length,
-        tableFiles.length > 0,
-      ),
-      buildSection(
-        'charts',
-        'Charts',
-        'Plot gallery surface backed by locally available chart artifacts.',
-        snapshot.plots.length,
-        snapshot.plots.length > 0,
-      ),
-      buildSection(
-        'files',
-        'Files',
-        'Workspace file system view for uploaded and generated evidence.',
-        nonPlotFiles.length,
-        nonPlotFiles.length > 0,
       ),
       buildSection(
         'export',
@@ -458,7 +434,7 @@ export function buildWorkspaceReadModel(
 const INITIAL_READ_MODEL = buildWorkspaceReadModel(EMPTY_SNAPSHOT, EMPTY_PINNED_SNAPSHOT);
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
-  activeTab: 'summary',
+  activeTab: 'overview',
   audienceView: loadAudienceView(),
   pinnedSnapshot: EMPTY_PINNED_SNAPSHOT,
   artifactSnapshot: EMPTY_SNAPSHOT,
@@ -508,7 +484,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   reset: () =>
     set({
-      activeTab: 'summary',
+      activeTab: 'overview',
       audienceView: loadAudienceView(),
       pinnedSnapshot: EMPTY_PINNED_SNAPSHOT,
       artifactSnapshot: EMPTY_SNAPSHOT,

@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Download, Loader2, X } from 'lucide-react';
 import {
   AUDIENCE_VIEW_IDS,
@@ -161,9 +162,9 @@ export function ExportWizardModal({
     }
   };
 
-  return (
+  const modal = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
       onKeyDown={handleKeyDown}
     >
       <div
@@ -273,6 +274,12 @@ export function ExportWizardModal({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modal;
+  }
+
+  return createPortal(modal, document.body);
 }
 
 function CandidatePicker({

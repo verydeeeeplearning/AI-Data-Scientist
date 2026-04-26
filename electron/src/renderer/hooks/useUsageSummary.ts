@@ -1,6 +1,7 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { useWs } from './WsProvider';
+import { useVisiblePolling } from './useVisiblePolling';
 import { useChatStore } from '../stores/chatStore';
 import { useConfigStore } from '../stores/configStore';
 import { useUsageStore, type UsageSummary } from '../stores/usageStore';
@@ -32,6 +33,7 @@ export function useUsageSummary(connected: boolean) {
   const resetUsage = useUsageStore((s) => s.resetUsage);
   const setMaxBudget = useConfigStore((s) => s.setMaxBudget);
   const setBudgetWarningThresholdPct = useConfigStore((s) => s.setBudgetWarningThresholdPct);
+  const refreshGenerationRef = useRef(0);
 
   const refreshUsage = useCallback(async () => {
     setLoading(true);
@@ -47,26 +49,36 @@ export function useUsageSummary(connected: boolean) {
   }, [rpc, sessionId, setBudgetWarningThresholdPct, setLoading, setMaxBudget, setSummary]);
 
   useEffect(() => {
+    refreshGenerationRef.current += 1;
     if (!connected) {
       resetUsage();
+    }
+
+    return () => {
+      refreshGenerationRef.current += 1;
+    };
+  }, [connected, refreshUsage, resetUsage]);
+
+  const guardedRefresh = useCallback(async () => {
+    const generation = refreshGenerationRef.current;
+    try {
+      await refreshUsage();
+    } catch (error) {
+      if (refreshGenerationRef.current === generation) {
+        console.warn('[useUsageSummary] refresh failed:', error);
+      }
+    }
+  }, [refreshUsage]);
+
+  useVisiblePolling(() => {
+    void guardedRefresh();
+  }, { intervalMs: 15_000, enabled: connected });
+
+  useEffect(() => {
+    if (!connected) {
       return;
     }
 
-    let cancelled = false;
-    const guardedRefresh = async () => {
-      try {
-        await refreshUsage();
-      } catch (error) {
-        if (!cancelled) {
-          console.warn('[useUsageSummary] refresh failed:', error);
-        }
-      }
-    };
-
-    void guardedRefresh();
-    const timer = window.setInterval(() => {
-      void guardedRefresh();
-    }, 15_000);
     const unsubs = [
       on('stream.done', () => {
         void guardedRefresh();
@@ -80,9 +92,7 @@ export function useUsageSummary(connected: boolean) {
     ];
 
     return () => {
-      cancelled = true;
-      window.clearInterval(timer);
       unsubs.forEach((unsub) => unsub());
     };
-  }, [connected, on, refreshUsage, resetUsage, setBudgetWarningThresholdPct, setMaxBudget, setSummary]);
+  }, [connected, guardedRefresh, on, setBudgetWarningThresholdPct, setMaxBudget, setSummary]);
 }

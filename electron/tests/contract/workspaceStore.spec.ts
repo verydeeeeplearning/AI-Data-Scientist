@@ -155,7 +155,7 @@ function run(): void {
       },
     ],
   );
-  assert.equal(readModel.sections.find((section) => section.id === 'summary')?.itemCount, 3);
+  assert.equal(readModel.sections.find((section) => section.id === 'overview')?.itemCount, 3);
   assert.equal(readModel.recentFiles[0]?.path, 'tables/metrics.csv');
   assert.equal(readModel.pinnedItems[0]?.cardId, 'card-2');
 

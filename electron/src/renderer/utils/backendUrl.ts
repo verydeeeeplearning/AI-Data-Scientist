@@ -6,11 +6,37 @@
  * Falls back to 18790 only when running in browser dev mode without a port param.
  */
 
-function getBackendPort(): number {
+function readBackendQueryParam(name: string): string | null {
+  if (typeof window === 'undefined') return null;
+  const searchValue = new URLSearchParams(window.location.search).get(name);
+  if (searchValue) return searchValue;
+
+  const hashQueryStart = window.location.hash.indexOf('?');
+  if (hashQueryStart < 0) return null;
+  return new URLSearchParams(window.location.hash.slice(hashQueryStart + 1)).get(name);
+}
+
+const INITIAL_BACKEND_QUERY_PARAMS: Record<string, string> = (() => {
+  if (typeof window === 'undefined') return {};
+  const params: Record<string, string> = {};
+  for (const key of ['port', 'token']) {
+    const value = readBackendQueryParam(key);
+    if (value) {
+      params[key] = value;
+    }
+  }
+  return params;
+})();
+
+export function getBackendQueryParam(name: string): string | null {
+  return readBackendQueryParam(name) ?? INITIAL_BACKEND_QUERY_PARAMS[name] ?? null;
+}
+
+export function getBackendPort(): number {
   if (typeof window === 'undefined') return 18790;
-  const params = new URLSearchParams(window.location.search);
-  const port = params.get('port');
-  return port ? parseInt(port, 10) : 18790;
+  const port = getBackendQueryParam('port');
+  const parsed = port ? parseInt(port, 10) : 18790;
+  return Number.isFinite(parsed) ? parsed : 18790;
 }
 
 /**

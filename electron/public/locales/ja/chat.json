@@ -5,5 +5,16 @@
   "input.placeholder": "Send a message... (Enter to send, Shift+Enter for newline)",
   "you": "You",
   "agent": "DS Agent",
-  "toolActivity": "Tool Activity"
+  "message.truncatedNotice": "応答が中断されました。もう一度送信してください。",
+  "error.modelKeyMissing": "送信できません: {model} の使用にはAPIキーまたはログインが必要です。管理 > コネクターから登録してください。",
+  "toolActivity": "Tool Activity",
+  "floating.label": "チャットパネル",
+  "floating.title": "チャット",
+  "floating.open": "チャットを開く",
+  "floating.close": "チャットを閉じる",
+  "floating.pin": "チャットを固定",
+  "floating.unpin": "固定を解除",
+  "floating.fullscreen": "全画面表示",
+  "floating.exitFullscreen": "縮小",
+  "floating.streaming": "ストリーミング中"
 }

@@ -258,6 +258,28 @@ class ReasoningEmittedEvent(TypedDict, total=False):
 
 
 # ---------------------------------------------------------------------------
+# Stream events
+# ---------------------------------------------------------------------------
+
+
+class StreamDoneEvent(TypedDict, total=False):
+    """``stream.done`` - terminal successful stream payload."""
+
+    content: Required[str]
+    cost: float
+    messageId: str | None
+    cards: list[dict[str, object]]
+
+
+class StreamErrorEvent(TypedDict, total=False):
+    """``stream.error`` - terminal failed stream payload."""
+
+    message: str
+    code: str
+    messageId: str | None
+
+
+# ---------------------------------------------------------------------------
 # Approval events
 # ---------------------------------------------------------------------------
 

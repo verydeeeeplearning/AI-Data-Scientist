@@ -7,17 +7,34 @@ import { RunDiffPanel, type RunsCompareResult } from './RunDiffPanel';
 import { buildEvidenceWorkspacePath } from '../../application/workspace/workspaceRoute';
 import { useHashNavigation } from '../../hooks/useHashNavigation';
 import { useWs } from '../../hooks/WsProvider';
-import { useRuntimeStore, type RuntimeRunEntry } from '../../stores/runtimeStore';
+import { useI18n } from '../../stores/i18nStore';
+import { useRuntimeStore } from '../../stores/runtimeStore';
 import {
   filterRunsForComparison,
   formatRunCompareOption,
   getRunWeightedScore,
   parseCompareThreshold,
   sortRunsForComparison,
+  type RunCompareEntry,
   type RunCompareFilters,
   type RunCompareScorecardSummary,
   type RunCompareSortKey,
 } from './runsCompareBoardModel';
+
+interface DecisionRunSummary {
+  run_id: string;
+  experiment_group?: string | null;
+  sequence?: number | null;
+  owner?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  method?: {
+    model_family?: string | null;
+  } | null;
+  result?: {
+    metrics?: Record<string, number> | null;
+  } | null;
+}
 
 function formatDateTime(timestamp?: number | null): string {
   if (!timestamp) return '-';
@@ -53,30 +70,80 @@ function directionClass(direction: RunsCompareResult['metrics'][number]['directi
   return 'text-ds-muted';
 }
 
-function runStatusTone(status: RuntimeRunEntry['status']): 'success' | 'accent' | 'danger' | 'neutral' {
+function runStatusTone(status: string): 'success' | 'accent' | 'danger' | 'neutral' {
   if (status === 'succeeded') return 'success';
+  if (status === 'completed') return 'success';
+  if (status === 'pass') return 'success';
   if (status === 'running') return 'accent';
   if (status === 'failed') return 'danger';
+  if (status === 'fail') return 'danger';
   return 'neutral';
 }
 
-const SORT_OPTIONS: Array<{ value: RunCompareSortKey; label: string }> = [
-  { value: 'newest', label: 'Newest first' },
-  { value: 'oldest', label: 'Oldest first' },
-  { value: 'cost-desc', label: 'Highest cost' },
-  { value: 'cost-asc', label: 'Lowest cost' },
-  { value: 'score-desc', label: 'Highest score' },
-  { value: 'score-asc', label: 'Lowest score' },
+function parseDecisionRunTimestamp(value?: string | null): number {
+  if (!value) return Date.now() / 1000;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed / 1000 : Date.now() / 1000;
+}
+
+function metricPreview(metrics?: Record<string, number> | null): string {
+  const firstMetric = Object.entries(metrics ?? {})[0];
+  if (!firstMetric) return '';
+  return `${firstMetric[0]} ${firstMetric[1].toFixed(3)}`;
+}
+
+function normalizeDecisionRun(run: DecisionRunSummary): RunCompareEntry {
+  const createdAt = parseDecisionRunTimestamp(run.created_at);
+  const group = run.experiment_group || 'decision-os';
+  const modelFamily = run.method?.model_family || group;
+  const preview = metricPreview(run.result?.metrics);
+  const sequence = typeof run.sequence === 'number' ? `#${run.sequence}` : '';
+
+  return {
+    runId: run.run_id,
+    sessionId: group,
+    sessionLabel: [group, sequence].filter(Boolean).join(' '),
+    threadLabel: run.owner ?? null,
+    surface: 'decision_os',
+    status: run.status || 'unknown',
+    message: modelFamily,
+    taskId: null,
+    error: null,
+    resultPreview: preview || modelFamily,
+    costUsd: 0,
+    createdAt,
+    startedAt: createdAt,
+    finishedAt: createdAt,
+  };
+}
+
+const SORT_OPTION_KEYS: ReadonlyArray<{
+  value: RunCompareSortKey;
+  labelKey: string;
+}> = [
+  { value: 'newest', labelKey: 'run.runtime.compare.sort.newest' },
+  { value: 'oldest', labelKey: 'run.runtime.compare.sort.oldest' },
+  { value: 'cost-desc', labelKey: 'run.runtime.compare.sort.costDesc' },
+  { value: 'cost-asc', labelKey: 'run.runtime.compare.sort.costAsc' },
+  { value: 'score-desc', labelKey: 'run.runtime.compare.sort.scoreDesc' },
+  { value: 'score-asc', labelKey: 'run.runtime.compare.sort.scoreAsc' },
 ];
 
 export function RunsCompareBoard() {
+  const { t } = useI18n();
+  const sortOptions = useMemo(
+    () => SORT_OPTION_KEYS.map(({ value, labelKey }) => ({ value, label: t(labelKey) })),
+    [t],
+  );
   const { rpc, status: wsStatus } = useWs();
   const { navigate } = useHashNavigation();
-  const runs = useRuntimeStore((state) => state.runs);
   const selectedRunId = useRuntimeStore((state) => state.selectedRunId);
   const requestSerialRef = useRef(0);
   const connected = wsStatus === 'connected';
 
+  const [runs, setRuns] = useState<RunCompareEntry[]>([]);
+  const [runsLoading, setRunsLoading] = useState(false);
+  const [runsError, setRunsError] = useState<string | null>(null);
   const [baseRunId, setBaseRunId] = useState('');
   const [candidateRunId, setCandidateRunId] = useState('');
   const [sortKey, setSortKey] = useState<RunCompareSortKey>('newest');
@@ -89,7 +156,7 @@ export function RunsCompareBoard() {
   const [scorecardsByRunId, setScorecardsByRunId] = useState<
     Record<string, RunCompareScorecardSummary | null>
   >({});
-  const [scorecardsLoading, setScorecardsLoading] = useState(false);
+  const scorecardsLoading = false;
 
   const scorecardMap = useMemo(
     () => new Map<string, RunCompareScorecardSummary | null>(Object.entries(scorecardsByRunId)),
@@ -119,9 +186,12 @@ export function RunsCompareBoard() {
   const visibleRunOptions = useMemo(
     () => visibleRuns.map((run) => ({
       value: run.runId,
-      label: formatRunCompareOption(run, scorecardMap),
+      label: formatRunCompareOption(run, scorecardMap, {
+        score: t('run.runtime.compare.option.score'),
+        scoreUnavailable: t('run.runtime.compare.option.scoreUnavailable'),
+      }),
     })),
-    [scorecardMap, visibleRuns],
+    [scorecardMap, t, visibleRuns],
   );
   const baseRun = visibleRuns.find((run) => run.runId === baseRunId) ?? null;
   const candidateRun = visibleRuns.find((run) => run.runId === candidateRunId) ?? null;
@@ -137,11 +207,11 @@ export function RunsCompareBoard() {
       }
       if (runAId === runBId) {
         setCompareResult(null);
-        setCompareError('Base and candidate runs must be different.');
+        setCompareError(t('run.compare.mustBeDifferent'));
         return;
       }
       if (!connected) {
-        setCompareError('WebSocket not connected.');
+        setCompareError(t('run.compare.wsDisconnected'));
         return;
       }
 
@@ -153,7 +223,7 @@ export function RunsCompareBoard() {
         const payload = (await rpc('decisionOs.compareRuns', {
           runAId,
           runBId,
-        })) as unknown as RunsCompareResult;
+        }, { timeoutMs: 120_000 })) as unknown as RunsCompareResult;
 
         if (requestSerial !== requestSerialRef.current) {
           return;
@@ -167,7 +237,7 @@ export function RunsCompareBoard() {
         }
 
         const message =
-          error instanceof Error ? error.message : 'Unable to compare the selected runs.';
+          error instanceof Error ? error.message : t('run.runtime.compare.error.compareFailed');
         setCompareResult(null);
         setCompareError(message);
       } finally {
@@ -176,62 +246,65 @@ export function RunsCompareBoard() {
         }
       }
     },
-    [connected, rpc],
+    [connected, rpc, t],
   );
 
   useEffect(() => {
-    if (!connected || runs.length === 0) {
-      setScorecardsLoading(false);
+    if (!connected) {
+      setRuns([]);
+      setRunsError(null);
+      setRunsLoading(false);
+      setScorecardsByRunId({});
       return;
     }
 
     let cancelled = false;
 
-    const loadScorecards = async () => {
-      setScorecardsLoading(true);
+    const loadDecisionRuns = async () => {
+      setRunsLoading(true);
+      setRunsError(null);
       try {
-        const entries = await Promise.all(
-          runs.map(async (run) => {
-            try {
-              const payload = await rpc('run.scorecard', { runId: run.runId });
-              const scorecard = (payload as { scorecard?: { weightedScore?: number; toolCallCount?: number } })
-                .scorecard;
-              if (!scorecard || typeof scorecard.weightedScore !== 'number') {
-                return [run.runId, null] as const;
-              }
-              return [
-                run.runId,
-                {
-                  weightedScore: scorecard.weightedScore,
-                  toolCallCount: typeof scorecard.toolCallCount === 'number'
-                    ? scorecard.toolCallCount
-                    : null,
-                },
-              ] as const;
-            } catch {
-              return [run.runId, null] as const;
-            }
-          }),
-        );
-
+        const payload = await rpc('decisionOs.overview', {
+          runLimit: 20,
+          modelLimit: 1,
+          decisionLimit: 1,
+        });
         if (cancelled) {
           return;
         }
-
-        setScorecardsByRunId(Object.fromEntries(entries));
+        const overviewRuns = Array.isArray(payload.runs)
+          ? (payload.runs as DecisionRunSummary[])
+          : [];
+        setRuns(
+          overviewRuns
+            .filter((run) => typeof run.run_id === 'string' && run.run_id.trim().length > 0)
+            .map(normalizeDecisionRun),
+        );
+        setScorecardsByRunId({});
+      } catch (error) {
+        if (!cancelled) {
+          setRuns([]);
+          setRunsError(
+            error instanceof Error ? error.message : t('run.runtime.compare.error.loadRunsFailed'),
+          );
+        }
       } finally {
         if (!cancelled) {
-          setScorecardsLoading(false);
+          setRunsLoading(false);
         }
       }
     };
 
-    void loadScorecards();
+    void loadDecisionRuns();
+    const timer = window.setInterval(() => {
+      void loadDecisionRuns();
+    }, 5000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
-  }, [connected, rpc, runs]);
+  }, [connected, rpc, t]);
 
   useEffect(() => {
     const runIds = new Set(visibleRuns.map((run) => run.runId));
@@ -261,7 +334,7 @@ export function RunsCompareBoard() {
     if (baseRunId === candidateRunId) {
       setCompareBusy(false);
       setCompareResult(null);
-      setCompareError('Base and candidate runs must be different.');
+      setCompareError(t('run.compare.mustBeDifferent'));
       return;
     }
     if (!connected) {
@@ -270,7 +343,7 @@ export function RunsCompareBoard() {
     }
 
     void compareRuns(baseRunId, candidateRunId);
-  }, [baseRunId, candidateRunId, connected, compareRuns]);
+  }, [baseRunId, candidateRunId, connected, compareRuns, t]);
 
   const swapRuns = () => {
     setBaseRunId(candidateRunId);
@@ -305,40 +378,50 @@ export function RunsCompareBoard() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ds-muted">
             <GitCompareArrows size={14} />
-            Runs Compare Board
+            {t('run.compare.title')}
           </div>
           <p className="mt-1 text-sm text-ds-text">
-            Pick a baseline run and a candidate run, then inspect metrics, parameters,
-            artifacts, and decision deltas in one place.
+            {t('run.compare.description')}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11px] text-ds-muted">
-            {visibleRuns.length} visible / {runs.length} total
+            {t('run.runtime.compare.status.visibleTotal', {
+              visible: visibleRuns.length,
+              total: runs.length,
+            })}
           </span>
+          {runsLoading ? (
+            <span className="text-[11px] text-ds-muted">{t('run.runtime.compare.status.loadingRuns')}</span>
+          ) : null}
           {scorecardsLoading ? (
-            <span className="text-[11px] text-ds-muted">Loading scorecards...</span>
+            <span className="text-[11px] text-ds-muted">{t('run.runtime.compare.status.loadingScorecards')}</span>
           ) : null}
           <Badge tone={connected ? 'success' : 'neutral'} compact className="uppercase tracking-wider">
-            {connected ? 'Connected' : 'Disconnected'}
+            {connected ? t('run.runtime.compare.status.connected') : t('run.runtime.compare.status.disconnected')}
           </Badge>
           {lastComparedAt ? (
             <span className="text-[11px] text-ds-muted">
-              Last diff {new Date(lastComparedAt).toLocaleTimeString()}
+              {t('run.runtime.compare.status.lastDiff', {
+                time: new Date(lastComparedAt).toLocaleTimeString(),
+              })}
             </span>
           ) : null}
         </div>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
-        {runs.length < 2 ? (
+        {runsError ? (
+          <Card tone="danger" className="text-ds-error">
+            {runsError}
+          </Card>
+        ) : runs.length < 2 ? (
           <Card className="bg-ds-bg/60 text-ds-muted">
-            At least two tracked runs are required before the compare board can render a diff.
+            {t('run.compare.needTwoRuns')}
           </Card>
         ) : visibleRuns.length < 2 ? (
           <Card className="bg-ds-bg/60 text-ds-muted">
-            The current sort and filter settings hide too many runs to compare. Relax the filters
-            or clear them to continue.
+            {t('run.compare.filterTooStrict')}
           </Card>
         ) : (
           <>
@@ -347,9 +430,9 @@ export function RunsCompareBoard() {
                 id="runs-compare-sort"
                 value={sortKey}
                 onChange={(event) => setSortKey(event.target.value as RunCompareSortKey)}
-                aria-label="Sort compare runs"
-                label="Sort"
-                options={SORT_OPTIONS}
+                aria-label={t('run.compare.sortAria')}
+                label={t('run.compare.sortLabel')}
+                options={sortOptions}
               />
 
               <Input
@@ -358,8 +441,8 @@ export function RunsCompareBoard() {
                 onChange={(event) => setMinCostUsdText(event.target.value)}
                 inputMode="decimal"
                 placeholder="0.0000"
-                aria-label="Minimum cost in USD"
-                label="Filter cost >"
+                aria-label={t('run.compare.minCostAria')}
+                label={t('run.compare.filterCostLabel')}
               />
 
               <Input
@@ -368,8 +451,8 @@ export function RunsCompareBoard() {
                 onChange={(event) => setMaxWeightedScoreText(event.target.value)}
                 inputMode="decimal"
                 placeholder="0.850"
-                aria-label="Maximum weighted score"
-                label="Filter score <"
+                aria-label={t('run.compare.maxScoreAria')}
+                label={t('run.compare.filterScoreLabel')}
               />
 
               <div className="flex items-end">
@@ -378,7 +461,7 @@ export function RunsCompareBoard() {
                   variant="secondary"
                   size="sm"
                 >
-                  Clear
+                  {t('run.compare.clear')}
                 </Button>
               </div>
             </section>
@@ -388,22 +471,22 @@ export function RunsCompareBoard() {
                 id="runs-compare-base"
                 value={baseRunId}
                 onChange={(event) => setBaseRunId(event.target.value)}
-                aria-label="Select base run"
+                aria-label={t('run.compare.selectBaseRun')}
                 data-testid="runs-compare-base"
-                label="Base Run"
-                options={[{ value: '', label: 'Select base run' }, ...visibleRunOptions]}
+                label={t('run.compare.baseRunLabel')}
+                options={[{ value: '', label: t('run.compare.selectBaseRun') }, ...visibleRunOptions]}
               />
 
               <div className="flex items-end">
                 <Button
                   onClick={swapRuns}
                   disabled={!baseRunId || !candidateRunId}
-                  aria-label="Swap base and candidate runs"
+                  aria-label={t('run.compare.swapAria')}
                   variant="secondary"
                   size="sm"
                   leadingIcon={<ArrowLeftRight size={14} aria-hidden="true" />}
                 >
-                  Swap
+                  {t('run.compare.swap')}
                 </Button>
               </div>
 
@@ -411,10 +494,10 @@ export function RunsCompareBoard() {
                 id="runs-compare-candidate"
                 value={candidateRunId}
                 onChange={(event) => setCandidateRunId(event.target.value)}
-                aria-label="Select candidate run"
+                aria-label={t('run.compare.selectCandidateRun')}
                 data-testid="runs-compare-candidate"
-                label="Candidate Run"
-                options={[{ value: '', label: 'Select candidate run' }, ...visibleRunOptions]}
+                label={t('run.compare.candidateRunLabel')}
+                options={[{ value: '', label: t('run.compare.selectCandidateRun') }, ...visibleRunOptions]}
               />
 
               <div className="flex items-end">
@@ -426,14 +509,22 @@ export function RunsCompareBoard() {
                   size="sm"
                   leadingIcon={<RefreshCcw size={14} className={compareBusy ? 'animate-spin' : ''} aria-hidden="true" />}
                 >
-                  {compareBusy ? 'Comparing...' : 'Refresh Diff'}
+                  {compareBusy ? t('run.compare.comparing') : t('run.compare.refreshDiff')}
                 </Button>
               </div>
             </section>
 
             <section className="grid gap-3 xl:grid-cols-2">
-              <RunSelectionCard title="Base" run={baseRun} weightedScore={baseScore} />
-              <RunSelectionCard title="Candidate" run={candidateRun} weightedScore={candidateScore} />
+              <RunSelectionCard
+                title={t('run.runtime.compare.selection.title.base')}
+                run={baseRun}
+                weightedScore={baseScore}
+              />
+              <RunSelectionCard
+                title={t('run.runtime.compare.selection.title.candidate')}
+                run={candidateRun}
+                weightedScore={candidateScore}
+              />
             </section>
 
             {compareError ? (
@@ -445,53 +536,73 @@ export function RunsCompareBoard() {
             {compareResult ? (
               <>
                 <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6 2xl:grid-cols-7">
-                  <SummaryCard label="Metric Deltas" value={String(compareResult.metrics.length)} />
-                  <SummaryCard label="Highlighted Metrics" value={String(highlightedMetricCount)} />
-                  <SummaryCard label="Artifact Diffs" value={String(artifactChangeCount)} />
-                  <SummaryCard label="Decision Diffs" value={String(decisionChangeCount)} />
-                  <SummaryCard label="Config Changes" value={String(configChangeCount)} />
-                  <SummaryCard label="Feature Changes" value={String(featureChangeCount)} />
-                  <SummaryCard label="Verifier Findings" value={String(verifierFindingCount)} />
+                  <SummaryCard
+                    label={t('run.runtime.compare.summary.metricDeltas')}
+                    value={String(compareResult.metrics.length)}
+                  />
+                  <SummaryCard
+                    label={t('run.runtime.compare.summary.highlightedMetrics')}
+                    value={String(highlightedMetricCount)}
+                  />
+                  <SummaryCard
+                    label={t('run.runtime.compare.summary.artifactDiffs')}
+                    value={String(artifactChangeCount)}
+                  />
+                  <SummaryCard
+                    label={t('run.runtime.compare.summary.decisionDiffs')}
+                    value={String(decisionChangeCount)}
+                  />
+                  <SummaryCard
+                    label={t('run.runtime.compare.summary.configChanges')}
+                    value={String(configChangeCount)}
+                  />
+                  <SummaryCard
+                    label={t('run.runtime.compare.summary.featureChanges')}
+                    value={String(featureChangeCount)}
+                  />
+                  <SummaryCard
+                    label={t('run.runtime.compare.summary.verifierFindings')}
+                    value={String(verifierFindingCount)}
+                  />
                 </section>
 
                 <Card className="flex flex-wrap items-center gap-ds-2 bg-ds-bg/60">
                   <div className="mr-auto text-sm text-ds-text">
-                    Highlight rule: relative metric change {'>='} 5% or absolute delta {'>='}{' '}
-                    0.05 on near-zero baselines.
+                    {t('run.runtime.compare.highlightRule')}
                   </div>
                   <Button
-                    onClick={() => navigate(buildEvidenceWorkspacePath('charts'))}
+                    onClick={() => navigate('/artifacts/files')}
                     variant="secondary"
                     size="sm"
                   >
-                    Open Charts Workspace
+                    {t('run.runtime.compare.action.openCharts')}
                   </Button>
                   <Button
-                    onClick={() => navigate(buildEvidenceWorkspacePath('files'))}
+                    onClick={() => navigate('/artifacts/files')}
                     variant="secondary"
                     size="sm"
                   >
-                    Open Files Workspace
+                    {t('run.runtime.compare.action.openFiles')}
                   </Button>
                   <Button
                     onClick={() => navigate(buildEvidenceWorkspacePath('export'))}
                     variant="secondary"
                     size="sm"
                   >
-                    Open Export Workspace
+                    {t('run.runtime.compare.action.openExport')}
                   </Button>
                   <Button
                     onClick={() => navigate('/governance/review')}
                     variant="secondary"
                     size="sm"
                   >
-                    Open Review Surface
+                    {t('run.runtime.compare.action.openReview')}
                   </Button>
                 </Card>
 
                 <Card className="bg-ds-bg/60">
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
-                    Summary
+                    {t('run.compare.section.summary')}
                   </div>
                   <div className="mt-3 prose prose-invert prose-sm max-w-none prose-headings:text-ds-text prose-p:text-ds-text prose-li:text-ds-text prose-code:text-ds-accent">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -511,7 +622,7 @@ export function RunsCompareBoard() {
                   <Card className="bg-ds-bg/60">
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
-                        Metrics
+                        {t('run.compare.section.metrics')}
                       </div>
                       <div className="text-[11px] text-ds-muted">
                         {compareResult.run_a_id} {'->'} {compareResult.run_b_id}
@@ -520,7 +631,7 @@ export function RunsCompareBoard() {
 
                     {compareResult.metrics.length === 0 ? (
                       <div className="mt-3 text-sm text-ds-muted">
-                        No overlapping metrics were available for this run pair.
+                        {t('run.runtime.compare.empty.noOverlap')}
                       </div>
                     ) : (
                       <div className="mt-3 space-y-2">
@@ -545,7 +656,7 @@ export function RunsCompareBoard() {
                               </div>
                               {metric.highlighted ? (
                                 <Badge tone="accent" compact className="uppercase tracking-wider">
-                                  Highlighted
+                                  {t('run.runtime.compare.metric.highlighted')}
                                 </Badge>
                               ) : null}
                               <div className={`ml-auto text-sm font-semibold ${directionClass(metric.direction)}`}>
@@ -576,23 +687,23 @@ export function RunsCompareBoard() {
                 <section className="grid gap-4 xl:grid-cols-2">
                   <Card className="bg-ds-bg/60">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
-                      Feature Diff
+                      {t('run.compare.section.featureDiff')}
                     </div>
                     <div className="mt-3 grid gap-3 md:grid-cols-3">
                       <FeatureDeltaCard
-                        title="Added"
+                        title={t('run.runtime.compare.feature.added')}
                         items={compareResult.feature_set.added.map(
                           (item) => `${item.feature_id} v${item.version}`,
                         )}
                       />
                       <FeatureDeltaCard
-                        title="Removed"
+                        title={t('run.runtime.compare.feature.removed')}
                         items={compareResult.feature_set.removed.map(
                           (item) => `${item.feature_id} v${item.version}`,
                         )}
                       />
                       <FeatureDeltaCard
-                        title="Version Changed"
+                        title={t('run.runtime.compare.feature.versionChanged')}
                         items={compareResult.feature_set.version_changed.map(
                           ([featureId, fromVersion, toVersion]) =>
                             `${featureId}: v${fromVersion} -> v${toVersion}`,
@@ -603,11 +714,11 @@ export function RunsCompareBoard() {
 
                   <Card className="bg-ds-bg/60">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
-                      Config Diff
+                      {t('run.compare.section.configDiff')}
                     </div>
                     <div className="mt-3 grid gap-3 md:grid-cols-3">
                       <ConfigDeltaCard
-                        title="Changed"
+                        title={t('run.runtime.compare.config.changed')}
                         entries={Object.entries(compareResult.config.changed).map(
                           ([key, [before, after]]) => ({
                             key,
@@ -617,14 +728,14 @@ export function RunsCompareBoard() {
                         )}
                       />
                       <ConfigPresenceCard
-                        title="Added"
+                        title={t('run.runtime.compare.config.added')}
                         entries={Object.entries(compareResult.config.added).map(([key, value]) => ({
                           key,
                           value: formatUnknownValue(value),
                         }))}
                       />
                       <ConfigPresenceCard
-                        title="Removed"
+                        title={t('run.runtime.compare.config.removed')}
                         entries={Object.entries(compareResult.config.removed).map(([key, value]) => ({
                           key,
                           value: formatUnknownValue(value),
@@ -636,7 +747,7 @@ export function RunsCompareBoard() {
               </>
             ) : (
               <Card className="bg-ds-bg/60 text-ds-muted">
-                Select two distinct runs to load the compare board.
+                {t('run.compare.selectTwo')}
               </Card>
             )}
           </>
@@ -652,13 +763,14 @@ function RunSelectionCard({
   weightedScore,
 }: {
   title: string;
-  run: RuntimeRunEntry | null;
+  run: RunCompareEntry | null;
   weightedScore: number | null;
 }) {
+  const { t } = useI18n();
   if (!run) {
     return (
       <Card className="bg-ds-bg/60 text-ds-muted">
-        {title} run is not selected.
+        {t('run.runtime.compare.selection.notSelected', { title })}
       </Card>
     );
   }
@@ -685,11 +797,18 @@ function RunSelectionCard({
       </div>
       <div className="mt-3 line-clamp-2 text-sm text-ds-text">{subtitle}</div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <SelectionFact label="Started" value={formatDateTime(run.startedAt)} />
-        <SelectionFact label="Finished" value={formatDateTime(run.finishedAt)} />
-        <SelectionFact label="Cost" value={`$${run.costUsd.toFixed(4)}`} />
-        <SelectionFact label="Weighted Score" value={weightedScore === null ? 'n/a' : weightedScore.toFixed(3)} />
-        <SelectionFact label="Task" value={run.taskId ?? '-'} mono />
+        <SelectionFact label={t('run.runtime.compare.selection.label.started')} value={formatDateTime(run.startedAt)} />
+        <SelectionFact label={t('run.runtime.compare.selection.label.finished')} value={formatDateTime(run.finishedAt)} />
+        <SelectionFact label={t('run.runtime.compare.selection.label.cost')} value={`$${run.costUsd.toFixed(4)}`} />
+        <SelectionFact
+          label={t('run.runtime.compare.selection.label.weightedScore')}
+          value={
+            weightedScore === null
+              ? t('run.runtime.compare.selection.weightedScoreUnknown')
+              : weightedScore.toFixed(3)
+          }
+        />
+        <SelectionFact label={t('run.runtime.compare.selection.label.task')} value={run.taskId ?? '-'} mono />
       </div>
     </Card>
   );
@@ -722,11 +841,12 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 }
 
 function FeatureDeltaCard({ title, items }: { title: string; items: string[] }) {
+  const { t } = useI18n();
   return (
     <Card className="bg-ds-surface/60">
       <div className="text-xs font-medium text-ds-text">{title}</div>
       {items.length === 0 ? (
-        <div className="mt-3 text-sm text-ds-muted">No changes.</div>
+        <div className="mt-3 text-sm text-ds-muted">{t('run.runtime.compare.empty.noChanges')}</div>
       ) : (
         <div className="mt-3 space-y-2">
           {items.map((item) => (
@@ -750,11 +870,12 @@ function ConfigDeltaCard({
   title: string;
   entries: Array<{ key: string; before: string; after: string }>;
 }) {
+  const { t } = useI18n();
   return (
     <Card className="bg-ds-surface/60">
       <div className="text-xs font-medium text-ds-text">{title}</div>
       {entries.length === 0 ? (
-        <div className="mt-3 text-sm text-ds-muted">No changes.</div>
+        <div className="mt-3 text-sm text-ds-muted">{t('run.runtime.compare.empty.noChanges')}</div>
       ) : (
         <div className="mt-3 space-y-2">
           {entries.map((entry) => (
@@ -764,8 +885,8 @@ function ConfigDeltaCard({
             >
               <div className="text-xs font-medium text-ds-text">{entry.key}</div>
               <div className="mt-2 grid gap-2 text-[11px] text-ds-muted">
-                <ConfigValueBlock label="Before" value={entry.before} />
-                <ConfigValueBlock label="After" value={entry.after} />
+                <ConfigValueBlock label={t('run.runtime.compare.config.before')} value={entry.before} />
+                <ConfigValueBlock label={t('run.runtime.compare.config.after')} value={entry.after} />
               </div>
             </div>
           ))}
@@ -782,11 +903,12 @@ function ConfigPresenceCard({
   title: string;
   entries: Array<{ key: string; value: string }>;
 }) {
+  const { t } = useI18n();
   return (
     <Card className="bg-ds-surface/60">
       <div className="text-xs font-medium text-ds-text">{title}</div>
       {entries.length === 0 ? (
-        <div className="mt-3 text-sm text-ds-muted">No entries.</div>
+        <div className="mt-3 text-sm text-ds-muted">{t('run.runtime.compare.empty.noEntries')}</div>
       ) : (
         <div className="mt-3 space-y-2">
           {entries.map((entry) => (
@@ -818,21 +940,22 @@ function ConfigValueBlock({ label, value }: { label: string; value: string }) {
 }
 
 function VerifierCard({ verifier }: { verifier: RunsCompareResult['verifier'] }) {
+  const { t } = useI18n();
   return (
     <Card className="bg-ds-bg/60">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
-        Verifier
+        {t('run.compare.section.verifier')}
       </div>
       <div className="mt-3 space-y-2">
-        <VerifierLine label="Statistical" value={verifier.statistical} />
-        <VerifierLine label="Data" value={verifier.data} />
-        <VerifierLine label="Policy" value={verifier.policy} />
+        <VerifierLine label={t('run.runtime.compare.verifier.statistical')} value={verifier.statistical} />
+        <VerifierLine label={t('run.runtime.compare.verifier.data')} value={verifier.data} />
+        <VerifierLine label={t('run.runtime.compare.verifier.policy')} value={verifier.policy} />
       </div>
 
       {verifier.new_findings.length > 0 ? (
         <div className="mt-3 space-y-2">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
-            New Findings
+            {t('run.compare.section.newFindings')}
           </div>
           {verifier.new_findings.map((finding) => (
             <div key={`new-${finding}`} className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
@@ -845,7 +968,7 @@ function VerifierCard({ verifier }: { verifier: RunsCompareResult['verifier'] })
       {verifier.resolved_findings.length > 0 ? (
         <div className="mt-3 space-y-2">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
-            Resolved Findings
+            {t('run.compare.section.resolvedFindings')}
           </div>
           {verifier.resolved_findings.map((finding) => (
             <div key={`resolved-${finding}`} className="rounded-xl border border-ds-success/40 bg-ds-success/10 px-3 py-2 text-sm text-ds-success">
@@ -865,6 +988,7 @@ function VerifierLine({
   label: string;
   value: [string, string];
 }) {
+  const { t } = useI18n();
   const changed = value[0] !== value[1];
   const toneForValue = (current: string): 'success' | 'warning' | 'danger' | 'neutral' => {
     const normalized = current.toLowerCase();
@@ -881,7 +1005,7 @@ function VerifierLine({
         <Badge tone={toneForValue(value[0])} compact>{value[0]}</Badge>
         <span className="text-ds-muted">{'->'}</span>
         <Badge tone={toneForValue(value[1])} compact>{value[1]}</Badge>
-        {changed ? <span className="text-[11px] text-ds-muted">changed</span> : null}
+        {changed ? <span className="text-[11px] text-ds-muted">{t('run.runtime.compare.verifier.changed')}</span> : null}
       </div>
     </div>
   );
@@ -894,14 +1018,23 @@ function ReproducibilityCard({
   codeRef: [string, string];
   dataSnapshot: [string, string];
 }) {
+  const { t } = useI18n();
   return (
     <Card className="bg-ds-bg/60">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-ds-muted">
-        Reproducibility
+        {t('run.compare.section.reproducibility')}
       </div>
       <div className="mt-3 space-y-3">
-        <ReproducibilityRow label="Code Ref" before={codeRef[0]} after={codeRef[1]} />
-        <ReproducibilityRow label="Data Snapshot" before={dataSnapshot[0]} after={dataSnapshot[1]} />
+        <ReproducibilityRow
+          label={t('run.runtime.compare.repro.codeRef')}
+          before={codeRef[0]}
+          after={codeRef[1]}
+        />
+        <ReproducibilityRow
+          label={t('run.runtime.compare.repro.dataSnapshot')}
+          before={dataSnapshot[0]}
+          after={dataSnapshot[1]}
+        />
       </div>
     </Card>
   );
@@ -916,12 +1049,13 @@ function ReproducibilityRow({
   before: string;
   after: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-xl border border-ds-border/70 bg-ds-surface/60 p-3">
       <div className="text-[10px] uppercase tracking-wider text-ds-muted">{label}</div>
       <div className="mt-2 grid gap-2">
-        <ConfigValueBlock label="Base" value={before} />
-        <ConfigValueBlock label="Candidate" value={after} />
+        <ConfigValueBlock label={t('run.runtime.compare.repro.base')} value={before} />
+        <ConfigValueBlock label={t('run.runtime.compare.repro.candidate')} value={after} />
       </div>
     </div>
   );

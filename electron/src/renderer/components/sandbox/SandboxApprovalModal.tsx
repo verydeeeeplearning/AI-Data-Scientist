@@ -29,6 +29,7 @@ import {
 import { ResultCardSectionPanel, ResultCardSectionTitle } from '../../design-system/composites';
 import { Badge, Button, Card, Textarea, cn } from '../../design-system/primitives';
 import { useWs } from '../../hooks/WsProvider';
+import { useI18n } from '../../stores/i18nStore';
 import { useWorkflowStore } from '../../stores/workflowStore';
 import type { ApprovalRequest } from '../../stores/workflowStore';
 import { createApprovalModalA11yController } from '../approval/approvalModalA11y';
@@ -71,9 +72,11 @@ function ApprovalDialog({
   pendingCount: number;
 }) {
   const { rpc } = useWs();
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
   const a11yRef = useRef<ReturnType<typeof createApprovalModalA11yController> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(true);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [allowScope, setAllowScope] = useState<ApprovalScope>('once');
@@ -135,6 +138,7 @@ function ApprovalDialog({
   const submitDecision = async (decision: 'allow' | 'deny') => {
     if (busy) return;
     setBusy(true);
+    setSubmitError(null);
     try {
       await rpc('approval.submit', {
         approvalId: details.approvalId,
@@ -147,7 +151,9 @@ function ApprovalDialog({
         source: 'electron',
       });
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       console.warn('[SandboxApprovalModal] approval.submit failed:', err);
+      setSubmitError(t('approval.modal.submitError', { message }));
       setBusy(false);
     }
   };
@@ -503,23 +509,30 @@ function ApprovalDialog({
             <div className="text-ds-xs leading-5 text-ds-muted">
               Escape denies the request and restores focus to the previously active control when the modal clears.
             </div>
-            <div className="flex flex-col gap-ds-2 sm:flex-row">
-              <Button
-                variant="danger"
-                onClick={() => void submitDecision('deny')}
-                disabled={busy}
-                leadingIcon={<X size={14} aria-hidden="true" />}
-              >
-                Deny request
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => void submitDecision('allow')}
-                disabled={busy}
-                leadingIcon={<Check size={14} aria-hidden="true" />}
-              >
-                Allow selected scope
-              </Button>
+            <div className="flex flex-col items-end gap-ds-2">
+              {submitError && (
+                <p role="alert" className="text-ds-xs text-ds-error">
+                  {submitError}
+                </p>
+              )}
+              <div className="flex flex-col gap-ds-2 sm:flex-row">
+                <Button
+                  variant="danger"
+                  onClick={() => void submitDecision('deny')}
+                  disabled={busy}
+                  leadingIcon={<X size={14} aria-hidden="true" />}
+                >
+                  Deny request
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => void submitDecision('allow')}
+                  disabled={busy}
+                  leadingIcon={<Check size={14} aria-hidden="true" />}
+                >
+                  Allow selected scope
+                </Button>
+              </div>
             </div>
           </div>
         </footer>

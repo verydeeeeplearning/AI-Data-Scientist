@@ -13,8 +13,10 @@ import { uploadWorkspaceFile } from '../infrastructure/workspace/uploadApi';
 import type { ConnectionStatus } from './useWebSocket';
 import { useAgentStore } from '../stores/agentStore';
 import { useChatStore } from '../stores/chatStore';
+import { useConfigStore } from '../stores/configStore';
 import { useFilesStore } from '../stores/filesStore';
 import type { FileEntry } from '../stores/filesStore';
+import { getCurrentLocale, setLocale, type Locale } from '../stores/i18nStore';
 import type { SimpleQualityPreset } from '../utils/qualityPreset';
 
 export function useAgent() {
@@ -25,6 +27,7 @@ export function useAgent() {
   const currentQualityPreset = useAgentStore((s) => s.qualityPreset);
   const updateFromStatus = useAgentStore((s) => s.updateFromStatus);
   const setMode = useAgentStore((s) => s.setMode);
+  const setMaxBudget = useConfigStore((s) => s.setMaxBudget);
   const resetConversation = useChatStore((s) => s.resetConversation);
 
   const setFiles = useFilesStore((s) => s.setFiles);
@@ -36,23 +39,50 @@ export function useAgent() {
   useEffect(() => {
     if (status !== 'connected') return;
 
+    let cancelled = false;
     rpc('status.get')
-      .then((data) => updateFromStatus(data))
-      .catch((err) => console.warn('[useAgent] status.get failed:', err));
+      .then((data) => {
+        if (!cancelled) {
+          updateFromStatus(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.warn('[useAgent] status.get failed:', err);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [status, rpc, updateFromStatus]);
 
   // Fetch files on connect
   useEffect(() => {
     if (status !== 'connected') return;
 
+    let cancelled = false;
     setLoading(true);
     rpc('files.list', {})
       .then((data) => {
+        if (cancelled) {
+          return;
+        }
         const entries = (data.files as FileEntry[]) ?? [];
         setFiles(entries);
       })
-      .catch((err) => console.warn('[useAgent] files.list failed:', err))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!cancelled) {
+          console.warn('[useAgent] files.list failed:', err);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [status, rpc, setFiles, setLoading]);
 
   // Subscribe to file.created events
@@ -75,13 +105,24 @@ export function useAgent() {
 
   // Refresh from the source of truth whenever the backend says the workspace changed.
   useEffect(() => {
-    return on('workspace.changed', () => {
+    let cancelled = false;
+    const unsubscribe = on('workspace.changed', () => {
       void rpc('files.list', {})
         .then((data) => {
-          setFiles((data.files as FileEntry[]) ?? []);
+          if (!cancelled) {
+            setFiles((data.files as FileEntry[]) ?? []);
+          }
         })
-        .catch((err) => console.warn('[useAgent] workspace refresh failed:', err));
+        .catch((err) => {
+          if (!cancelled) {
+            console.warn('[useAgent] workspace refresh failed:', err);
+          }
+        });
     });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [on, rpc, setFiles]);
 
   // Refresh files manually
@@ -131,6 +172,29 @@ export function useAgent() {
     setMode(mode);
   }, [rpc, setMode]);
 
+  const changeMaxBudget = useCallback(async (value: number, previousValue?: number) => {
+    const previous = previousValue ?? useConfigStore.getState().maxBudgetUsd;
+    setMaxBudget(value);
+    try {
+      await rpc('config.set', { path: 'provider.max_budget_usd', value });
+    } catch (err) {
+      setMaxBudget(previous);
+      throw err;
+    }
+  }, [rpc, setMaxBudget]);
+
+  const changeLanguage = useCallback(async (next: Locale) => {
+    const previous = getCurrentLocale();
+    setLocale(next);
+    try {
+      await rpc('config.set', { path: 'agent.language', value: next });
+    } catch (err) {
+      console.warn('[useAgent] failed to sync agent.language:', err);
+      setLocale(previous);
+      throw err;
+    }
+  }, [rpc]);
+
   // Upload file (FE-03: client-side size validation before base64 conversion)
   const MAX_UPLOAD_SIZE = 100 * 1024 * 1024; // 100MB — matches server limit
 
@@ -159,6 +223,8 @@ export function useAgent() {
     changeModel,
     changeQualityPreset,
     changeMode,
+    changeMaxBudget,
+    changeLanguage,
     uploadFile,
   };
 }

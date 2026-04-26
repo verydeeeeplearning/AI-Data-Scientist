@@ -1,0 +1,13 @@
+{
+  "drawer": {
+    "label": "세션 설정",
+    "title": "세션",
+    "scope": "이 세션에만",
+    "modeHeading": "모드",
+    "qualityHeading": "품질",
+    "budgetHeading": "예산 한도",
+    "budgetUpdateFailed": "예산 업데이트 실패: {message}",
+    "modelHeading": "모델",
+    "openAdmin": "더 많은 설정… (Admin)"
+  }
+}

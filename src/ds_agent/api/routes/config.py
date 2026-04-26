@@ -39,6 +39,8 @@ ALLOWED_CONFIG_PATHS: frozenset[str] = frozenset(
         "gateway.automation_profile",
         "gateway.authority_overlay",
         "gateway.authority_overlay_started_at",
+        "channels.telegram.enabled",
+        "channels.telegram.allow_from",
         "observability.telemetry_enabled",
         "observability.error_reporting_enabled",
     }

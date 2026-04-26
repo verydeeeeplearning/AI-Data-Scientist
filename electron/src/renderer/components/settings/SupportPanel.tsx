@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ExternalLink, FolderOpen, Loader2, ShieldCheck } from 'lucide-react';
+import { FolderOpen, Loader2, ShieldCheck } from 'lucide-react';
 import { useI18n } from '../../stores/i18nStore';
 import { resolveMainIpcErrorMessage } from '../../utils/mainIpcErrors';
 
@@ -94,15 +94,6 @@ export function SupportPanel() {
             <FolderOpen size={12} />
             {t('settings.supportPanel.reveal')}
           </button>
-          <a
-            href="https://github.com/org/ds-agent/issues"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50"
-          >
-            <ExternalLink size={12} />
-            {t('settings.supportPanel.githubIssues')}
-          </a>
         </div>
       </div>
     </div>

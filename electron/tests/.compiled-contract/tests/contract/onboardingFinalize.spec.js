@@ -26,7 +26,12 @@ function run() {
     strict_1.default.deepEqual(samplePayload.responses.step3_deliverables, ['report', 'presentation']);
     strict_1.default.equal(samplePayload.responses.step4_mode, 'controlled');
     strict_1.default.equal(samplePayload.responses.step5_model, 'anthropic/claude-sonnet-4-6');
+    strict_1.default.deepEqual(samplePayload.responses.step6_notify, {
+        choice: 'desktop_only',
+        telegramConnected: false,
+    });
     strict_1.default.equal(samplePayload.responses.step6_confirmed, true);
+    strict_1.default.equal(samplePayload.responses.step7_confirmed, true);
     const deferredPayload = (0, OnboardingWizard_1.buildOnboardingFinalizePayload)({
         sessionId: null,
         useCaseId: 'sql_exploration',
@@ -44,6 +49,10 @@ function run() {
     strict_1.default.deepEqual(deferredPayload.responses.step3_deliverables, ['report']);
     strict_1.default.equal(deferredPayload.responses.step4_mode, 'fast');
     strict_1.default.equal(deferredPayload.responses.step5_model, 'openai/gpt-4.1-mini');
+    strict_1.default.deepEqual(deferredPayload.responses.step6_notify, {
+        choice: 'desktop_only',
+        telegramConnected: false,
+    });
     strict_1.default.equal(deferredPayload.responses.step6_confirmed, true);
     const uploadPayload = (0, OnboardingWizard_1.buildOnboardingFinalizePayload)({
         sessionId: 'existing-456',
@@ -78,7 +87,31 @@ function run() {
     strict_1.default.deepEqual(abTestPayload.responses.step3_deliverables, ['report', 'presentation']);
     strict_1.default.equal(abTestPayload.responses.step4_mode, 'controlled');
     strict_1.default.equal(abTestPayload.responses.step5_model, 'openai/gpt-5.4-mini');
+    strict_1.default.deepEqual(abTestPayload.responses.step6_notify, {
+        choice: 'desktop_only',
+        telegramConnected: false,
+    });
     strict_1.default.equal(abTestPayload.responses.step6_confirmed, true);
-    console.log('[contract] PASS onboarding-finalize (20 cases)');
+    const telegramPayload = (0, OnboardingWizard_1.buildOnboardingFinalizePayload)({
+        sessionId: 'telegram-999',
+        useCaseId: 'general',
+        starterPrompt: 'Help me analyze this workspace.',
+        dataChoiceId: 'upload',
+        deliverables: ['report'],
+        autonomyMode: 'balanced',
+        modelId: 'anthropic/claude-sonnet-4-6',
+        notifyChoice: 'telegram',
+        telegramConnected: true,
+        telegramChatId: 'chat-1',
+        telegramBotUsername: 'demo_bot',
+    });
+    strict_1.default.deepEqual(telegramPayload.responses.step6_notify, {
+        choice: 'telegram',
+        telegramConnected: true,
+        telegramChatId: 'chat-1',
+        telegramBotUsername: 'demo_bot',
+    });
+    strict_1.default.equal(telegramPayload.responses.step7_confirmed, true);
+    console.log('[contract] PASS onboarding-finalize (32 cases)');
 }
 run();

@@ -15,10 +15,10 @@ function run(): void {
     POLICY_STUDIO_PRESETS.find((preset) => preset.id === 'executive-review'),
     {
       id: 'executive-review',
-      label: 'Executive Review',
+      label: 'settings.policyStudio.preset.executiveReview.label',
       authority: 'supervised',
       audience: 'executive',
-      summary: 'Keep approvals in the loop and shape the output as an executive brief.',
+      summary: 'settings.policyStudio.preset.executiveReview.summary',
     },
   );
 

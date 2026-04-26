@@ -120,5 +120,5 @@ export function usePolicyMatrix(): UsePolicyMatrixApi {
     [previewPort],
   );
 
-  return { load, save, preview };
+  return useMemo(() => ({ load, save, preview }), [load, save, preview]);
 }

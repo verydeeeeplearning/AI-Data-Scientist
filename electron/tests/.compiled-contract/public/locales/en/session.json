@@ -1,0 +1,13 @@
+{
+    "drawer": {
+        "label": "Session settings",
+        "title": "Session",
+        "scope": "this session only",
+        "modeHeading": "Mode",
+        "qualityHeading": "Quality",
+        "budgetHeading": "Budget cap",
+        "budgetUpdateFailed": "Failed to update budget: {message}",
+        "modelHeading": "Model",
+        "openAdmin": "More settings… (Admin)"
+    }
+}

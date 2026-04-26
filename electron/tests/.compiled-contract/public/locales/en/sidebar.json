@@ -41,5 +41,19 @@
     "tab.learning": "Learning",
     "primaryLabel": "Primary navigation",
     "cost": "Cost",
-    "openSettingsTitle": "Settings ({shortcut})"
+    "openSettingsTitle": "Settings ({shortcut})",
+    "projects.heading": "Projects",
+    "projects.createProject": "Create project",
+    "projects.hideCreateForm": "Hide create project form",
+    "projects.refreshProjects": "Refresh projects",
+    "projects.errors.refreshFailed": "Failed to refresh projects: {message}",
+    "projects.errors.createFailed": "Failed to create project: {message}",
+    "portfolio.title": "Portfolio Control Tower",
+    "portfolio.loading": "Loading...",
+    "portfolio.refresh": "Refresh",
+    "portfolio.quadrant.active": "Active",
+    "portfolio.quadrant.waiting": "Waiting",
+    "portfolio.quadrant.monitoring": "Monitoring",
+    "portfolio.quadrant.candidates": "Candidates",
+    "portfolio.quadrant.empty": "No entries"
 }

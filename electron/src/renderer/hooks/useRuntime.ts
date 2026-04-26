@@ -2,7 +2,7 @@
  * Runtime hook that polls operator-console state from backend RPCs.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   useRuntimeStore,
   type RuntimeRunEntry,
@@ -10,6 +10,7 @@ import {
   type RuntimeStatusSnapshot,
   type RuntimeTaskEntry,
 } from '../stores/runtimeStore';
+import { useVisiblePolling } from './useVisiblePolling';
 
 type OnFn = (event: string, handler: (payload: Record<string, unknown>) => void) => () => void;
 type RpcFn = (method: string, params?: Record<string, unknown>) => Promise<Record<string, unknown>>;
@@ -21,6 +22,7 @@ export function useRuntime(on: OnFn, rpc: RpcFn, connected: boolean) {
   const setTasks = useRuntimeStore((s) => s.setTasks);
   const markUpdated = useRuntimeStore((s) => s.markUpdated);
   const resetRuntime = useRuntimeStore((s) => s.resetRuntime);
+  const refreshGenerationRef = useRef(0);
 
   const refreshRuntime = useCallback(async () => {
     const [statusResult, sessionsResult, runsResult, tasksResult] = await Promise.all([
@@ -38,26 +40,35 @@ export function useRuntime(on: OnFn, rpc: RpcFn, connected: boolean) {
   }, [markUpdated, rpc, setRuns, setSessions, setStatus, setTasks]);
 
   useEffect(() => {
+    refreshGenerationRef.current += 1;
     if (!connected) {
       resetRuntime();
-      return;
     }
 
-    let cancelled = false;
-    const guardedRefresh = async () => {
-      try {
-        await refreshRuntime();
-      } catch (err) {
-        if (!cancelled) {
-          console.warn('[useRuntime] refresh failed:', err);
-        }
-      }
+    return () => {
+      refreshGenerationRef.current += 1;
     };
+  }, [connected, refreshRuntime, resetRuntime]);
 
+  const guardedRefresh = useCallback(async () => {
+    const generation = refreshGenerationRef.current;
+    try {
+      await refreshRuntime();
+    } catch (err) {
+      if (refreshGenerationRef.current === generation) {
+        console.warn('[useRuntime] refresh failed:', err);
+      }
+    }
+  }, [refreshRuntime]);
+
+  useVisiblePolling(() => {
     void guardedRefresh();
-    const timer = window.setInterval(() => {
-      void guardedRefresh();
-    }, 3000);
+  }, { intervalMs: 3000, enabled: connected });
+
+  useEffect(() => {
+    if (!connected) {
+      return;
+    }
 
     const unsubs = [
       on('stream.done', () => {
@@ -78,9 +89,7 @@ export function useRuntime(on: OnFn, rpc: RpcFn, connected: boolean) {
     ];
 
     return () => {
-      cancelled = true;
-      window.clearInterval(timer);
       unsubs.forEach((unsub) => unsub());
     };
-  }, [connected, on, refreshRuntime, resetRuntime]);
+  }, [connected, guardedRefresh, on]);
 }

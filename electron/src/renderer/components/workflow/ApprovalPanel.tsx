@@ -84,10 +84,12 @@ function ApprovalCard({
   const [busy, setBusy] = useState(false);
   const [respondOpen, setRespondOpen] = useState(false);
   const [responseDraft, setResponseDraft] = useState(approval.default ?? '');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const resolve = async (decision: 'approved' | 'rejected', response?: string) => {
     setRespondOpen(false);
     setBusy(true);
+    setErrorMessage(null);
     try {
       await rpc('approval.resolve', {
         approvalId: approval.approvalId,
@@ -97,6 +99,8 @@ function ApprovalCard({
       });
     } catch (err) {
       console.warn('[ApprovalPanel] approval.resolve failed:', err);
+      const detail = err instanceof Error ? err.message : String(err);
+      setErrorMessage(t('workflow.approval.error.resolveFailed', { message: detail }));
     } finally {
       setBusy(false);
     }
@@ -275,6 +279,16 @@ function ApprovalCard({
           {t('workspace.workflow.approval.reject')}
         </Button>
       </div>
+
+      {errorMessage ? (
+        <p
+          role="alert"
+          className="text-ds-xs text-ds-error"
+          data-testid="approval-resolve-error"
+        >
+          {errorMessage}
+        </p>
+      ) : null}
     </Card>
   );
 }

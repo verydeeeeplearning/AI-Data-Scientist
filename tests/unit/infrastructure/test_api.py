@@ -2139,6 +2139,22 @@ class TestWsRpcHandler:
         assert "authorityOverlayExpiresAt" in frame["payload"]
         assert "effectiveAuthorityMode" in frame["payload"]
 
+    async def test_ping(self, rpc_handler, mock_ws):
+        await rpc_handler.handle_message(
+            {
+                "type": "req",
+                "id": "p1",
+                "method": "ping",
+            }
+        )
+
+        frame = mock_ws.sent[0]
+        assert frame["type"] == "res"
+        assert frame["id"] == "p1"
+        assert frame["ok"] is True
+        assert frame["payload"]["pong"] is True
+        assert isinstance(frame["payload"]["ts"], float)
+
     async def test_usage_summary_rpc(self, rpc_handler, mock_ws, app_state):
         app_state.config.provider.budget_warning_threshold_pct = 90.0
         app_state.organization_store.record_usage(

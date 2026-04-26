@@ -21,11 +21,7 @@ import {
   translateRuntimeProfile,
   translateRuntimeSeverity,
 } from './runtimeI18n';
-
-function getBackendPort(): string {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('port') ?? '18790';
-}
+import { getBackendPort } from '../../utils/backendUrl';
 
 type MetricItem = {
   readonly labelKey: string;
@@ -40,6 +36,7 @@ export function GatewayStatusPanel() {
   const lastUpdatedAt = useRuntimeStore((s) => s.lastUpdatedAt);
   const runtimeEvents = useRuntimeEventStore((s) => s.events);
   const [busy, setBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const endpoint = useMemo(() => `ws://127.0.0.1:${getBackendPort()}/ws`, []);
   const autonomyEnabled = runtimeStatus?.autonomousRuntimeEnabled ?? false;
@@ -56,7 +53,14 @@ export function GatewayStatusPanel() {
   )).length;
 
   const toggleAutonomy = async () => {
+    const confirmKey = autonomyEnabled
+      ? 'run.runtime.gateway.autonomy.confirmDisable'
+      : 'run.runtime.gateway.autonomy.confirmEnable';
+    if (!window.confirm(t(confirmKey))) {
+      return;
+    }
     setBusy(true);
+    setErrorMessage(null);
     try {
       await rpc('config.set', {
         path: 'gateway.autonomous_runtime_enabled',
@@ -64,6 +68,7 @@ export function GatewayStatusPanel() {
       });
     } catch (err) {
       console.warn('[GatewayStatusPanel] autonomous toggle failed:', err);
+      setErrorMessage(t('run.runtime.gateway.error.autonomyToggleFailed'));
     } finally {
       setBusy(false);
     }
@@ -71,6 +76,7 @@ export function GatewayStatusPanel() {
 
   const updateAutomationProfile = async (profile: 'manual' | 'balanced' | 'aggressive') => {
     setBusy(true);
+    setErrorMessage(null);
     try {
       await rpc('config.set', {
         path: 'gateway.automation_profile',
@@ -78,6 +84,7 @@ export function GatewayStatusPanel() {
       });
     } catch (err) {
       console.warn('[GatewayStatusPanel] automation profile update failed:', err);
+      setErrorMessage(t('run.runtime.gateway.error.automationProfileFailed'));
     } finally {
       setBusy(false);
     }
@@ -85,6 +92,7 @@ export function GatewayStatusPanel() {
 
   const updateAuthorityOverlay = async (overlay: 'none' | 'incident' | 'freeze') => {
     setBusy(true);
+    setErrorMessage(null);
     try {
       await rpc('config.set', {
         path: 'gateway.authority_overlay',
@@ -92,6 +100,7 @@ export function GatewayStatusPanel() {
       });
     } catch (err) {
       console.warn('[GatewayStatusPanel] authority overlay update failed:', err);
+      setErrorMessage(t('run.runtime.gateway.error.authorityOverlayFailed'));
     } finally {
       setBusy(false);
     }
@@ -183,6 +192,16 @@ export function GatewayStatusPanel() {
                   : t('run.runtime.gateway.autonomy.state.disabled')}
             </Badge>
           </div>
+
+          {errorMessage ? (
+            <p
+              role="alert"
+              className="text-ds-xs text-ds-error"
+              data-testid="runtime-gateway-error"
+            >
+              {errorMessage}
+            </p>
+          ) : null}
 
           <div className="grid gap-ds-3 sm:grid-cols-2">
             <Select

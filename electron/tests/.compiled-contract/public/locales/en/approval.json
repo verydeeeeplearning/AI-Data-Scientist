@@ -30,6 +30,7 @@
     "modal.footer.escapeHint": "Escape denies the request and restores focus to the previously active control when the modal clears.",
     "modal.footer.deny": "Deny request",
     "modal.footer.allow": "Allow selected scope",
+    "modal.submitError": "Failed to submit decision. {message}",
     "scope.once.title": "Allow once",
     "scope.once.description": "Run this single command. The next request requires fresh approval.",
     "scope.session.title": "Allow for this session",

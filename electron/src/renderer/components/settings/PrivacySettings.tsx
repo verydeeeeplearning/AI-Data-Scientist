@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Activity, ShieldCheck } from 'lucide-react';
 import { configureRendererObservability } from '../../observability';
+import { useI18n } from '../../stores/i18nStore';
 import type { RpcFn } from './types';
 
 type SaveTarget = 'error' | 'telemetry' | null;
 
 export function PrivacySettings({ rpc }: { rpc: RpcFn }) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<SaveTarget>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -107,14 +109,12 @@ export function PrivacySettings({ rpc }: { rpc: RpcFn }) {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-ds-border bg-ds-bg p-3 text-[11px] text-ds-muted">
-        Crash reports and performance telemetry are off by default. API keys, OAuth tokens, and
-        backend handshake secrets are redacted before anything is sent.
+        {t('settings.privacy.description')}
       </div>
 
       {!sentryConfigured && (
         <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
-          Remote crash reporting is not configured for this build yet. Your preference will still be
-          saved and applied automatically once a Sentry DSN is configured.
+          {t('settings.privacy.sentryNotConfigured')}
         </div>
       )}
 
@@ -127,16 +127,16 @@ export function PrivacySettings({ rpc }: { rpc: RpcFn }) {
       <div className="grid gap-3 md:grid-cols-2">
         <ToggleCard
           icon={<ShieldCheck size={14} />}
-          title="Anonymous Crash Reports"
-          description="Send redacted renderer/main/backend exceptions so repeated failures can be fixed faster."
+          title={t('settings.privacy.crashReports.title')}
+          description={t('settings.privacy.crashReports.description')}
           enabled={errorReportingEnabled}
           loading={saving === 'error' || loading}
           onToggle={(value) => void persistToggle('error', value)}
         />
         <ToggleCard
           icon={<Activity size={14} />}
-          title="Anonymous Performance Telemetry"
-          description="Share low-rate transaction traces to diagnose slow startup, RPC, and UI bottlenecks."
+          title={t('settings.privacy.telemetry.title')}
+          description={t('settings.privacy.telemetry.description')}
           enabled={telemetryEnabled}
           loading={saving === 'telemetry' || loading}
           onToggle={(value) => void persistToggle('telemetry', value)}
@@ -161,6 +161,8 @@ function ToggleCard({
   loading: boolean;
   onToggle: (value: boolean) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="rounded-lg border border-ds-border bg-ds-bg p-4">
       <div className="flex items-start justify-between gap-3">
@@ -190,7 +192,11 @@ function ToggleCard({
         </button>
       </div>
       <div className="mt-3 text-[10px] uppercase tracking-wider text-ds-muted">
-        {loading ? 'Saving...' : enabled ? 'Enabled' : 'Disabled'}
+        {loading
+          ? t('settings.privacy.state.saving')
+          : enabled
+            ? t('settings.privacy.state.enabled')
+            : t('settings.privacy.state.disabled')}
       </div>
     </div>
   );

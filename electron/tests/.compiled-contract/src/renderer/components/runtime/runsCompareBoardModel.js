@@ -75,10 +75,12 @@ function filterRunsForComparison(runs, filters, scorecardsByRunId) {
         return weightedScore < filters.maxWeightedScore;
     });
 }
-function formatRunCompareOption(run, scorecardsByRunId) {
+function formatRunCompareOption(run, scorecardsByRunId, labels) {
     const sessionLabel = run.sessionLabel || run.sessionId;
     const timestamp = new Date((run.finishedAt ?? run.startedAt ?? run.createdAt) * 1000);
     const weightedScore = getRunWeightedScore(run.runId, scorecardsByRunId);
-    const scorePart = weightedScore === null ? 'score n/a' : `score ${weightedScore.toFixed(3)}`;
+    const scorePart = weightedScore === null
+        ? (labels?.scoreUnavailable ?? 'score n/a')
+        : `${labels?.score ?? 'score'} ${weightedScore.toFixed(3)}`;
     return `${run.runId} | ${run.status} | ${sessionLabel} | ${scorePart} | $${run.costUsd.toFixed(4)} | ${timestamp.toLocaleString()}`;
 }

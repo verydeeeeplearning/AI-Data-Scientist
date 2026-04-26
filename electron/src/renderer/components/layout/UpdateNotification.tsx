@@ -36,10 +36,14 @@ export function UpdateNotification() {
     if (!updater) return;
 
     let cancelled = false;
-    void updater.getState().then((info) => {
-      if (cancelled || !info.isPackaged) return;
-      // Dev build → updater is a no-op; stay hidden.
-    });
+    void updater.getState()
+      .then((info) => {
+        if (cancelled || !info.isPackaged) return;
+        // Dev build → updater is a no-op; stay hidden.
+      })
+      .catch((error) => {
+        console.warn('[UpdateNotification] updater:getState failed:', error);
+      });
 
     const offAvailable = updater.on('update-available', (payload) => {
       setDismissed(false);

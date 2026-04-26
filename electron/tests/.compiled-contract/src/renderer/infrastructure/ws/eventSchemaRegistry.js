@@ -137,6 +137,22 @@ registerEventSchema({
         return true;
     },
 });
+registerEventSchema({
+    type: 'stream.error',
+    version: '1.0',
+    validate(p) {
+        if (!isRecord(p)) {
+            return false;
+        }
+        if (p.message !== undefined && typeof p.message !== 'string') {
+            return false;
+        }
+        if (p.code !== undefined && typeof p.code !== 'string') {
+            return false;
+        }
+        return p.messageId === undefined || p.messageId === null || isNonEmptyString(p.messageId);
+    },
+});
 const cardSchema = {
     type: 'card.created',
     version: '1.0',

@@ -39,7 +39,6 @@ async function run(): Promise<void> {
   const { app, page, isolated } = await launchApp('visual-surface-survey', {
     extraEnv: {
       DS_AGENT_E2E_SKIP_ONBOARDING: '1',
-      DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
     },
   });
   const artifactsDir = process.env.DS_AGENT_E2E_ARTIFACTS_DIR || isolated.artifacts;

@@ -94,7 +94,6 @@ async function run() {
             DS_AGENT_E2E_USER_DATA_DIR: node_path_1.default.join(paths.rootDir, 'userData'),
             DS_AGENT_E2E_USE_BUILT_RENDERER: '1',
             DS_AGENT_E2E_SKIP_ONBOARDING: '1',
-            DS_AGENT_E2E_FORCE_LEGACY_IA: '1',
         },
         timeout: 60000,
     });
@@ -102,8 +101,8 @@ async function run() {
     try {
         page = await app.firstWindow({ timeout: 60000 });
         await page.waitForLoadState('domcontentloaded');
-        await page.getByTestId('open-settings').waitFor({ state: 'visible', timeout: 60000 });
-        await clickTestId(page, 'sidebar-tab-review');
+        await page.getByTestId('area-nav-runs').waitFor({ state: 'visible', timeout: 60000 });
+        await clickTestId(page, 'area-nav-governance');
         await page.getByTestId('decision-os-overview').waitFor({ state: 'visible', timeout: 30000 });
         await waitForNumericTestIdAtLeast(page, 'decision-os-overview-run-count', 2);
         await waitForNumericTestIdAtLeast(page, 'decision-os-overview-model-count', 2);
@@ -123,7 +122,11 @@ async function run() {
         await page
             .getByTestId('decision-os-run-diff-result')
             .waitFor({ state: 'visible', timeout: 30000 });
-        await page.getByText('New: monitor feature freshness after promotion').waitFor({
+        await page
+            .getByTestId('decision-os-run-diff-result')
+            .getByText(/monitor feature freshness after promotion/)
+            .first()
+            .waitFor({
             state: 'visible',
             timeout: 30000,
         });
@@ -133,13 +136,14 @@ async function run() {
             .getByTestId('decision-os-promotion-gate-modal')
             .waitFor({ state: 'visible', timeout: 30000 });
         await page.getByTestId('decision-os-promotion-stage').selectOption('staging');
+        await page.getByTestId('decision-os-promotion-approvers').fill('DS, Lead, MLOps');
         await clickTestId(page, 'decision-os-promotion-submit');
         await page
             .getByTestId('decision-os-promotion-result')
             .waitFor({ state: 'visible', timeout: 30000 });
         await page
             .getByTestId('decision-os-promotion-result')
-            .getByText('pending_DS')
+            .getByText('run-candidate')
             .waitFor({ state: 'visible', timeout: 30000 });
         await screenshot(page, node_path_1.default.join(artifactsDir, 'review-promotion-gate.png'));
         await clickTestId(page, 'decision-os-promotion-close');

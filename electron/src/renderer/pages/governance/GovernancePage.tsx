@@ -18,22 +18,31 @@ interface Props {
   onNavigate: (path: string) => void;
 }
 
-const GOVERNANCE_SECTIONS: readonly { id: GovernanceSectionId; label: string }[] = [
-  { id: 'review', label: 'Review' },
-  { id: 'certification', label: 'Certification' },
-  { id: 'policy', label: 'Policy' },
-  { id: 'approvals', label: 'Approvals' },
+const GOVERNANCE_SECTIONS: readonly { id: GovernanceSectionId; labelKey: string }[] = [
+  { id: 'review', labelKey: 'area.governance.tab.review' },
+  { id: 'certification', labelKey: 'area.governance.tab.certification' },
+  { id: 'policy', labelKey: 'area.governance.tab.policy' },
+  { id: 'approvals', labelKey: 'area.governance.tab.approvals' },
 ] as const;
 
-const DETAIL_LABELS: Readonly<Record<GovernanceDetailKind, string>> = Object.freeze({
-  verifier: 'Verifier result',
-  lineage: 'Lineage trace',
-  'fallback-log': 'Fallback log',
-  approval: 'Approval request',
-  drift: 'Drift status',
-  certification: 'Certification target',
-  policy: 'Policy detail',
-});
+function detailLabel(kind: GovernanceDetailKind, t: (key: string) => string): string {
+  switch (kind) {
+    case 'verifier':
+      return 'Verifier result';
+    case 'lineage':
+      return 'Lineage trace';
+    case 'fallback-log':
+      return 'Fallback log';
+    case 'approval':
+      return 'Approval request';
+    case 'drift':
+      return 'Drift status';
+    case 'certification':
+      return t('area.governance.detail.certificationTarget');
+    case 'policy':
+      return t('area.governance.detail.policyDetail');
+  }
+}
 
 function sectionClassName(active: boolean): string {
   return [
@@ -42,7 +51,10 @@ function sectionClassName(active: boolean): string {
   ].join(' ');
 }
 
-function describeLandingDetail(detail: GovernanceLandingDetail | null): {
+function describeLandingDetail(
+  detail: GovernanceLandingDetail | null,
+  t: (key: string) => string,
+): {
   label: string;
   id: string | null;
 } | null {
@@ -50,7 +62,7 @@ function describeLandingDetail(detail: GovernanceLandingDetail | null): {
     return null;
   }
   return {
-    label: DETAIL_LABELS[detail.kind],
+    label: detailLabel(detail.kind, t),
     id: detail.id,
   };
 }
@@ -58,7 +70,7 @@ function describeLandingDetail(detail: GovernanceLandingDetail | null): {
 export function GovernancePage({ selection, onNavigate }: Props) {
   const { t } = useI18n();
   const landing = useMemo(() => resolveGovernanceLanding(selection), [selection]);
-  const detail = useMemo(() => describeLandingDetail(landing.detail), [landing.detail]);
+  const detail = useMemo(() => describeLandingDetail(landing.detail, t), [landing.detail, t]);
   const sectionRefs = useRef<Record<GovernanceSectionId, HTMLElement | null>>({
     review: null,
     certification: null,
@@ -98,7 +110,7 @@ export function GovernancePage({ selection, onNavigate }: Props) {
                   : 'border-ds-border bg-ds-surface text-ds-muted hover:text-ds-text'
               }`}
             >
-              {section.label}
+              {t(section.labelKey)}
             </button>
           ))}
         </div>

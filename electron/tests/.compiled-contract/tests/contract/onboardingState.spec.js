@@ -66,10 +66,12 @@ test('autonomy mode maps to quality preset', () => {
 });
 test('next/previous step traversal honors fixed order', () => {
     strict_1.default.equal((0, onboardingState_1.nextOnboardingStep)('use_case'), 'data');
+    strict_1.default.equal((0, onboardingState_1.nextOnboardingStep)('model'), 'notify');
+    strict_1.default.equal((0, onboardingState_1.previousOnboardingStep)('confirm'), 'notify');
     strict_1.default.equal((0, onboardingState_1.nextOnboardingStep)('confirm'), null);
     strict_1.default.equal((0, onboardingState_1.previousOnboardingStep)('use_case'), null);
     strict_1.default.equal((0, onboardingState_1.previousOnboardingStep)('mode'), 'deliverables');
-    strict_1.default.equal(onboardingState_1.ONBOARDING_PRIMARY_STEP_ORDER.length, 6);
+    strict_1.default.equal(onboardingState_1.ONBOARDING_PRIMARY_STEP_ORDER.length, 7);
 });
 test('canAdvanceOnboardingStep enforces selection invariants', () => {
     const empty = (0, onboardingState_1.buildInitialOnboardingState)({ defaultDataChoice: 'upload' });
@@ -102,7 +104,12 @@ test('buildOnboardingFinalizePayload emits the documented wire contract', () => 
     strict_1.default.equal(payload.useCaseId, 'data_analysis');
     strict_1.default.deepEqual(payload.responses.step3_deliverables, ['chart_summary']);
     strict_1.default.equal(payload.responses.step5_model, 'claude-opus-4-7');
+    strict_1.default.deepEqual(payload.responses.step6_notify, {
+        choice: 'desktop_only',
+        telegramConnected: false,
+    });
     strict_1.default.equal(payload.responses.step6_confirmed, true);
+    strict_1.default.equal(payload.responses.step7_confirmed, true);
     strict_1.default.equal(payload.responses.step2_data.sampleId, 'builtin:data_analysis');
 });
 test('buildOnboardingFinalizePayload preserves new onboarding use case ids', () => {

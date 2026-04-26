@@ -75,132 +75,132 @@ export interface PolicyRiskTierDefinition {
 export const CONTRACT_AUTHORITY_OPTIONS: AuthorityOption[] = [
   {
     value: 'inherit',
-    label: 'Inherit',
-    summary: 'Use the mission default first, then fall back to the legacy runtime mode.',
+    label: 'settings.policyStudio.contractAuthority.inherit.label',
+    summary: 'settings.policyStudio.contractAuthority.inherit.summary',
   },
   {
     value: 'shadow',
-    label: 'Shadow',
-    summary: 'Rehearse and explain without causing side effects.',
+    label: 'settings.policyStudio.contractAuthority.shadow.label',
+    summary: 'settings.policyStudio.contractAuthority.shadow.summary',
   },
   {
     value: 'supervised',
-    label: 'Supervised',
-    summary: 'Execute safe actions directly and route sensitive work to approval.',
+    label: 'settings.policyStudio.contractAuthority.supervised.label',
+    summary: 'settings.policyStudio.contractAuthority.supervised.summary',
   },
   {
     value: 'delegate',
-    label: 'Delegate',
-    summary: 'Run low-risk repeatable work autonomously inside the delegated scope.',
+    label: 'settings.policyStudio.contractAuthority.delegate.label',
+    summary: 'settings.policyStudio.contractAuthority.delegate.summary',
   },
   {
     value: 'autopilot',
-    label: 'Autopilot',
-    summary: 'Operate autonomously inside the certified mission boundary.',
+    label: 'settings.policyStudio.contractAuthority.autopilot.label',
+    summary: 'settings.policyStudio.contractAuthority.autopilot.summary',
   },
 ];
 
 export const EFFECTIVE_AUTHORITY_CARDS: EffectiveAuthorityCard[] = [
   {
     value: 'shadow',
-    label: 'Shadow',
-    summary: 'Dry-run planning and explicit escalation notes.',
+    label: 'settings.policyStudio.effectiveAuthority.shadow.label',
+    summary: 'settings.policyStudio.effectiveAuthority.shadow.summary',
   },
   {
     value: 'supervised',
-    label: 'Supervised',
-    summary: 'Safe actions execute, sensitive actions stop for approval.',
+    label: 'settings.policyStudio.effectiveAuthority.supervised.label',
+    summary: 'settings.policyStudio.effectiveAuthority.supervised.summary',
   },
   {
     value: 'delegate',
-    label: 'Delegate',
-    summary: 'Routine work is autonomous, sensitive work still escalates.',
+    label: 'settings.policyStudio.effectiveAuthority.delegate.label',
+    summary: 'settings.policyStudio.effectiveAuthority.delegate.summary',
   },
   {
     value: 'autopilot',
-    label: 'Autopilot',
-    summary: 'Mission-certified execution continues without routine approvals.',
+    label: 'settings.policyStudio.effectiveAuthority.autopilot.label',
+    summary: 'settings.policyStudio.effectiveAuthority.autopilot.summary',
   },
   {
     value: 'incident',
-    label: 'Incident',
-    summary: 'Prioritize mitigation, but keep irreversible actions on approval paths.',
+    label: 'settings.policyStudio.effectiveAuthority.incident.label',
+    summary: 'settings.policyStudio.effectiveAuthority.incident.summary',
   },
   {
     value: 'freeze',
-    label: 'Freeze',
-    summary: 'Treat the environment as read-only for write-side actions.',
+    label: 'settings.policyStudio.effectiveAuthority.freeze.label',
+    summary: 'settings.policyStudio.effectiveAuthority.freeze.summary',
   },
 ];
 
 export const AUDIENCE_OPTIONS: { value: AudienceDraft; label: string }[] = [
-  { value: 'inherit', label: 'Inherit' },
-  { value: 'junior_mentor', label: 'Junior Mentor' },
-  { value: 'peer_ds', label: 'Peer DS' },
-  { value: 'senior_staff', label: 'Senior/Staff' },
-  { value: 'executive', label: 'Executive' },
-  { value: 'auditor', label: 'Auditor' },
+  { value: 'inherit', label: 'settings.policyStudio.audience.inherit' },
+  { value: 'junior_mentor', label: 'settings.policyStudio.audience.juniorMentor' },
+  { value: 'peer_ds', label: 'settings.policyStudio.audience.peerDs' },
+  { value: 'senior_staff', label: 'settings.policyStudio.audience.seniorStaff' },
+  { value: 'executive', label: 'settings.policyStudio.audience.executive' },
+  { value: 'auditor', label: 'settings.policyStudio.audience.auditor' },
 ];
 
 export const AUDIENCE_PREVIEWS: Record<Exclude<AudienceDraft, 'inherit'>, AudiencePreview> = {
   junior_mentor: {
-    label: 'Junior Mentor',
-    tone: 'Educational and explicit',
-    depth: 'Very detailed',
-    uncertaintyStyle: 'Call out caveats and what to verify next.',
+    label: 'settings.policyStudio.audience.juniorMentor',
+    tone: 'settings.policyStudio.audiencePreview.juniorMentor.tone',
+    depth: 'settings.policyStudio.audiencePreview.juniorMentor.depth',
+    uncertaintyStyle: 'settings.policyStudio.audiencePreview.juniorMentor.uncertaintyStyle',
     defaultArtifacts: ['checklist', 'annotated_notes', 'commented_code'],
     sample: [
-      'What changed: revenue dipped after the checkout rollout.',
-      'Why we think it happened: the new flow adds one extra required field and abandonment rose in that step.',
-      'Next step: verify the field-level drop-off and prepare a rollback checklist before touching production.',
+      'settings.policyStudio.audiencePreview.juniorMentor.sample1',
+      'settings.policyStudio.audiencePreview.juniorMentor.sample2',
+      'settings.policyStudio.audiencePreview.juniorMentor.sample3',
     ],
   },
   peer_ds: {
-    label: 'Peer DS',
-    tone: 'Collegial and concise',
-    depth: 'Medium',
-    uncertaintyStyle: 'Use confidence intervals or explicit error bars.',
+    label: 'settings.policyStudio.audience.peerDs',
+    tone: 'settings.policyStudio.audiencePreview.peerDs.tone',
+    depth: 'settings.policyStudio.audiencePreview.peerDs.depth',
+    uncertaintyStyle: 'settings.policyStudio.audiencePreview.peerDs.uncertaintyStyle',
     defaultArtifacts: ['reproducible_notebook', 'sql', 'analysis_appendix'],
     sample: [
-      'Observed a 4.2% WoW conversion drop concentrated in the checkout submit stage.',
-      'Primary hypothesis is friction from the new mandatory field; matched-control traffic suggests a real effect but sample size is still modest.',
-      'Recommended follow-up is a rollback rehearsal plus a stratified funnel cut by browser and acquisition channel.',
+      'settings.policyStudio.audiencePreview.peerDs.sample1',
+      'settings.policyStudio.audiencePreview.peerDs.sample2',
+      'settings.policyStudio.audiencePreview.peerDs.sample3',
     ],
   },
   senior_staff: {
-    label: 'Senior/Staff',
-    tone: 'Direct and decision-focused',
-    depth: 'Focused',
-    uncertaintyStyle: 'Lead with confidence and the caveat that changes the decision.',
+    label: 'settings.policyStudio.audience.seniorStaff',
+    tone: 'settings.policyStudio.audiencePreview.seniorStaff.tone',
+    depth: 'settings.policyStudio.audiencePreview.seniorStaff.depth',
+    uncertaintyStyle: 'settings.policyStudio.audiencePreview.seniorStaff.uncertaintyStyle',
     defaultArtifacts: ['decision_memo', 'diff', 'risk_summary'],
     sample: [
-      'Decision: pause the checkout variant and revert the required-field change.',
-      'Risk: holding the current state likely costs roughly one week of conversion and complicates attribution if more traffic accumulates.',
-      'Caveat: root cause is high-confidence at the step level, but device-specific degradation still needs one more cut after rollback.',
+      'settings.policyStudio.audiencePreview.seniorStaff.sample1',
+      'settings.policyStudio.audiencePreview.seniorStaff.sample2',
+      'settings.policyStudio.audiencePreview.seniorStaff.sample3',
     ],
   },
   executive: {
-    label: 'Executive',
-    tone: 'Business-first and brief',
-    depth: 'Minimal',
-    uncertaintyStyle: 'Use SAFE / REVIEW / DANGER labels.',
+    label: 'settings.policyStudio.audience.executive',
+    tone: 'settings.policyStudio.audiencePreview.executive.tone',
+    depth: 'settings.policyStudio.audiencePreview.executive.depth',
+    uncertaintyStyle: 'settings.policyStudio.audiencePreview.executive.uncertaintyStyle',
     defaultArtifacts: ['exec_brief', 'action_card'],
     sample: [
-      'Situation: checkout conversion fell immediately after the latest release.',
-      'Impact: DANGER. Revenue exposure is material if we keep the change live through the week.',
-      'Recommendation: revert now, confirm recovery today, and return with a root-cause note plus options tomorrow morning.',
+      'settings.policyStudio.audiencePreview.executive.sample1',
+      'settings.policyStudio.audiencePreview.executive.sample2',
+      'settings.policyStudio.audiencePreview.executive.sample3',
     ],
   },
   auditor: {
-    label: 'Auditor',
-    tone: 'Provenance-first and factual',
-    depth: 'Very detailed',
-    uncertaintyStyle: 'State evidence sources and policy references explicitly.',
+    label: 'settings.policyStudio.audience.auditor',
+    tone: 'settings.policyStudio.audiencePreview.auditor.tone',
+    depth: 'settings.policyStudio.audiencePreview.auditor.depth',
+    uncertaintyStyle: 'settings.policyStudio.audiencePreview.auditor.uncertaintyStyle',
     defaultArtifacts: ['audit_trail', 'lineage_report', 'approval_history'],
     sample: [
-      'Source evidence: warehouse funnel query `checkout_drop_v3.sql`, release ticket WEB-241, and approval history from runtime audit log.',
-      'Observed variance exceeds the pre-release tolerance documented in the launch checklist; rollback remains pending approval because production writes are restricted.',
-      'Open item: no direct user-level replay is attached yet, so field-specific causality remains unverified in current records.',
+      'settings.policyStudio.audiencePreview.auditor.sample1',
+      'settings.policyStudio.audiencePreview.auditor.sample2',
+      'settings.policyStudio.audiencePreview.auditor.sample3',
     ],
   },
 };
@@ -208,89 +208,89 @@ export const AUDIENCE_PREVIEWS: Record<Exclude<AudienceDraft, 'inherit'>, Audien
 export const POLICY_STUDIO_PRESETS: PolicyStudioPreset[] = [
   {
     id: 'delegate-peer',
-    label: 'Delegated Peer',
+    label: 'settings.policyStudio.preset.delegatePeer.label',
     authority: 'delegate',
     audience: 'peer_ds',
-    summary: 'Routine autonomous analysis with the default peer DS reporting style.',
+    summary: 'settings.policyStudio.preset.delegatePeer.summary',
   },
   {
     id: 'executive-review',
-    label: 'Executive Review',
+    label: 'settings.policyStudio.preset.executiveReview.label',
     authority: 'supervised',
     audience: 'executive',
-    summary: 'Keep approvals in the loop and shape the output as an executive brief.',
+    summary: 'settings.policyStudio.preset.executiveReview.summary',
   },
   {
     id: 'audit-guard',
-    label: 'Audit Guard',
+    label: 'settings.policyStudio.preset.auditGuard.label',
     authority: 'supervised',
     audience: 'auditor',
-    summary: 'Preserve approval gates while shifting the output toward provenance and policy references.',
+    summary: 'settings.policyStudio.preset.auditGuard.summary',
   },
   {
     id: 'mentor-walkthrough',
-    label: 'Mentor Walkthrough',
+    label: 'settings.policyStudio.preset.mentorWalkthrough.label',
     authority: 'supervised',
     audience: 'junior_mentor',
-    summary: 'Use step-by-step mentoring tone without keeping the whole session in legacy step-by-step mode.',
+    summary: 'settings.policyStudio.preset.mentorWalkthrough.summary',
   },
 ];
 
 export const POLICY_RISK_TIER_DEFINITIONS: PolicyRiskTierDefinition[] = [
   {
     value: 'routine',
-    label: 'T0 Routine',
-    summary: 'Read-mostly or easily reversible work with low blast radius.',
+    label: 'settings.policyStudio.riskTierDef.routine.label',
+    summary: 'settings.policyStudio.riskTierDef.routine.summary',
   },
   {
     value: 'guarded',
-    label: 'T1 Guarded',
-    summary: 'Local writes, medium spend, or other reversible work that still needs care.',
+    label: 'settings.policyStudio.riskTierDef.guarded.label',
+    summary: 'settings.policyStudio.riskTierDef.guarded.summary',
   },
   {
     value: 'sensitive',
-    label: 'T2 Sensitive',
-    summary: 'Restricted data, external side effects, or audit-bound actions.',
+    label: 'settings.policyStudio.riskTierDef.sensitive.label',
+    summary: 'settings.policyStudio.riskTierDef.sensitive.summary',
   },
   {
     value: 'critical',
-    label: 'T3 Critical',
-    summary: 'Irreversible or high-blast-radius actions that should stay tightly controlled.',
+    label: 'settings.policyStudio.riskTierDef.critical.label',
+    summary: 'settings.policyStudio.riskTierDef.critical.summary',
   },
 ];
 
-const AUTHORITY_LABELS: Record<EffectiveAuthorityMode, string> = {
-  shadow: 'Shadow',
-  supervised: 'Supervised',
-  delegate: 'Delegate',
-  autopilot: 'Autopilot',
-  incident: 'Incident',
-  freeze: 'Freeze',
+const AUTHORITY_LABEL_KEYS: Record<EffectiveAuthorityMode, string> = {
+  shadow: 'settings.policyStudio.effectiveAuthority.shadow.label',
+  supervised: 'settings.policyStudio.effectiveAuthority.supervised.label',
+  delegate: 'settings.policyStudio.effectiveAuthority.delegate.label',
+  autopilot: 'settings.policyStudio.effectiveAuthority.autopilot.label',
+  incident: 'settings.policyStudio.effectiveAuthority.incident.label',
+  freeze: 'settings.policyStudio.effectiveAuthority.freeze.label',
 };
 
-const AUDIENCE_LABELS: Record<Exclude<AudienceDraft, 'inherit'>, string> = {
-  junior_mentor: 'Junior Mentor',
-  peer_ds: 'Peer DS',
-  senior_staff: 'Senior/Staff',
-  executive: 'Executive',
-  auditor: 'Auditor',
+const AUDIENCE_LABEL_KEYS: Record<Exclude<AudienceDraft, 'inherit'>, string> = {
+  junior_mentor: 'settings.policyStudio.audience.juniorMentor',
+  peer_ds: 'settings.policyStudio.audience.peerDs',
+  senior_staff: 'settings.policyStudio.audience.seniorStaff',
+  executive: 'settings.policyStudio.audience.executive',
+  auditor: 'settings.policyStudio.audience.auditor',
 };
 
 export const MATRIX_AUTHORITY_COLUMNS: { value: MatrixAuthority; label: string }[] = [
-  { value: 'shadow', label: 'Shadow' },
-  { value: 'supervised', label: 'Supervised' },
-  { value: 'delegate', label: 'Delegate' },
-  { value: 'autopilot', label: 'Autopilot' },
-  { value: 'incident', label: 'Incident' },
-  { value: 'freeze', label: 'Freeze' },
+  { value: 'shadow', label: 'settings.policyStudio.matrix.column.shadow' },
+  { value: 'supervised', label: 'settings.policyStudio.matrix.column.supervised' },
+  { value: 'delegate', label: 'settings.policyStudio.matrix.column.delegate' },
+  { value: 'autopilot', label: 'settings.policyStudio.matrix.column.autopilot' },
+  { value: 'incident', label: 'settings.policyStudio.matrix.column.incident' },
+  { value: 'freeze', label: 'settings.policyStudio.matrix.column.freeze' },
 ];
 
 export const MATRIX_VERDICT_OPTIONS: { value: MatrixVerdict; label: string }[] = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'ask', label: 'Ask' },
-  { value: 'approve', label: 'Approve' },
-  { value: 'dual', label: 'Dual' },
-  { value: 'skip', label: 'Skip' },
+  { value: 'auto', label: 'settings.policyStudio.matrix.verdict.auto' },
+  { value: 'ask', label: 'settings.policyStudio.matrix.verdict.ask' },
+  { value: 'approve', label: 'settings.policyStudio.matrix.verdict.approve' },
+  { value: 'dual', label: 'settings.policyStudio.matrix.verdict.dual' },
+  { value: 'skip', label: 'settings.policyStudio.matrix.verdict.skip' },
 ];
 
 export function isContractAuthorityDraft(value: string | null | undefined): value is Exclude<ContractAuthorityDraft, 'inherit'> {
@@ -317,26 +317,38 @@ export function isEffectiveAuthorityMode(value: string | null | undefined): valu
     || value === 'freeze';
 }
 
+/**
+ * Returns the i18n KEY for an authority value (or for "inherit" when null/unknown).
+ * Callers must wrap with `t(...)` to render. Returning a key keeps this module
+ * pure — no i18next coupling at module load time.
+ */
 export function formatAuthorityLabel(value: string | null | undefined): string {
   if (!value) {
-    return 'Inherit';
+    return 'settings.policyStudio.contractAuthority.inherit.label';
   }
   if (isEffectiveAuthorityMode(value)) {
-    return AUTHORITY_LABELS[value];
+    return AUTHORITY_LABEL_KEYS[value];
   }
   return value;
 }
 
+/**
+ * Returns the i18n KEY for an audience value (or for "inherit" when null/unknown).
+ * Callers must wrap with `t(...)` to render.
+ */
 export function formatAudienceLabel(value: string | null | undefined): string {
   if (!value) {
-    return 'Inherit';
+    return 'settings.policyStudio.audience.inherit';
   }
   if (isAudienceDraft(value)) {
-    return AUDIENCE_LABELS[value];
+    return AUDIENCE_LABEL_KEYS[value];
   }
   return value;
 }
 
+/**
+ * Returns the i18n KEY for a matrix verdict. Callers must wrap with `t(...)`.
+ */
 export function formatMatrixVerdictLabel(value: MatrixVerdict): string {
   return MATRIX_VERDICT_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
@@ -392,10 +404,10 @@ export function buildLegacyModeMigrationPreview(
       authority: 'delegate',
       audience: 'peer_ds',
       exactMatch: true,
-      summary: 'Auto maps cleanly to delegated autonomous execution with the peer DS reporting default.',
+      summary: 'settings.policyStudio.legacyMigration.auto.summary',
       notes: [
-        'Apply these defaults when you want explicit TaskContract control instead of inheriting the legacy runtime mode.',
-        'Add a mission pack before moving the same workflow into autopilot.',
+        'settings.policyStudio.legacyMigration.auto.note1',
+        'settings.policyStudio.legacyMigration.auto.note2',
       ],
     };
   }
@@ -406,10 +418,10 @@ export function buildLegacyModeMigrationPreview(
       authority: 'supervised',
       audience: 'peer_ds',
       exactMatch: true,
-      summary: 'Supervised maps directly to explicit supervised authority while keeping the peer DS reporting default.',
+      summary: 'settings.policyStudio.legacyMigration.supervised.summary',
       notes: [
-        'Sensitive or write-side work still routes to approval under supervised authority.',
-        'Leave the contract on inherit if you want the whole app to keep following the shared legacy mode.',
+        'settings.policyStudio.legacyMigration.supervised.note1',
+        'settings.policyStudio.legacyMigration.supervised.note2',
       ],
     };
   }
@@ -419,10 +431,10 @@ export function buildLegacyModeMigrationPreview(
     authority: 'supervised',
     audience: 'junior_mentor',
     exactMatch: false,
-    summary: 'Step-by-step has no exact authority-axis equivalent; supervised plus a mentor-style audience is the closest migration baseline.',
+    summary: 'settings.policyStudio.legacyMigration.stepByStep.summary',
     notes: [
-      'Keep the legacy mode if you still need approval on every step.',
-      'Use action-matrix overrides or a freeze/shadow guardrail before removing the legacy step-by-step mode.',
+      'settings.policyStudio.legacyMigration.stepByStep.note1',
+      'settings.policyStudio.legacyMigration.stepByStep.note2',
     ],
   };
 }

@@ -7,6 +7,7 @@ import {
   useConfigStore,
 } from '../../stores/configStore';
 import { useI18n } from '../../stores/i18nStore';
+import { useTelegramStore } from '../../stores/telegramStore';
 import type { RpcFn } from './types';
 
 interface PreviewTextPayload {
@@ -58,6 +59,8 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
   );
   const replaceSettings = useConfigStore((state) => state.replaceTelegramNotificationSettings);
   const resetSettings = useConfigStore((state) => state.resetTelegramNotificationSettings);
+  const telegramEnabled = useTelegramStore((state) => state.enabled);
+  const pairedChat = useTelegramStore((state) => state.pairedChat);
 
   const [snapshot, setSnapshot] = useState<WorkspaceTelegramSnapshot | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<string>('');
@@ -149,6 +152,8 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
     replaceSettings(snapshotDraft, 'workspace');
   };
 
+  const isEditorDisabled = !telegramEnabled || !pairedChat;
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
@@ -169,6 +174,15 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
           {t('settings.telegram.localOnly')}
         </p>
       </div>
+
+      {!telegramEnabled || !pairedChat ? (
+        <div
+          role="status"
+          className="rounded-lg border border-ds-warning/30 bg-ds-warning/10 px-3 py-2 text-[11px] leading-5 text-ds-warning"
+        >
+          {t('settings.telegram.connectFirst')}
+        </div>
+      ) : null}
 
       <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -227,11 +241,16 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
                 variant="secondary"
                 size="sm"
                 onClick={copySnapshotToEditor}
-                disabled={!snapshotDraft}
+                disabled={!snapshotDraft || isEditorDisabled}
               >
                 {t('settings.telegram.snapshot.copy')}
               </Button>
-              <Button variant="ghost" size="sm" onClick={resetSettings}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetSettings}
+                disabled={isEditorDisabled}
+              >
                 {t('settings.telegram.editor.reset')}
               </Button>
             </div>
@@ -245,7 +264,12 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
         )}
       </div>
 
-      <div className="space-y-4 rounded-lg border border-ds-border bg-ds-bg p-3">
+      <div
+        className={`space-y-4 rounded-lg border border-ds-border bg-ds-bg p-3 ${
+          isEditorDisabled ? 'opacity-60' : ''
+        }`}
+        aria-disabled={isEditorDisabled || undefined}
+      >
         <div>
           <div className="text-xs font-medium text-ds-text">
             {t('settings.telegram.editor.title')}
@@ -264,6 +288,7 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
           }
           label={t('settings.telegram.editor.digestEnabled')}
           description={t('settings.telegram.editor.digestEnabledDescription')}
+          disabled={isEditorDisabled}
         />
 
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
@@ -281,6 +306,7 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
               value: option.value,
               label: t(option.labelKey),
             }))}
+            disabled={isEditorDisabled}
           />
 
           <Input
@@ -296,7 +322,7 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
                 digestIntervalMinutes: normalizeIntervalMinutes(event.target.value),
               })
             }
-            disabled={settings.digestCadence !== 'interval'}
+            disabled={isEditorDisabled || settings.digestCadence !== 'interval'}
           />
         </div>
 
@@ -312,6 +338,7 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
           }
           errorMessage={timezoneError}
           placeholder={t('settings.telegram.timezone.placeholder')}
+          disabled={isEditorDisabled}
         />
 
         <Checkbox
@@ -323,6 +350,7 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
           }
           label={t('settings.telegram.editor.quietHoursEnabled')}
           description={t('settings.telegram.editor.quietHoursEnabledDescription')}
+          disabled={isEditorDisabled}
         />
 
         <div className="grid gap-3 md:grid-cols-3">
@@ -336,7 +364,7 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
                 quietHoursStart: normalizeTimeValue(event.target.value, settings.quietHoursStart),
               })
             }
-            disabled={!settings.quietHoursEnabled}
+            disabled={isEditorDisabled || !settings.quietHoursEnabled}
           />
           <Input
             id="telegram-quiet-hours-end"
@@ -348,7 +376,7 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
                 quietHoursEnd: normalizeTimeValue(event.target.value, settings.quietHoursEnd),
               })
             }
-            disabled={!settings.quietHoursEnabled}
+            disabled={isEditorDisabled || !settings.quietHoursEnabled}
           />
           <Input
             id="telegram-quiet-hours-timezone"
@@ -361,7 +389,7 @@ export function TelegramNotificationSettings({ rpc }: { rpc: RpcFn }) {
             }
             errorMessage={settings.quietHoursEnabled ? quietHoursTimezoneError : undefined}
             placeholder={t('settings.telegram.timezone.placeholder')}
-            disabled={!settings.quietHoursEnabled}
+            disabled={isEditorDisabled || !settings.quietHoursEnabled}
           />
         </div>
 

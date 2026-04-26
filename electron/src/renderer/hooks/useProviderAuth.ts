@@ -2,7 +2,7 @@
  * Keeps provider auth state synchronized with backend RPCs and OAuth events.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   useAuthStore,
   type AuthSnapshot,
@@ -10,6 +10,7 @@ import {
   type ProviderFallbackEvent,
   type ProviderHealthStatus,
 } from '../stores/authStore';
+import { useVisiblePolling } from './useVisiblePolling';
 
 type OnFn = (event: string, handler: (payload: Record<string, unknown>) => void) => () => void;
 type RpcFn = (
@@ -155,6 +156,7 @@ export function useProviderAuth(on: OnFn, rpc: RpcFn, connected: boolean) {
   const setFallbackEvent = useAuthStore((s) => s.setFallbackEvent);
   const setLoading = useAuthStore((s) => s.setLoading);
   const resetAuth = useAuthStore((s) => s.resetAuth);
+  const refreshGenerationRef = useRef(0);
 
   const refreshAuth = useCallback(async () => {
     setLoading(true);
@@ -166,26 +168,35 @@ export function useProviderAuth(on: OnFn, rpc: RpcFn, connected: boolean) {
   }, [rpc, setLoading, setSnapshot]);
 
   useEffect(() => {
+    refreshGenerationRef.current += 1;
     if (!connected) {
       resetAuth();
-      return;
     }
 
-    let cancelled = false;
-    const guardedRefresh = async () => {
-      try {
-        await refreshAuth();
-      } catch (err) {
-        if (!cancelled) {
-          console.warn('[useProviderAuth] refresh failed:', err);
-        }
-      }
+    return () => {
+      refreshGenerationRef.current += 1;
     };
+  }, [connected, refreshAuth, resetAuth]);
 
+  const guardedRefresh = useCallback(async () => {
+    const generation = refreshGenerationRef.current;
+    try {
+      await refreshAuth();
+    } catch (err) {
+      if (refreshGenerationRef.current === generation) {
+        console.warn('[useProviderAuth] refresh failed:', err);
+      }
+    }
+  }, [refreshAuth]);
+
+  useVisiblePolling(() => {
     void guardedRefresh();
-    const timer = window.setInterval(() => {
-      void guardedRefresh();
-    }, 10_000);
+  }, { intervalMs: 10_000, enabled: connected });
+
+  useEffect(() => {
+    if (!connected) {
+      return;
+    }
 
     const unsubs = [
       on('oauth.complete', () => {
@@ -200,9 +211,7 @@ export function useProviderAuth(on: OnFn, rpc: RpcFn, connected: boolean) {
     ];
 
     return () => {
-      cancelled = true;
-      window.clearInterval(timer);
       unsubs.forEach((unsub) => unsub());
     };
-  }, [connected, on, refreshAuth, resetAuth, setFallbackEvent]);
+  }, [connected, guardedRefresh, on, setFallbackEvent]);
 }

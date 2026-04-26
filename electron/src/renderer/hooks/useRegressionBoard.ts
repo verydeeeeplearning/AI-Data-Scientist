@@ -29,7 +29,7 @@ export function useRegressionBoard() {
       const response = (await rpc('eval.regressionBoard', {
         mode: selectedMode ?? undefined,
         domain: selectedDomain ?? undefined,
-      })) as RegressionBoardRpcResponse;
+      }, { timeoutMs: 120_000 })) as RegressionBoardRpcResponse;
       const nextBoard = response.board ?? null;
       setBoard(nextBoard);
       if (nextBoard && selectedDomain && !nextBoard.availableDomains.includes(selectedDomain)) {

@@ -24,7 +24,12 @@ function run(): void {
   assert.deepEqual(samplePayload.responses.step3_deliverables, ['report', 'presentation']);
   assert.equal(samplePayload.responses.step4_mode, 'controlled');
   assert.equal(samplePayload.responses.step5_model, 'anthropic/claude-sonnet-4-6');
+  assert.deepEqual(samplePayload.responses.step6_notify, {
+    choice: 'desktop_only',
+    telegramConnected: false,
+  });
   assert.equal(samplePayload.responses.step6_confirmed, true);
+  assert.equal(samplePayload.responses.step7_confirmed, true);
 
   const deferredPayload = buildOnboardingFinalizePayload({
     sessionId: null,
@@ -44,6 +49,10 @@ function run(): void {
   assert.deepEqual(deferredPayload.responses.step3_deliverables, ['report']);
   assert.equal(deferredPayload.responses.step4_mode, 'fast');
   assert.equal(deferredPayload.responses.step5_model, 'openai/gpt-4.1-mini');
+  assert.deepEqual(deferredPayload.responses.step6_notify, {
+    choice: 'desktop_only',
+    telegramConnected: false,
+  });
   assert.equal(deferredPayload.responses.step6_confirmed, true);
 
   const uploadPayload = buildOnboardingFinalizePayload({
@@ -82,9 +91,35 @@ function run(): void {
   assert.deepEqual(abTestPayload.responses.step3_deliverables, ['report', 'presentation']);
   assert.equal(abTestPayload.responses.step4_mode, 'controlled');
   assert.equal(abTestPayload.responses.step5_model, 'openai/gpt-5.4-mini');
+  assert.deepEqual(abTestPayload.responses.step6_notify, {
+    choice: 'desktop_only',
+    telegramConnected: false,
+  });
   assert.equal(abTestPayload.responses.step6_confirmed, true);
 
-  console.log('[contract] PASS onboarding-finalize (20 cases)');
+  const telegramPayload = buildOnboardingFinalizePayload({
+    sessionId: 'telegram-999',
+    useCaseId: 'general',
+    starterPrompt: 'Help me analyze this workspace.',
+    dataChoiceId: 'upload',
+    deliverables: ['report'],
+    autonomyMode: 'balanced',
+    modelId: 'anthropic/claude-sonnet-4-6',
+    notifyChoice: 'telegram',
+    telegramConnected: true,
+    telegramChatId: 'chat-1',
+    telegramBotUsername: 'demo_bot',
+  });
+
+  assert.deepEqual(telegramPayload.responses.step6_notify, {
+    choice: 'telegram',
+    telegramConnected: true,
+    telegramChatId: 'chat-1',
+    telegramBotUsername: 'demo_bot',
+  });
+  assert.equal(telegramPayload.responses.step7_confirmed, true);
+
+  console.log('[contract] PASS onboarding-finalize (32 cases)');
 }
 
 run();

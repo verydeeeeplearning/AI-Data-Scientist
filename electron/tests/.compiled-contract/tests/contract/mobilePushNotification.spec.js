@@ -20,8 +20,9 @@ function run() {
     strict_1.default.equal(normalized.tag, 'ds-agent-approval');
     const fallback = (0, pushPayload_1.normalizePushNotification)(null);
     strict_1.default.equal(fallback.title, 'DS Agent');
-    strict_1.default.equal(fallback.body, '');
+    strict_1.default.match(fallback.body, /DS Agent/);
     strict_1.default.equal(fallback.deepLink, null);
+    strict_1.default.equal(fallback.tag, 'ds-agent-notification');
     strict_1.default.equal((0, pushPayload_1.resolveNotificationClickTarget)({ deepLink: 'ds-agent://workspace/ws-1' }), 'ds-agent://workspace/ws-1');
     strict_1.default.equal((0, pushPayload_1.resolveNotificationClickTarget)({}, './'), './');
     console.log('[contract] PASS mobile-push-notification (4 cases)');

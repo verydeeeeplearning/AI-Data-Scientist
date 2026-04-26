@@ -57,37 +57,37 @@ function getTierBadgeClass(value: string): string {
   }
 }
 
-function buildTierSummary(rows: ActionMatrixRowEntry[]): string {
+function buildTierSummaryKeys(rows: ActionMatrixRowEntry[]): string[] {
   if (rows.length === 0) {
-    return 'No rows are available to derive a risk tier preview.';
+    return ['settings.policyStudio.riskTier.summary.noRows'];
   }
 
   const signals: string[] = [];
   if (rows.some((row) => row.dataSensitivity === 'pii')) {
-    signals.push('PII');
+    signals.push('settings.policyStudio.riskTier.summary.pii');
   } else if (rows.some((row) => row.dataSensitivity === 'restricted')) {
-    signals.push('restricted');
+    signals.push('settings.policyStudio.riskTier.summary.restricted');
   } else {
-    signals.push('public/internal');
+    signals.push('settings.policyStudio.riskTier.summary.publicInternal');
   }
 
   if (rows.some((row) => row.writeSideEffect === 'irreversible')) {
-    signals.push('irreversible writes');
+    signals.push('settings.policyStudio.riskTier.summary.irreversibleWrites');
   } else if (rows.some((row) => row.writeSideEffect === 'external')) {
-    signals.push('external writes');
+    signals.push('settings.policyStudio.riskTier.summary.externalWrites');
   } else if (rows.some((row) => row.writeSideEffect === 'local')) {
-    signals.push('local writes');
+    signals.push('settings.policyStudio.riskTier.summary.localWrites');
   }
 
   if (rows.some((row) => row.costImpact === 'high')) {
-    signals.push('high spend');
+    signals.push('settings.policyStudio.riskTier.summary.highSpend');
   }
 
   if (rows.some((row) => row.auditRequired)) {
-    signals.push('audit-bound');
+    signals.push('settings.policyStudio.riskTier.summary.auditBound');
   }
 
-  return signals.join(' | ');
+  return signals;
 }
 
 export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorProps) {
@@ -158,24 +158,32 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
       return;
     }
 
-    const seq = previewSeqRef.current + 1;
-    previewSeqRef.current = seq;
-    const heuristicChangedCells = countRiskTierCellDiff(currentMatrix, draftMatrix);
+    // Debounce keystroke-driven preview RPCs (400ms). Each draft change resets
+    // the timer, so only the final value within a burst hits the WebSocket.
+    const timer = window.setTimeout(() => {
+      const seq = previewSeqRef.current + 1;
+      previewSeqRef.current = seq;
+      const heuristicChangedCells = countRiskTierCellDiff(currentMatrix, draftMatrix);
 
-    void (async () => {
-      try {
-        const result = await policyMatrix.preview({ candidateMatrix: draftMatrix });
-        if (previewSeqRef.current !== seq) {
-          return;
+      void (async () => {
+        try {
+          const result = await policyMatrix.preview({ candidateMatrix: draftMatrix });
+          if (previewSeqRef.current !== seq) {
+            return;
+          }
+          setMatrixImpact(mergeImpactPreview(result, heuristicChangedCells));
+        } catch (error) {
+          if (previewSeqRef.current !== seq) {
+            return;
+          }
+          console.warn('[RiskTierMatrixEditor] policy.matrix.preview failed:', error);
         }
-        setMatrixImpact(mergeImpactPreview(result, heuristicChangedCells));
-      } catch (error) {
-        if (previewSeqRef.current !== seq) {
-          return;
-        }
-        console.warn('[RiskTierMatrixEditor] policy.matrix.preview failed:', error);
-      }
-    })();
+      })();
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [currentMatrix, draftMatrix, policyMatrix]);
 
   const dirtyCells = useMemo(
@@ -187,14 +195,26 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
     [currentMatrix, draftMatrix],
   );
   const tierSummary = useMemo(
-    () => buildTierSummary(actionMatrixRows),
-    [actionMatrixRows],
+    () => buildTierSummaryKeys(actionMatrixRows).map((key) => t(key)).join(' | '),
+    [actionMatrixRows, t],
   );
   const lastSavedLabel = useMemo(
     () => formatRiskTierSnapshotLabel(lastSaved),
     [lastSaved],
   );
   const hasDirtyDraft = dirtyCells > 0;
+  const saveDraftDisabledReason = !hasDirtyDraft
+    ? t('settings.policyStudio.riskTier.saveDisabledNoChanges')
+    : matrixSaving
+      ? t('settings.policyStudio.riskTier.saving')
+      : undefined;
+  const resetDisabledReason = !hasDirtyDraft
+    ? t('settings.policyStudio.riskTier.resetDisabledNoChanges')
+    : matrixSaving
+      ? t('settings.policyStudio.riskTier.saving')
+      : undefined;
+  const formatTierDisplayLabel = (value: string): string =>
+    value === 'Unset' ? t('settings.policyStudio.riskTier.unset') : value;
 
   const setCellDraft = (
     actionClass: string,
@@ -233,7 +253,7 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
       setCurrentMatrix(nextMatrix);
       setDraftMatrix(nextMatrix);
       setLastSaved(snapshot);
-      setMatrixNotice('Risk-tier matrix draft saved.');
+      setMatrixNotice(t('settings.policyStudio.riskTier.savedNotice'));
     } catch (error) {
       setMatrixError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -263,6 +283,7 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
             onClick={handleSaveDraft}
             data-testid="risk-tier-matrix-save-draft"
             disabled={!hasDirtyDraft || matrixSaving}
+            title={saveDraftDisabledReason}
             className="rounded bg-ds-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
           >
             {matrixSaving
@@ -274,6 +295,7 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
             onClick={handleReset}
             data-testid="risk-tier-matrix-reset-current"
             disabled={!hasDirtyDraft || matrixSaving}
+            title={resetDisabledReason}
             className="rounded border border-ds-border px-3 py-1.5 text-xs text-ds-text disabled:opacity-50"
           >
             <span className="inline-flex items-center gap-1.5">
@@ -284,6 +306,15 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
           {matrixSaving && <Loader2 size={14} className="animate-spin text-ds-accent" />}
         </div>
       </div>
+
+      {!hasDirtyDraft && !matrixSaving && (
+        <div
+          data-testid="risk-tier-matrix-idle-hint"
+          className="text-[11px] text-ds-muted"
+        >
+          {t('settings.policyStudio.riskTier.idleHint')}
+        </div>
+      )}
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-3 py-2">
@@ -353,26 +384,36 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
                 </p>
               </div>
               <div className="rounded border border-ds-border/70 bg-ds-surface/70 px-2 py-1 text-[10px] text-ds-muted">
-                {dirtyCells} changed cell{dirtyCells === 1 ? '' : 's'}
+                {t('settings.policyStudio.riskTier.changedCellsCount', { count: dirtyCells })}
               </div>
             </div>
 
             {matrixImpact && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-ds-muted">
                 <span className="rounded border border-ds-border/70 bg-ds-surface/70 px-2 py-1">
-                  +{matrixImpact.addedRows.length} added
+                  {t('settings.policyStudio.riskTier.impact.addedRows', {
+                    count: matrixImpact.addedRows.length,
+                  })}
                 </span>
                 <span className="rounded border border-ds-border/70 bg-ds-surface/70 px-2 py-1">
-                  -{matrixImpact.removedRows.length} removed
+                  {t('settings.policyStudio.riskTier.impact.removedRows', {
+                    count: matrixImpact.removedRows.length,
+                  })}
                 </span>
                 <span className="rounded border border-ds-border/70 bg-ds-surface/70 px-2 py-1">
-                  ~{matrixImpact.modifiedRows.length} modified
+                  {t('settings.policyStudio.riskTier.impact.modifiedRows', {
+                    count: matrixImpact.modifiedRows.length,
+                  })}
                 </span>
                 <span className="rounded border border-ds-border/70 bg-ds-surface/70 px-2 py-1">
-                  {Object.keys(matrixImpact.historicalCounts).length} historical cells
+                  {t('settings.policyStudio.riskTier.impact.historicalCells', {
+                    count: Object.keys(matrixImpact.historicalCounts).length,
+                  })}
                 </span>
                 <span className="rounded border border-ds-border/70 bg-ds-surface/70 px-2 py-1">
-                  heuristic {matrixImpact.heuristicChangedCells}
+                  {t('settings.policyStudio.riskTier.impact.heuristic', {
+                    count: matrixImpact.heuristicChangedCells,
+                  })}
                 </span>
               </div>
             )}
@@ -382,13 +423,15 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
             <table className="min-w-[1120px] w-full border-collapse text-left">
               <thead className="bg-ds-bg/80 text-[10px] uppercase tracking-wider text-ds-muted">
                 <tr>
-                  <th className="border-b border-ds-border px-3 py-2 font-medium">Action class</th>
+                  <th className="border-b border-ds-border px-3 py-2 font-medium">
+                    {t('settings.policyStudio.actionClass')}
+                  </th>
                   {MATRIX_AUTHORITY_COLUMNS.map((column) => (
                     <th
                       key={column.value}
                       className="border-b border-ds-border px-2 py-2 font-medium"
                     >
-                      {column.label}
+                      {t(column.label)}
                     </th>
                   ))}
                 </tr>
@@ -400,20 +443,20 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
                       <div className="text-xs font-medium text-ds-text">{row.actionClass}</div>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                          data {row.dataSensitivity}
+                          {t('settings.policyStudio.tag.data', { value: row.dataSensitivity })}
                         </span>
                         <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                          write {row.writeSideEffect}
+                          {t('settings.policyStudio.tag.write', { value: row.writeSideEffect })}
                         </span>
                         <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                          cost {row.costImpact}
+                          {t('settings.policyStudio.tag.cost', { value: row.costImpact })}
                         </span>
                         <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                          {row.reversibility}
+                          {t('settings.policyStudio.tag.reversibility', { value: row.reversibility })}
                         </span>
                         {row.auditRequired && (
                           <span className="rounded border border-amber-400/40 px-1.5 py-0.5 text-[10px] text-amber-200">
-                            audit
+                            {t('settings.policyStudio.tag.audit')}
                           </span>
                         )}
                       </div>
@@ -424,6 +467,9 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
                       const changed = persistedValue !== draftValue;
                       const currentLabel = formatRiskTierLabel(persistedValue);
                       const draftLabel = formatRiskTierLabel(draftValue);
+                      const currentDisplayLabel = formatTierDisplayLabel(currentLabel);
+                      const draftDisplayLabel = formatTierDisplayLabel(draftLabel);
+                      const columnLabel = t(column.label);
                       const selectValue = coerceRiskTierValue(draftValue, 'T0');
 
                       return (
@@ -443,7 +489,10 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
                               )
                             }
                             data-testid={`risk-tier-matrix-cell-${row.actionClass}-${column.value}`}
-                            aria-label={`${row.actionClass} risk tier for ${column.label}`}
+                            aria-label={t('settings.policyStudio.riskTier.cellAriaLabel', {
+                              actionClass: row.actionClass,
+                              authority: columnLabel,
+                            })}
                             disabled={matrixSaving}
                             className={`w-full rounded border px-2 py-1.5 text-xs ${
                               changed
@@ -461,22 +510,32 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
                           <div className="mt-1.5 space-y-1 text-[10px] leading-4 text-ds-muted">
                             <div className="flex flex-wrap gap-1.5">
                               <span className={`rounded border px-1.5 py-0.5 ${getTierBadgeClass(currentLabel)}`}>
-                                Current {currentLabel}
+                                {t('settings.policyStudio.riskTier.currentValue', {
+                                  value: currentDisplayLabel,
+                                })}
                               </span>
                               <span className={`rounded border px-1.5 py-0.5 ${getTierBadgeClass(draftLabel)}`}>
-                                Draft {draftLabel}
+                                {t('settings.policyStudio.riskTier.draftValue', {
+                                  value: draftDisplayLabel,
+                                })}
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-1.5">
                               <span className="rounded border border-ds-border/70 bg-ds-surface/70 px-1.5 py-0.5 text-ds-muted">
-                                effective {currentLabel}
+                                {t('settings.policyStudio.riskTier.effectiveValue', {
+                                  value: currentDisplayLabel,
+                                })}
                               </span>
                               <span className="rounded border border-ds-border/70 bg-ds-surface/70 px-1.5 py-0.5 text-ds-muted">
-                                draft {draftLabel}
+                                {t('settings.policyStudio.riskTier.draftInlineValue', {
+                                  value: draftDisplayLabel,
+                                })}
                               </span>
                             </div>
                             <div>
-                              {changed ? 'Draft differs from the persisted value.' : 'Draft matches the persisted value.'}
+                              {changed
+                                ? t('settings.policyStudio.riskTier.draftDiffersPersisted')
+                                : t('settings.policyStudio.riskTier.draftMatchesPersisted')}
                             </div>
                           </div>
                         </td>
@@ -502,7 +561,7 @@ export function RiskTierMatrixEditor({ actionMatrixRows }: RiskTierMatrixEditorP
                     className={`rounded border px-3 py-2 ${getTierBadgeClass(tier)}`}
                   >
                     <div className="text-xs font-medium">{tier}</div>
-                    <div className="mt-1 text-[10px] leading-4">{definition.summary}</div>
+                    <div className="mt-1 text-[10px] leading-4">{t(definition.summary)}</div>
                   </div>
                 );
               })}

@@ -18,6 +18,7 @@ export const DESKTOP_I18N_NAMESPACES = [
   'chat',
   'cmd',
   'share',
+  'session',
 ] as const;
 export type DesktopI18nNamespace = (typeof DESKTOP_I18N_NAMESPACES)[number];
 

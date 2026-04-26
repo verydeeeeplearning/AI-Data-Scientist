@@ -21,8 +21,9 @@ function run(): void {
 
   const fallback = normalizePushNotification(null);
   assert.equal(fallback.title, 'DS Agent');
-  assert.equal(fallback.body, '');
+  assert.match(fallback.body, /DS Agent/);
   assert.equal(fallback.deepLink, null);
+  assert.equal(fallback.tag, 'ds-agent-notification');
 
   assert.equal(
     resolveNotificationClickTarget({ deepLink: 'ds-agent://workspace/ws-1' }),

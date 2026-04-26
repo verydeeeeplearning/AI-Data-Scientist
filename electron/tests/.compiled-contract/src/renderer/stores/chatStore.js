@@ -204,6 +204,9 @@ exports.useChatStore = (0, zustand_1.create)((set) => ({
     sessionId: null,
     cardsById: {},
     cardIdsByMessageId: {},
+    goal: null,
+    startedAt: null,
+    unreadCount: 0,
     addUserMessage: (content) => {
         const id = nextMsgId();
         set((s) => ({
@@ -213,6 +216,9 @@ exports.useChatStore = (0, zustand_1.create)((set) => ({
                     content,
                     timestamp: Date.now(),
                 }],
+            startedAt: s.startedAt ?? Date.now(),
+            // user just typed → presumably looking at chat → reset unread
+            unreadCount: 0,
         }));
         return id;
     },
@@ -230,35 +236,80 @@ exports.useChatStore = (0, zustand_1.create)((set) => ({
         }));
         return id;
     },
-    appendStreamDelta: (token) => {
+    appendStreamDelta: (token, expectedMessageId) => {
         set((s) => {
             const msgs = [...s.messages];
-            if (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') {
-                msgs[msgs.length - 1] = {
-                    ...msgs[msgs.length - 1],
-                    content: msgs[msgs.length - 1].content + token,
-                };
+            if (msgs.length === 0) {
+                return s;
             }
+            const last = msgs[msgs.length - 1];
+            if (last.role !== 'assistant') {
+                return s;
+            }
+            if (expectedMessageId !== undefined && last.id !== expectedMessageId) {
+                return s;
+            }
+            msgs[msgs.length - 1] = {
+                ...last,
+                content: last.content + token,
+            };
             return { messages: msgs, streamBuffer: s.streamBuffer + token };
         });
     },
-    finalizeStream: (content, messageId) => {
+    finalizeStream: (content, messageId, expectedMessageId) => {
+        let finalized = false;
         set((s) => {
             const msgs = [...s.messages];
             if (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') {
+                const last = msgs[msgs.length - 1];
+                if (expectedMessageId !== undefined && last.id !== expectedMessageId) {
+                    return s;
+                }
                 msgs[msgs.length - 1] = {
-                    ...msgs[msgs.length - 1],
+                    ...last,
                     id: typeof messageId === 'string' && messageId.length > 0
                         ? messageId
-                        : msgs[msgs.length - 1].id,
+                        : last.id,
                     content,
+                    truncated: false,
                 };
+                finalized = true;
             }
-            return { messages: msgs, isStreaming: false, streamBuffer: '' };
+            return {
+                messages: msgs,
+                isStreaming: false,
+                streamBuffer: '',
+                // assistant message landed; bump unread (FloatingChat resets when visible)
+                unreadCount: s.unreadCount + 1,
+            };
         });
+        return finalized;
     },
     setStreaming: (v) => set({ isStreaming: v }),
     setSessionId: (id) => set({ sessionId: id }),
+    setGoal: (goal) => set({ goal }),
+    markAllRead: () => set({ unreadCount: 0 }),
+    markLastAssistantTruncated: (expectedMessageId) => {
+        set((s) => {
+            const msgs = [...s.messages];
+            for (let index = msgs.length - 1; index >= 0; index -= 1) {
+                const message = msgs[index];
+                if (message.role !== 'assistant') {
+                    continue;
+                }
+                if (expectedMessageId != null
+                    && message.id !== expectedMessageId) {
+                    return s;
+                }
+                if (message.truncated === true) {
+                    return s;
+                }
+                msgs[index] = { ...message, truncated: true };
+                return { messages: msgs };
+            }
+            return s;
+        });
+    },
     upsertCards: (cards) => {
         if (cards.length === 0) {
             return;
@@ -291,6 +342,8 @@ exports.useChatStore = (0, zustand_1.create)((set) => ({
         isStreaming: false,
         streamBuffer: '',
         sessionId,
+        unreadCount: 0,
+        startedAt: messages.length > 0 ? Date.now() : null,
     }),
     addToolActivity: (name, args) => {
         set((s) => ({
@@ -320,6 +373,25 @@ exports.useChatStore = (0, zustand_1.create)((set) => ({
             return { toolActivities: next };
         });
     },
+    markRunningToolsCancelled: () => {
+        set((s) => {
+            let changed = false;
+            const now = Date.now();
+            const toolActivities = s.toolActivities.map((activity) => {
+                if (activity.status !== 'running') {
+                    return activity;
+                }
+                changed = true;
+                return {
+                    ...activity,
+                    status: 'error',
+                    result: activity.result ?? 'cancelled',
+                    elapsed: activity.elapsed ?? now - activity.startedAt,
+                };
+            });
+            return changed ? { toolActivities } : s;
+        });
+    },
     clearToolActivities: () => set({ toolActivities: [] }),
     resetConversation: (keepSessionId = false) => set((s) => ({
         messages: [],
@@ -329,6 +401,9 @@ exports.useChatStore = (0, zustand_1.create)((set) => ({
         sessionId: keepSessionId ? s.sessionId : null,
         cardsById: {},
         cardIdsByMessageId: {},
+        goal: null,
+        startedAt: null,
+        unreadCount: 0,
     })),
     clearMessages: () => set({
         messages: [],
@@ -338,5 +413,8 @@ exports.useChatStore = (0, zustand_1.create)((set) => ({
         sessionId: null,
         cardsById: {},
         cardIdsByMessageId: {},
+        goal: null,
+        startedAt: null,
+        unreadCount: 0,
     }),
 }));

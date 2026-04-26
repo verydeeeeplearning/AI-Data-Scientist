@@ -25,7 +25,7 @@ import {
   type AudienceViewStorageLike,
 } from '../../src/renderer/stores/workspaceStore';
 
-const ALL_TABS: ReadonlyArray<EvidenceTabId> = ['summary', 'tables', 'charts', 'files', 'export'];
+const ALL_TABS: ReadonlyArray<EvidenceTabId> = ['overview', 'export'];
 
 function createFakeStorage(initial: Record<string, string> = {}): AudienceViewStorageLike & {
   store: Record<string, string>;
@@ -48,21 +48,21 @@ function run(): void {
   // === applyAudienceViewToTabs returns the correct visible-tab subset for each profile ===
   {
     const dsTabs = applyAudienceViewToTabs(ALL_TABS, AUDIENCE_VIEW_PROFILES.ds);
-    assert.deepEqual(dsTabs, ['summary', 'tables', 'charts', 'files', 'export']);
+    assert.deepEqual(dsTabs, ['overview', 'export']);
     cases += 1;
 
     const execTabs = applyAudienceViewToTabs(ALL_TABS, AUDIENCE_VIEW_PROFILES.exec);
-    assert.deepEqual(execTabs, ['summary', 'charts', 'export']);
+    assert.deepEqual(execTabs, ['overview', 'export']);
     cases += 1;
 
     const mlTabs = applyAudienceViewToTabs(ALL_TABS, AUDIENCE_VIEW_PROFILES.ml);
-    assert.deepEqual(mlTabs, ['summary', 'tables', 'charts', 'files', 'export']);
+    assert.deepEqual(mlTabs, ['overview', 'export']);
     cases += 1;
 
     // Order is preserved: feed a permuted input and expect the same permutation back, filtered.
-    const permuted: ReadonlyArray<EvidenceTabId> = ['export', 'charts', 'tables', 'summary', 'files'];
+    const permuted: ReadonlyArray<EvidenceTabId> = ['export', 'overview'];
     const execPermuted = applyAudienceViewToTabs(permuted, AUDIENCE_VIEW_PROFILES.exec);
-    assert.deepEqual(execPermuted, ['export', 'charts', 'summary']);
+    assert.deepEqual(execPermuted, ['export', 'overview']);
     cases += 1;
   }
 
@@ -70,22 +70,29 @@ function run(): void {
   {
     // In-profile active tab is preserved
     assert.equal(
-      resolveActiveTabForAudience('charts', ALL_TABS, AUDIENCE_VIEW_PROFILES.exec),
-      'charts',
+      resolveActiveTabForAudience('export', ALL_TABS, AUDIENCE_VIEW_PROFILES.exec),
+      'export',
     );
     cases += 1;
 
-    // Active tab filtered out by Exec profile (`tables`) falls back to first visible (`summary`).
+    // Active tab filtered out by a constrained profile falls back to first visible (`export`).
+    const exportOnlyProfile: AudienceViewProfile = {
+      id: 'exec',
+      label: 'Export only (test)',
+      description: 'Synthetic profile with a constrained tab set.',
+      visibleTabs: ['export'],
+      emphasis: 'summary',
+    };
     assert.equal(
-      resolveActiveTabForAudience('tables', ALL_TABS, AUDIENCE_VIEW_PROFILES.exec),
-      'summary',
+      resolveActiveTabForAudience('overview', ALL_TABS, exportOnlyProfile),
+      'export',
     );
     cases += 1;
 
     // Active tab filtered out, fallback respects the order of `allTabs` (not profile order).
-    const reordered: ReadonlyArray<EvidenceTabId> = ['export', 'charts', 'summary', 'tables', 'files'];
+    const reordered: ReadonlyArray<EvidenceTabId> = ['export', 'overview'];
     assert.equal(
-      resolveActiveTabForAudience('files', reordered, AUDIENCE_VIEW_PROFILES.exec),
+      resolveActiveTabForAudience('overview', reordered, exportOnlyProfile),
       'export',
     );
     cases += 1;
@@ -100,7 +107,7 @@ function run(): void {
       emphasis: 'detail',
     };
     assert.equal(
-      resolveActiveTabForAudience('summary', ALL_TABS, emptyProfile),
+      resolveActiveTabForAudience('overview', ALL_TABS, emptyProfile),
       null,
     );
     cases += 1;

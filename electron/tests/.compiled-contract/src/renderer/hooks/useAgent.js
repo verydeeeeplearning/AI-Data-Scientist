@@ -13,7 +13,9 @@ const uploadFile_1 = require("../application/workspace/uploadFile");
 const uploadApi_1 = require("../infrastructure/workspace/uploadApi");
 const agentStore_1 = require("../stores/agentStore");
 const chatStore_1 = require("../stores/chatStore");
+const configStore_1 = require("../stores/configStore");
 const filesStore_1 = require("../stores/filesStore");
+const i18nStore_1 = require("../stores/i18nStore");
 function useAgent() {
     const { status, rpc, on } = (0, WsProvider_1.useWs)();
     // Extract only the action functions via selectors (stable references)
@@ -21,6 +23,7 @@ function useAgent() {
     const currentQualityPreset = (0, agentStore_1.useAgentStore)((s) => s.qualityPreset);
     const updateFromStatus = (0, agentStore_1.useAgentStore)((s) => s.updateFromStatus);
     const setMode = (0, agentStore_1.useAgentStore)((s) => s.setMode);
+    const setMaxBudget = (0, configStore_1.useConfigStore)((s) => s.setMaxBudget);
     const resetConversation = (0, chatStore_1.useChatStore)((s) => s.resetConversation);
     const setFiles = (0, filesStore_1.useFilesStore)((s) => s.setFiles);
     const setLoading = (0, filesStore_1.useFilesStore)((s) => s.setLoading);
@@ -30,22 +33,49 @@ function useAgent() {
     (0, react_1.useEffect)(() => {
         if (status !== 'connected')
             return;
+        let cancelled = false;
         rpc('status.get')
-            .then((data) => updateFromStatus(data))
-            .catch((err) => console.warn('[useAgent] status.get failed:', err));
+            .then((data) => {
+            if (!cancelled) {
+                updateFromStatus(data);
+            }
+        })
+            .catch((err) => {
+            if (!cancelled) {
+                console.warn('[useAgent] status.get failed:', err);
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
     }, [status, rpc, updateFromStatus]);
     // Fetch files on connect
     (0, react_1.useEffect)(() => {
         if (status !== 'connected')
             return;
+        let cancelled = false;
         setLoading(true);
         rpc('files.list', {})
             .then((data) => {
+            if (cancelled) {
+                return;
+            }
             const entries = data.files ?? [];
             setFiles(entries);
         })
-            .catch((err) => console.warn('[useAgent] files.list failed:', err))
-            .finally(() => setLoading(false));
+            .catch((err) => {
+            if (!cancelled) {
+                console.warn('[useAgent] files.list failed:', err);
+            }
+        })
+            .finally(() => {
+            if (!cancelled) {
+                setLoading(false);
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
     }, [status, rpc, setFiles, setLoading]);
     // Subscribe to file.created events
     (0, react_1.useEffect)(() => {
@@ -61,13 +91,24 @@ function useAgent() {
     }, [on, removeFileByPath]);
     // Refresh from the source of truth whenever the backend says the workspace changed.
     (0, react_1.useEffect)(() => {
-        return on('workspace.changed', () => {
+        let cancelled = false;
+        const unsubscribe = on('workspace.changed', () => {
             void rpc('files.list', {})
                 .then((data) => {
-                setFiles(data.files ?? []);
+                if (!cancelled) {
+                    setFiles(data.files ?? []);
+                }
             })
-                .catch((err) => console.warn('[useAgent] workspace refresh failed:', err));
+                .catch((err) => {
+                if (!cancelled) {
+                    console.warn('[useAgent] workspace refresh failed:', err);
+                }
+            });
         });
+        return () => {
+            cancelled = true;
+            unsubscribe();
+        };
     }, [on, rpc, setFiles]);
     // Refresh files manually
     const refreshFiles = (0, react_1.useCallback)(async () => {
@@ -113,6 +154,29 @@ function useAgent() {
         await rpc('config.set', { path: 'agent.mode', value: mode });
         setMode(mode);
     }, [rpc, setMode]);
+    const changeMaxBudget = (0, react_1.useCallback)(async (value, previousValue) => {
+        const previous = previousValue ?? configStore_1.useConfigStore.getState().maxBudgetUsd;
+        setMaxBudget(value);
+        try {
+            await rpc('config.set', { path: 'provider.max_budget_usd', value });
+        }
+        catch (err) {
+            setMaxBudget(previous);
+            throw err;
+        }
+    }, [rpc, setMaxBudget]);
+    const changeLanguage = (0, react_1.useCallback)(async (next) => {
+        const previous = (0, i18nStore_1.getCurrentLocale)();
+        (0, i18nStore_1.setLocale)(next);
+        try {
+            await rpc('config.set', { path: 'agent.language', value: next });
+        }
+        catch (err) {
+            console.warn('[useAgent] failed to sync agent.language:', err);
+            (0, i18nStore_1.setLocale)(previous);
+            throw err;
+        }
+    }, [rpc]);
     // Upload file (FE-03: client-side size validation before base64 conversion)
     const MAX_UPLOAD_SIZE = 100 * 1024 * 1024; // 100MB — matches server limit
     const uploadFile = (0, react_1.useCallback)(async (file) => {
@@ -139,6 +203,8 @@ function useAgent() {
         changeModel,
         changeQualityPreset,
         changeMode,
+        changeMaxBudget,
+        changeLanguage,
         uploadFile,
     };
 }

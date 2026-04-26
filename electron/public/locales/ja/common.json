@@ -1,5 +1,6 @@
 {
   "close": "閉じる",
+  "notifications": "通知",
   "cancel": "キャンセル",
   "save": "保存",
   "change": "変更",
@@ -211,5 +212,13 @@
   "mainIpc.taskContract.deliveryLogFailed": "配信ログを読み込めませんでした。",
   "mainIpc.taskContract.shadowListFailed": "シャドウ比較記録を読み込めませんでした。",
   "mainIpc.taskContract.shadowGetFailed": "シャドウ比較詳細を読み込めませんでした。",
-  "mainIpc.taskContract.previewFailed": "レンダリング済みアーティファクトのプレビューを読み込めませんでした。"
+  "mainIpc.taskContract.previewFailed": "レンダリング済みアーティファクトのプレビューを読み込めませんでした。",
+  "mode.auto.short": "自動",
+  "mode.supervised.short": "監督",
+  "mode.step.short": "段階",
+  "quality.fast.short": "高速",
+  "quality.balanced.short": "標準",
+  "quality.thorough.short": "精密",
+  "quality.best_quality.short": "最高",
+  "storage.persistFailed": "このセッションにのみ設定を適用しました。ローカルストレージがいっぱい、または利用できない可能性があります。"
 }

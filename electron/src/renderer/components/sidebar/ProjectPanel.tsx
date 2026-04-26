@@ -13,6 +13,7 @@ import { Badge, Button, Card, Input, Select } from '../../design-system/primitiv
 import { useWs } from '../../hooks/WsProvider';
 import { fetchProjects } from '../../hooks/useProjects';
 import { useProjectStore } from '../../stores/projectStore';
+import { useI18n } from '../../stores/i18nStore';
 
 const TASK_TYPE_OPTIONS = [
   { value: '', label: 'General' },
@@ -31,6 +32,7 @@ function formatRelative(ms: number): string {
 }
 
 export function ProjectPanel() {
+  const { t } = useI18n();
   const { rpc } = useWs();
   const projects = useProjectStore((s) => s.projects);
   const selectedProjectId = useProjectStore((s) => s.selectedProjectId);
@@ -43,6 +45,8 @@ export function ProjectPanel() {
   const [draftName, setDraftName] = useState('');
   const [draftTaskType, setDraftTaskType] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.projectId === selectedProjectId) ?? null,
@@ -51,16 +55,21 @@ export function ProjectPanel() {
 
   const refreshProjects = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const nextProjects = await fetchProjects(rpc);
       setProjects(nextProjects);
       if (!selectedProjectId || !nextProjects.some((project) => project.projectId === selectedProjectId)) {
         selectProject(nextProjects[0]?.projectId ?? null);
       }
+    } catch (err) {
+      console.error('[ProjectPanel] refresh failed:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      setError(t('sidebar.projects.errors.refreshFailed', { message }));
     } finally {
       setLoading(false);
     }
-  }, [rpc, selectProject, selectedProjectId, setLoading, setProjects]);
+  }, [rpc, selectProject, selectedProjectId, setLoading, setProjects, t]);
 
   const handleCreate = useCallback(async () => {
     const name = draftName.trim();
@@ -69,6 +78,7 @@ export function ProjectPanel() {
     }
 
     setCreating(true);
+    setCreateError(null);
     try {
       const result = await rpc('project.create', {
         name,
@@ -81,10 +91,12 @@ export function ProjectPanel() {
       setComposerOpen(false);
     } catch (err) {
       console.error('[ProjectPanel] create failed:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      setCreateError(t('sidebar.projects.errors.createFailed', { message }));
     } finally {
       setCreating(false);
     }
-  }, [draftName, draftTaskType, refreshProjects, rpc, selectProject, setCreating]);
+  }, [draftName, draftTaskType, refreshProjects, rpc, selectProject, setCreating, t]);
 
   return (
     <section aria-labelledby="project-panel-title" aria-busy={loading || creating}>
@@ -92,7 +104,7 @@ export function ProjectPanel() {
         <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-ds-muted">
           <FolderKanban size={12} aria-hidden="true" />
           <h2 id="project-panel-title" className="text-inherit">
-            Projects
+            {t('sidebar.projects.heading')}
           </h2>
           {projects.length > 0 && (
             <Badge
@@ -113,11 +125,11 @@ export function ProjectPanel() {
             leadingIcon={<Plus size={12} aria-hidden="true" />}
             aria-expanded={composerOpen}
             aria-controls="project-panel-composer"
-            aria-label={composerOpen ? 'Hide create project form' : 'Create project'}
-            title="Create project"
+            aria-label={composerOpen ? t('sidebar.projects.hideCreateForm') : t('sidebar.projects.createProject')}
+            title={t('sidebar.projects.createProject')}
             className="h-7 min-h-7 w-7 rounded-ds-md px-0 shadow-none"
           >
-            <span className="sr-only">Create project</span>
+            <span className="sr-only">{t('sidebar.projects.createProject')}</span>
           </Button>
           <Button
             type="button"
@@ -126,11 +138,11 @@ export function ProjectPanel() {
             onClick={() => void refreshProjects()}
             loading={loading}
             leadingIcon={<RefreshCw size={12} aria-hidden="true" />}
-            aria-label="Refresh projects"
-            title="Refresh projects"
+            aria-label={t('sidebar.projects.refreshProjects')}
+            title={t('sidebar.projects.refreshProjects')}
             className="h-7 min-h-7 w-7 rounded-ds-md px-0 shadow-none"
           >
-            <span className="sr-only">Refresh projects</span>
+            <span className="sr-only">{t('sidebar.projects.refreshProjects')}</span>
           </Button>
         </div>
       </div>
@@ -182,6 +194,15 @@ export function ProjectPanel() {
             aria-label="Task type"
             className="min-h-9 rounded-ds-lg px-ds-3 py-ds-1.5 text-xs"
           />
+          {createError ? (
+            <p
+              role="alert"
+              className="text-ds-xs text-ds-error"
+              data-testid="project-panel-create-error"
+            >
+              {createError}
+            </p>
+          ) : null}
           <Button
             type="button"
             onClick={() => void handleCreate()}
@@ -195,6 +216,16 @@ export function ProjectPanel() {
           </Button>
         </Card>
       )}
+
+      {error ? (
+        <p
+          role="alert"
+          className="mx-3 mb-2 text-ds-xs text-ds-error"
+          data-testid="project-panel-refresh-error"
+        >
+          {error}
+        </p>
+      ) : null}
 
       <div className="px-1">
         {projects.length === 0 ? (

@@ -5,5 +5,16 @@
     "input.placeholder": "Send a message... (Enter to send, Shift+Enter for newline)",
     "you": "You",
     "agent": "DS Agent",
-    "toolActivity": "Tool Activity"
+    "message.truncatedNotice": "Response was interrupted. Try sending again.",
+    "error.modelKeyMissing": "Cannot send: {model} requires an API key or login. Open Admin > Connectors to add credentials.",
+    "toolActivity": "Tool Activity",
+    "floating.label": "Chat panel",
+    "floating.title": "Chat",
+    "floating.open": "Open chat",
+    "floating.close": "Close chat",
+    "floating.pin": "Pin chat",
+    "floating.unpin": "Unpin chat",
+    "floating.fullscreen": "Expand chat",
+    "floating.exitFullscreen": "Shrink chat",
+    "floating.streaming": "streaming"
 }

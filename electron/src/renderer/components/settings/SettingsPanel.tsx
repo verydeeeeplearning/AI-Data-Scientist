@@ -2,16 +2,17 @@
  * Settings panel with project context and model-auth compatibility hints.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, LogIn, LogOut, Loader2 } from 'lucide-react';
 import { Button, Select } from '../../design-system/primitives';
 import { THEME_OPTIONS } from '../../design-system/themes';
 import { DENSITY_MODES, type DensityMode } from '../../domain/layout/density';
 import { DeepLinkSettings } from './DeepLinkSettings';
+import { useAgent } from '../../hooks/useAgent';
 import { useAgentStore } from '../../stores/agentStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useConfigStore } from '../../stores/configStore';
-import { getLocaleOption, useI18n, type Locale } from '../../stores/i18nStore';
+import { getLocaleOption, useI18n } from '../../stores/i18nStore';
 import { resolveMainIpcErrorMessage } from '../../utils/mainIpcErrors';
 import { useProjectStore } from '../../stores/projectStore';
 import { fetchAuthSnapshot } from '../../hooks/useProviderAuth';
@@ -29,6 +30,7 @@ import { LocaleSelector } from './LocaleSelector';
 import { PolicyStudio } from './PolicyStudio';
 import { PrivacySettings } from './PrivacySettings';
 import { SkillManager } from './SkillManager';
+import { TelegramConnectFlow } from './telegram/TelegramConnectFlow';
 import { SupportPanel } from './SupportPanel';
 import { TelegramNotificationSettings } from './TelegramNotificationSettings';
 import type { RpcFn } from './types';
@@ -73,6 +75,7 @@ export function SettingsPanel({
   const mode = useAgentStore((s) => s.mode);
   const { theme, setTheme, density, setDensity } = useConfigStore();
   const { locale, setLocale, t } = useI18n();
+  const { changeLanguage } = useAgent();
   const providerStatuses = useAuthStore((s) => s.providerStatuses);
   const providerHealth = useAuthStore((s) => s.providerHealth);
   const maskedKeys = useAuthStore((s) => s.maskedKeys);
@@ -88,6 +91,8 @@ export function SettingsPanel({
   const [newKey, setNewKey] = useState('');
   const [saving, setSaving] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const [oauthErrors, setOauthErrors] = useState<Record<string, string | null>>({});
+  const oauthCancelTokenRef = useRef(0);
   const [vaultStatus, setVaultStatus] = useState<{
     available: boolean;
     persistent: boolean;
@@ -109,6 +114,12 @@ export function SettingsPanel({
   const refreshAuth = async () => {
     setAuthSnapshot(await fetchAuthSnapshot(rpc));
   };
+
+  useEffect(() => {
+    return () => {
+      oauthCancelTokenRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (!window.electronAPI?.getSecretVaultStatus) {
@@ -152,41 +163,62 @@ export function SettingsPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleLanguageChange = async (next: Locale) => {
-    setLocale(next);
-    try {
-      await rpc('config.set', { path: 'agent.language', value: next });
-    } catch (error) {
-      console.warn('[SettingsPanel] failed to sync agent.language:', error);
-    }
-  };
-
   const handleOAuthLogin = async (provider: string) => {
+    const cancelToken = oauthCancelTokenRef.current + 1;
+    oauthCancelTokenRef.current = cancelToken;
     setOauthLoading(provider);
+    setOauthErrors((prev) => ({ ...prev, [provider]: null }));
     try {
       await rpc('oauth.startLogin', { provider });
       for (let i = 0; i < 300; i += 1) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (oauthCancelTokenRef.current !== cancelToken) {
+          return;
+        }
         const data = await rpc('oauth.status');
+        if (oauthCancelTokenRef.current !== cancelToken) {
+          return;
+        }
         const statuses = (data.providers as Record<string, { authenticated: boolean }>) ?? {};
         if (statuses[provider]?.authenticated) {
           break;
         }
       }
+      if (oauthCancelTokenRef.current !== cancelToken) {
+        return;
+      }
       await refreshAuth();
     } catch (error) {
+      if (oauthCancelTokenRef.current !== cancelToken) {
+        return;
+      }
       console.error('OAuth login failed:', error);
+      setOauthErrors((prev) => ({
+        ...prev,
+        [provider]: t('settings.oauth.loginFailed', {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      }));
     } finally {
-      setOauthLoading(null);
+      if (oauthCancelTokenRef.current === cancelToken) {
+        setOauthLoading(null);
+      }
     }
   };
 
   const handleOAuthDisconnect = async (provider: string) => {
+    setOauthErrors((prev) => ({ ...prev, [provider]: null }));
     try {
       await rpc('oauth.disconnect', { provider });
       await refreshAuth();
     } catch (error) {
       console.error('OAuth disconnect failed:', error);
+      setOauthErrors((prev) => ({
+        ...prev,
+        [provider]: t('settings.oauth.disconnectFailed', {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      }));
     }
   };
 
@@ -353,6 +385,9 @@ export function SettingsPanel({
           </Section>
 
           <Section title={t('settings.section.telegramNotifications')}>
+            <div className="mb-4">
+              <TelegramConnectFlow rpc={rpc} embedded />
+            </div>
             <TelegramNotificationSettings rpc={rpc} />
           </Section>
 
@@ -539,6 +574,7 @@ export function SettingsPanel({
                 const oauth = oauthStatuses[id];
                 const isAuth = oauth?.authenticated;
                 const isLoading = oauthLoading === id;
+                const errorMessage = oauthErrors[id];
 
                 return (
                   <div
@@ -578,6 +614,14 @@ export function SettingsPanel({
                         </button>
                       )}
                     </div>
+                    {errorMessage && (
+                      <p
+                        role="alert"
+                        className="mt-2 text-[10px] text-ds-error"
+                      >
+                        {errorMessage}
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -693,7 +737,7 @@ export function SettingsPanel({
           </Section>
 
           <Section title={t('settings.section.language')}>
-            <LocaleSelector value={locale} onChange={handleLanguageChange} compact />
+            <LocaleSelector value={locale} onChange={changeLanguage} compact />
           </Section>
 
           <div className="pt-4 text-center text-[10px] text-ds-muted/40">

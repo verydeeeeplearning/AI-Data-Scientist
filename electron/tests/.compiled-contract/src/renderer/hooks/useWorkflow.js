@@ -8,6 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.useWorkflow = useWorkflow;
 const react_1 = require("react");
 const workflowStore_1 = require("../stores/workflowStore");
+const useVisiblePolling_1 = require("./useVisiblePolling");
 function cast(payload) {
     return payload;
 }
@@ -22,6 +23,21 @@ function useWorkflow(on, rpc, connected) {
     const updateContext = (0, workflowStore_1.useWorkflowStore)((s) => s.updateContext);
     const setOverallQuality = (0, workflowStore_1.useWorkflowStore)((s) => s.setOverallQuality);
     const recordSandboxViolation = (0, workflowStore_1.useWorkflowStore)((s) => s.recordSandboxViolation);
+    const approvalRefreshGenerationRef = (0, react_1.useRef)(0);
+    const loadApprovals = (0, react_1.useCallback)(async () => {
+        const generation = approvalRefreshGenerationRef.current;
+        try {
+            const result = await rpc('approval.list', { limit: 20 });
+            if (approvalRefreshGenerationRef.current === generation) {
+                setApprovals(result.approvals ?? []);
+            }
+        }
+        catch (err) {
+            if (approvalRefreshGenerationRef.current === generation) {
+                console.warn('[useWorkflow] approval.list failed:', err);
+            }
+        }
+    }, [rpc, setApprovals]);
     (0, react_1.useEffect)(() => {
         const unsubs = [
             on('workflow.step', (payload) => {
@@ -133,29 +149,15 @@ function useWorkflow(on, rpc, connected) {
         setOverallQuality,
     ]);
     (0, react_1.useEffect)(() => {
+        approvalRefreshGenerationRef.current += 1;
         if (!connected) {
             setApprovals([]);
-            return;
         }
-        let cancelled = false;
-        const loadApprovals = async () => {
-            try {
-                const result = await rpc('approval.list', { limit: 20 });
-                if (!cancelled) {
-                    setApprovals(result.approvals ?? []);
-                }
-            }
-            catch (err) {
-                console.warn('[useWorkflow] approval.list failed:', err);
-            }
-        };
-        void loadApprovals();
-        const timer = window.setInterval(() => {
-            void loadApprovals();
-        }, 3000);
         return () => {
-            cancelled = true;
-            window.clearInterval(timer);
+            approvalRefreshGenerationRef.current += 1;
         };
-    }, [connected, rpc, setApprovals]);
+    }, [connected, loadApprovals, setApprovals]);
+    (0, useVisiblePolling_1.useVisiblePolling)(() => {
+        void loadApprovals();
+    }, { intervalMs: 3000, enabled: connected });
 }

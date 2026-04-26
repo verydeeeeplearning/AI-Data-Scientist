@@ -177,6 +177,16 @@ class WorkspaceService:
         except ExportError as e:
             raise ValueError(str(e)) from e
 
+        # Containment assertion: verify the exporter did not write outside the
+        # staging root we created.  This is defence-in-depth — the staging_dir
+        # is already confined, but an exporter bug could theoretically produce a
+        # symlink or redirect the output.  Raise hard rather than return an
+        # unconfined path to the Electron layer.
+        if not result.output_path.is_relative_to(staging_root):
+            raise RuntimeError(
+                f"Export output escaped staging root: {result.output_path}"
+            )
+
         return {
             "exportPath": str(result.output_path),
             "format": target_format.value,

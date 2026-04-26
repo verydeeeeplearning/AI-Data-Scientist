@@ -88,11 +88,11 @@ export function ArtifactsPage({
     files: t('area.artifacts.views.files'),
     experiments: t('area.artifacts.views.experiments'),
     portfolio: t('area.artifacts.views.portfolio'),
-    workspace: 'Workspace',
+    workspace: t('area.artifacts.views.workspace'),
   };
 
   function handleOpenPinnedItem(item: WorkspacePinnedProjectionItem): void {
-    onNavigate(buildEvidenceWorkspacePath('summary', {
+    onNavigate(buildEvidenceWorkspacePath('overview', {
       mode: 'detail',
       target: 'card',
       value: item.cardId,
@@ -165,6 +165,7 @@ export function ArtifactsPage({
             activeTab={workspaceRoute.tab}
             focus={workspaceRoute.focus}
             onChangeTab={(tab) => onNavigate(buildEvidenceWorkspacePath(tab))}
+            onOpenFiles={() => onNavigate('/artifacts/files')}
             onOpenPinnedItem={handleOpenPinnedItem}
             onRefreshFiles={onRefreshFiles}
             authoritativeExportCandidates={authoritativeExportCandidates}

@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.useRuntime = useRuntime;
 const react_1 = require("react");
 const runtimeStore_1 = require("../stores/runtimeStore");
+const useVisiblePolling_1 = require("./useVisiblePolling");
 function useRuntime(on, rpc, connected) {
     const setStatus = (0, runtimeStore_1.useRuntimeStore)((s) => s.setStatus);
     const setSessions = (0, runtimeStore_1.useRuntimeStore)((s) => s.setSessions);
@@ -13,6 +14,7 @@ function useRuntime(on, rpc, connected) {
     const setTasks = (0, runtimeStore_1.useRuntimeStore)((s) => s.setTasks);
     const markUpdated = (0, runtimeStore_1.useRuntimeStore)((s) => s.markUpdated);
     const resetRuntime = (0, runtimeStore_1.useRuntimeStore)((s) => s.resetRuntime);
+    const refreshGenerationRef = (0, react_1.useRef)(0);
     const refreshRuntime = (0, react_1.useCallback)(async () => {
         const [statusResult, sessionsResult, runsResult, tasksResult] = await Promise.all([
             rpc('status.get'),
@@ -27,25 +29,32 @@ function useRuntime(on, rpc, connected) {
         markUpdated();
     }, [markUpdated, rpc, setRuns, setSessions, setStatus, setTasks]);
     (0, react_1.useEffect)(() => {
+        refreshGenerationRef.current += 1;
         if (!connected) {
             resetRuntime();
+        }
+        return () => {
+            refreshGenerationRef.current += 1;
+        };
+    }, [connected, refreshRuntime, resetRuntime]);
+    const guardedRefresh = (0, react_1.useCallback)(async () => {
+        const generation = refreshGenerationRef.current;
+        try {
+            await refreshRuntime();
+        }
+        catch (err) {
+            if (refreshGenerationRef.current === generation) {
+                console.warn('[useRuntime] refresh failed:', err);
+            }
+        }
+    }, [refreshRuntime]);
+    (0, useVisiblePolling_1.useVisiblePolling)(() => {
+        void guardedRefresh();
+    }, { intervalMs: 3000, enabled: connected });
+    (0, react_1.useEffect)(() => {
+        if (!connected) {
             return;
         }
-        let cancelled = false;
-        const guardedRefresh = async () => {
-            try {
-                await refreshRuntime();
-            }
-            catch (err) {
-                if (!cancelled) {
-                    console.warn('[useRuntime] refresh failed:', err);
-                }
-            }
-        };
-        void guardedRefresh();
-        const timer = window.setInterval(() => {
-            void guardedRefresh();
-        }, 3000);
         const unsubs = [
             on('stream.done', () => {
                 void guardedRefresh();
@@ -64,9 +73,7 @@ function useRuntime(on, rpc, connected) {
             }),
         ];
         return () => {
-            cancelled = true;
-            window.clearInterval(timer);
             unsubs.forEach((unsub) => unsub());
         };
-    }, [connected, on, refreshRuntime, resetRuntime]);
+    }, [connected, guardedRefresh, on]);
 }

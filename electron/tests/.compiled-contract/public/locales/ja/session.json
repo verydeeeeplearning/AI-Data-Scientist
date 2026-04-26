@@ -1,0 +1,13 @@
+{
+    "drawer": {
+        "label": "セッション設定",
+        "title": "セッション",
+        "scope": "このセッションのみ",
+        "modeHeading": "モード",
+        "qualityHeading": "品質",
+        "budgetHeading": "予算上限",
+        "budgetUpdateFailed": "予算の更新に失敗しました: {message}",
+        "modelHeading": "モデル",
+        "openAdmin": "詳細設定… (Admin)"
+    }
+}

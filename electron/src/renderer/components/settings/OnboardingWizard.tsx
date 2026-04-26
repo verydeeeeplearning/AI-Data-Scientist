@@ -8,14 +8,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
+  Bell,
   Bot,
   Check,
+  CheckCircle2,
   ChevronRight,
+  Circle,
   Database,
   FileText,
   LineChart,
   Loader2,
   LogIn,
+  Monitor,
   Presentation,
   Search,
   Upload,
@@ -35,11 +39,13 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useConfigStore } from '../../stores/configStore';
 import { useI18n, type Locale } from '../../stores/i18nStore';
+import { useTelegramStore } from '../../stores/telegramStore';
 import { resolveMainIpcErrorMessage } from '../../utils/mainIpcErrors';
 import { describeModelAccess, type ModelAccessSummary } from '../../utils/modelAuth';
 import { normalizeQualityPreset, type QualityPreset } from '../../utils/qualityPreset';
 import { CapabilityBadge } from './CapabilityBadge';
 import { LocaleSelector } from './LocaleSelector';
+import { TelegramConnectFlow } from './telegram/TelegramConnectFlow';
 
 type RpcFn = (method: string, params?: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
@@ -48,6 +54,8 @@ export interface OnboardingResult {
   qualityPreset: QualityPreset;
   useCaseId: string | null;
   starterPrompt: string | null;
+  notifyChoice: 'telegram' | 'desktop_only';
+  telegramConnected: boolean;
 }
 
 interface Props {
@@ -63,12 +71,15 @@ export type OnboardingPrimaryStepId =
   | 'deliverables'
   | 'mode'
   | 'model'
+  | 'notify'
   | 'confirm';
 export type OnboardingDataChoiceId = 'upload' | 'sample' | 'database_deferred';
 export type OnboardingDeliverableId = 'chart_summary' | 'report' | 'notebook' | 'presentation';
 export type OnboardingAutonomyMode = 'fast' | 'balanced' | 'controlled';
 
 type Step = OnboardingPrimaryStepId;
+type NotifyChoice = 'telegram' | 'desktop';
+type OnboardingNotifyChoice = 'telegram' | 'desktop_only';
 type ObservabilityChoice = 'none' | 'crash_only' | 'crash_and_telemetry';
 type UseCaseId = SharedOnboardingUseCaseId;
 
@@ -113,7 +124,14 @@ export interface OnboardingFinalizeRequest {
     step3_deliverables: OnboardingDeliverableId[];
     step4_mode: OnboardingAutonomyMode;
     step5_model: string;
+    step6_notify: {
+      choice: OnboardingNotifyChoice;
+      telegramConnected: boolean;
+      telegramChatId?: string;
+      telegramBotUsername?: string;
+    };
     step6_confirmed: true;
+    step7_confirmed: true;
   };
 }
 
@@ -148,6 +166,7 @@ export const ONBOARDING_PRIMARY_STEPS: ReadonlyArray<{
   { id: 'deliverables', label: 'Deliverables' },
   { id: 'mode', label: 'Mode' },
   { id: 'model', label: 'Model' },
+  { id: 'notify', label: 'Notify' },
   { id: 'confirm', label: 'Confirm' },
 ];
 
@@ -403,7 +422,18 @@ export function buildOnboardingFinalizePayload(args: {
   deliverables: readonly OnboardingDeliverableId[];
   autonomyMode: OnboardingAutonomyMode;
   modelId: string;
+  notifyChoice?: OnboardingNotifyChoice | null;
+  telegramConnected?: boolean;
+  telegramChatId?: string | null;
+  telegramBotUsername?: string | null;
 }): OnboardingFinalizeRequest {
+  const notifyMetadata = {
+    choice: args.notifyChoice ?? 'desktop_only',
+    telegramConnected: Boolean(args.telegramConnected),
+    ...(args.telegramChatId ? { telegramChatId: args.telegramChatId } : {}),
+    ...(args.telegramBotUsername ? { telegramBotUsername: args.telegramBotUsername } : {}),
+  };
+
   return {
     ...(args.sessionId ? { sessionId: args.sessionId } : {}),
     useCaseId: args.useCaseId,
@@ -417,7 +447,9 @@ export function buildOnboardingFinalizePayload(args: {
       step3_deliverables: [...args.deliverables],
       step4_mode: args.autonomyMode,
       step5_model: args.modelId,
+      step6_notify: notifyMetadata,
       step6_confirmed: true,
+      step7_confirmed: true,
     },
   };
 }
@@ -606,6 +638,41 @@ function formatExecutionModeTitle(choiceId: OnboardingAutonomyMode, t: Translato
   return t('common.mode.step');
 }
 
+function persistOnboardingComplete(): boolean {
+  try {
+    localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+    localStorage.setItem(LEGACY_ONBOARDING_STORAGE_KEY, 'true');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function SelectionIndicator({
+  selected,
+  label,
+}: {
+  selected: boolean;
+  label: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+        selected
+          ? 'border-ds-success/30 bg-ds-success/15 text-ds-success'
+          : 'border-ds-border bg-ds-surface text-ds-muted'
+      }`}
+    >
+      {selected ? (
+        <CheckCircle2 size={12} aria-hidden="true" />
+      ) : (
+        <Circle size={12} aria-hidden="true" />
+      )}
+      {label}
+    </span>
+  );
+}
+
 function SummaryCard({
   selectedUseCase,
   selectedDataChoiceId,
@@ -673,10 +740,14 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
   const providerStatuses = useAuthStore((s) => s.providerStatuses);
   const oauthStatuses = useAuthStore((s) => s.oauthStatuses);
   const setAuthSnapshot = useAuthStore((s) => s.setSnapshot);
+  const setFirstRun = useConfigStore((s) => s.setFirstRun);
+  const setShowOnboarding = useConfigStore((s) => s.setShowOnboarding);
   const setPendingStarterPrompt = useConfigStore((s) => s.setPendingStarterPrompt);
   const setMode = useAgentStore((s) => s.setMode);
   const currentSessionId = useChatStore((s) => s.sessionId);
   const setSessionId = useChatStore((s) => s.setSessionId);
+  const telegramPairedChat = useTelegramStore((s) => s.pairedChat);
+  const telegramBotIdentity = useTelegramStore((s) => s.botIdentity);
   const { locale, setLocale, t } = useI18n();
   const sampleApiAvailable = Boolean(window.electronAPI?.loadSampleForUseCase);
 
@@ -688,6 +759,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
   const [selectedDeliverables, setSelectedDeliverables] = useState<OnboardingDeliverableId[]>([]);
   const [selectedAutonomyMode, setSelectedAutonomyMode] = useState<OnboardingAutonomyMode>('balanced');
   const [selectedModel, setSelectedModel] = useState<ModelEntry | null>(null);
+  const [notifyChoice, setNotifyChoice] = useState<NotifyChoice | null>(null);
   const [observabilityChoice, setObservabilityChoice] = useState<ObservabilityChoice | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [loading, setLoading] = useState(false);
@@ -953,6 +1025,12 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
     }
   };
 
+  const handleSkipOnboarding = () => {
+    persistOnboardingComplete();
+    setFirstRun(false);
+    setShowOnboarding(false);
+  };
+
   const handleFinish = async () => {
     if (!selectedModel || !selectedUseCase || observabilityChoice === null) {
       setFinishError(t('onboarding.error.choose_privacy'));
@@ -1055,6 +1133,10 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
         });
       }
 
+      const resolvedNotifyChoice: OnboardingNotifyChoice =
+        notifyChoice === 'telegram' ? 'telegram' : 'desktop_only';
+      const telegramConnected = Boolean(telegramPairedChat);
+
       const finalizePayload = buildOnboardingFinalizePayload({
         sessionId: handoffSessionId,
         useCaseId: selectedUseCase.id,
@@ -1063,6 +1145,10 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
         deliverables: selectedDeliverables,
         autonomyMode: selectedAutonomyMode,
         modelId: selectedModel.id,
+        notifyChoice: resolvedNotifyChoice,
+        telegramConnected,
+        telegramChatId: telegramPairedChat?.chatId ?? null,
+        telegramBotUsername: telegramBotIdentity?.username ?? null,
       });
       const finalizeResult = await finalizeOnboardingHandoff(finalizePayload);
       if (!finalizeResult.sessionId || finalizeResult.sessionId.trim().length === 0) {
@@ -1073,12 +1159,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
       setSessionId(finalizeResult.sessionId);
       setMode(executionMode);
 
-      try {
-        localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
-        localStorage.setItem(LEGACY_ONBOARDING_STORAGE_KEY, 'true');
-      } catch {
-        // Ignore storage failures. The config write already succeeded.
-      }
+      persistOnboardingComplete();
 
       setPendingStarterPrompt(starterPromptForChat);
       telemetry({
@@ -1092,6 +1173,8 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
         qualityPreset: normalizeQualityPreset(qualityPreset),
         useCaseId: selectedUseCase.id,
         starterPrompt: starterPromptForChat,
+        notifyChoice: resolvedNotifyChoice,
+        telegramConnected,
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
@@ -1108,8 +1191,8 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ds-bg px-4 py-8">
-      <div className="w-full max-w-6xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ds-bg px-4 py-6">
+      <div className="max-h-[calc(100vh-3rem)] w-full max-w-6xl overflow-y-auto pr-1">
         <div className="mb-8 text-center">
           <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-ds-accent/20">
             <Bot size={32} className="text-ds-accent" />
@@ -1127,6 +1210,13 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
               descriptionKey="onboarding.locale.description"
             />
           </div>
+          <button
+            type="button"
+            onClick={handleSkipOnboarding}
+            className="mt-4 text-xs font-medium text-ds-muted transition-colors hover:text-ds-text focus:outline-none focus:ring-2 focus:ring-ds-accent/60"
+          >
+            {t('onboarding.skip.action')}
+          </button>
         </div>
 
         <div className="mb-6 grid gap-2 md:grid-cols-6">
@@ -1179,17 +1269,27 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                     key={useCase.id}
                     type="button"
                     onClick={() => handleUseCaseSelect(useCase.id)}
-                    className={`rounded-2xl border p-5 text-left transition-colors ${
+                    aria-pressed={selected}
+                    className={`rounded-2xl border p-5 text-left shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-ds-accent/60 ${
                       selected
-                        ? 'border-ds-accent/60 bg-ds-accent/10'
-                        : 'border-ds-border bg-ds-bg hover:border-ds-accent/40 hover:bg-ds-accent/5'
+                        ? 'border-ds-accent bg-ds-accent/10 shadow-ds-accent/10'
+                        : 'border-ds-border bg-ds-bg hover:-translate-y-0.5 hover:border-ds-accent/50 hover:bg-ds-accent/5 hover:shadow-md'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-ds-surface text-ds-accent">
+                      <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${
+                        selected ? 'bg-ds-accent text-white' : 'bg-ds-surface text-ds-accent'
+                      }`}>
                         <Icon size={18} />
                       </div>
-                      <ChevronRight size={16} className="mt-1 text-ds-muted" />
+                      <SelectionIndicator
+                        selected={selected}
+                        label={
+                          selected
+                            ? t('onboarding.use_case.card.selected')
+                            : t('onboarding.use_case.card.select')
+                        }
+                      />
                     </div>
                     <div className="mt-4 text-base font-medium text-ds-text">{useCase.title}</div>
                     <p className="mt-2 text-sm leading-6 text-ds-muted">{useCase.description}</p>
@@ -1204,7 +1304,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
               })}
             </div>
 
-            <div className="mt-6 flex justify-end">
+            <div className="sticky bottom-0 -mx-8 mt-6 flex justify-end border-t border-ds-border bg-ds-surface/95 px-8 py-4 backdrop-blur">
               <button
                 type="button"
                 onClick={() => setStep('data')}
@@ -1273,7 +1373,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
               />
             </div>
 
-            <div className="mt-6 flex items-center justify-between">
+            <div className="sticky bottom-0 -mx-8 mt-6 flex items-center justify-between border-t border-ds-border bg-ds-surface/95 px-8 py-4 backdrop-blur">
               <button
                 type="button"
                 onClick={() => setStep('use_case')}
@@ -1353,7 +1453,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
               />
             </div>
 
-            <div className="mt-6 flex items-center justify-between">
+            <div className="sticky bottom-0 -mx-8 mt-6 flex items-center justify-between border-t border-ds-border bg-ds-surface/95 px-8 py-4 backdrop-blur">
               <button
                 type="button"
                 onClick={() => setStep('data')}
@@ -1430,7 +1530,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
               />
             </div>
 
-            <div className="mt-6 flex items-center justify-between">
+            <div className="sticky bottom-0 -mx-8 mt-6 flex items-center justify-between border-t border-ds-border bg-ds-surface/95 px-8 py-4 backdrop-blur">
               <button
                 type="button"
                 onClick={() => setStep('deliverables')}
@@ -1634,7 +1734,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                           className="mt-3 w-full rounded-xl border border-ds-border bg-ds-surface px-4 py-3 text-sm text-ds-text placeholder:text-ds-muted/50 focus:border-ds-accent focus:outline-none"
                           onKeyDown={(event) => {
                             if (event.key === 'Enter' && canContinueFromModel) {
-                              setStep('confirm');
+                              setStep('notify');
                             }
                           }}
                         />
@@ -1646,7 +1746,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                   </div>
                 )}
 
-                <div className="mt-6 flex items-center justify-between">
+                <div className="sticky bottom-0 -mx-8 mt-6 flex items-center justify-between border-t border-ds-border bg-ds-surface/95 px-8 py-4 backdrop-blur">
                   <button
                     type="button"
                     onClick={() => setStep('mode')}
@@ -1656,11 +1756,109 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
                   </button>
                   <button
                     type="button"
-                    onClick={() => setStep('confirm')}
+                    onClick={() => setStep('notify')}
                     disabled={!canContinueFromModel}
                     className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {t('onboarding.continue')}
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 'notify' && selectedModel && selectedUseCase && (
+          <div className="mx-auto max-w-5xl rounded-2xl border border-ds-border bg-ds-surface p-8">
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+              <SummaryCard
+                selectedUseCase={selectedUseCase}
+                selectedDataChoiceId={selectedDataChoiceId}
+                selectedDeliverables={selectedDeliverables}
+                selectedAutonomyMode={selectedAutonomyMode}
+                selectedModel={selectedModel}
+                selectedModelAccess={selectedModelAccess}
+                t={t}
+              />
+
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">
+                  {t('onboarding.steps.label', { step: 6 })}
+                </div>
+                <h2 className="mt-2 text-2xl font-semibold text-ds-text">
+                  {t('onboarding.notify.title')}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-ds-muted">
+                  {t('onboarding.notify.description')}
+                </p>
+
+                {!notifyChoice ? (
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setNotifyChoice('telegram')}
+                      className="rounded-2xl border border-ds-border bg-ds-bg p-5 text-left transition-colors hover:border-ds-accent/40 hover:bg-ds-accent/5"
+                    >
+                      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-ds-surface text-ds-accent">
+                        <Bell size={18} aria-hidden="true" />
+                      </div>
+                      <div className="mt-4 text-base font-medium text-ds-text">
+                        {t('onboarding.notify.telegram.title')}
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-ds-muted">
+                        {t('onboarding.notify.telegram.description')}
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNotifyChoice('desktop');
+                        setStep('confirm');
+                      }}
+                      className="rounded-2xl border border-ds-border bg-ds-bg p-5 text-left transition-colors hover:border-ds-accent/40 hover:bg-ds-accent/5"
+                    >
+                      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-ds-surface text-ds-accent">
+                        <Monitor size={18} aria-hidden="true" />
+                      </div>
+                      <div className="mt-4 text-base font-medium text-ds-text">
+                        {t('onboarding.notify.desktop.title')}
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-ds-muted">
+                        {t('onboarding.notify.desktop.description')}
+                      </p>
+                    </button>
+                  </div>
+                ) : null}
+
+                {notifyChoice === 'telegram' ? (
+                  <div className="mt-6">
+                    <TelegramConnectFlow
+                      rpc={rpc}
+                      embedded
+                      onComplete={() => setStep('confirm')}
+                      onSkip={() => setStep('confirm')}
+                      onCancel={() => {
+                        setNotifyChoice(null);
+                      }}
+                    />
+                  </div>
+                ) : null}
+
+                <div className="sticky bottom-0 -mx-8 mt-6 flex items-center justify-between border-t border-ds-border bg-ds-surface/95 px-8 py-4 backdrop-blur">
+                  <button
+                    type="button"
+                    onClick={() => setStep('model')}
+                    className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
+                  >
+                    {t('onboarding.actions.back_to_model')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep('confirm')}
+                    className="inline-flex items-center gap-2 rounded-xl bg-ds-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-ds-accent-hover"
+                  >
+                    {t('onboarding.notify.continueDesktop')}
                     <ChevronRight size={16} />
                   </button>
                 </div>
@@ -1675,7 +1873,7 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
               <Check size={24} className="text-ds-success" />
             </div>
             <div className="text-xs uppercase tracking-[0.2em] text-ds-muted">
-              {t('onboarding.steps.label', { step: 6 })}
+              {t('onboarding.steps.label', { step: 7 })}
             </div>
             <h2 className="mt-2 text-2xl font-semibold text-ds-text">{t('onboarding.confirm.title')}</h2>
             <p className="mt-3 text-sm leading-6 text-ds-muted">
@@ -1783,13 +1981,13 @@ export function OnboardingWizard({ onComplete, rpc, groups, telemetry = NOOP_ONB
 
             {finishError && <p className="mt-4 text-xs text-red-400">{finishError}</p>}
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="sticky bottom-0 -mx-8 mt-6 flex flex-col gap-3 border-t border-ds-border bg-ds-surface/95 px-8 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
               <button
                 type="button"
-                onClick={() => setStep('model')}
+                onClick={() => setStep('notify')}
                 className="text-xs font-medium text-ds-muted transition-colors hover:text-ds-text"
               >
-                {t('onboarding.actions.back_to_model')}
+                {t('onboarding.actions.back_to_notify')}
               </button>
               <button
                 type="button"

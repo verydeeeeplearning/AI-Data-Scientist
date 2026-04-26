@@ -8,7 +8,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useWebSocket } from './useWebSocket';
 
-type WsValue = ReturnType<typeof useWebSocket>;
+export type WsValue = ReturnType<typeof useWebSocket>;
 
 const WsContext = createContext<WsValue | null>(null);
 

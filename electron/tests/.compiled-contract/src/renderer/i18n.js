@@ -23,6 +23,7 @@ const cards_json_1 = __importDefault(require("../../public/locales/ko/cards.json
 const chat_json_1 = __importDefault(require("../../public/locales/ko/chat.json"));
 const cmd_json_1 = __importDefault(require("../../public/locales/ko/cmd.json"));
 const share_json_1 = __importDefault(require("../../public/locales/ko/share.json"));
+const session_json_1 = __importDefault(require("../../public/locales/ko/session.json"));
 const common_json_2 = __importDefault(require("../../public/locales/en/common.json"));
 const area_json_2 = __importDefault(require("../../public/locales/en/area.json"));
 const mission_json_2 = __importDefault(require("../../public/locales/en/mission.json"));
@@ -39,6 +40,7 @@ const cards_json_2 = __importDefault(require("../../public/locales/en/cards.json
 const chat_json_2 = __importDefault(require("../../public/locales/en/chat.json"));
 const cmd_json_2 = __importDefault(require("../../public/locales/en/cmd.json"));
 const share_json_2 = __importDefault(require("../../public/locales/en/share.json"));
+const session_json_2 = __importDefault(require("../../public/locales/en/session.json"));
 const common_json_3 = __importDefault(require("../../public/locales/ja/common.json"));
 const area_json_3 = __importDefault(require("../../public/locales/ja/area.json"));
 const mission_json_3 = __importDefault(require("../../public/locales/ja/mission.json"));
@@ -55,6 +57,7 @@ const cards_json_3 = __importDefault(require("../../public/locales/ja/cards.json
 const chat_json_3 = __importDefault(require("../../public/locales/ja/chat.json"));
 const cmd_json_3 = __importDefault(require("../../public/locales/ja/cmd.json"));
 const share_json_3 = __importDefault(require("../../public/locales/ja/share.json"));
+const session_json_3 = __importDefault(require("../../public/locales/ja/session.json"));
 exports.SUPPORTED_LNGS = meta_1.SHARED_I18N_LOCALES;
 exports.I18N_NAMESPACES = meta_1.DESKTOP_I18N_NAMESPACES;
 exports.I18N_LANGUAGE_KEY = 'i18nextLng';
@@ -77,6 +80,7 @@ exports.I18N_RESOURCES = {
         chat: chat_json_1.default,
         cmd: cmd_json_1.default,
         share: share_json_1.default,
+        session: session_json_1.default,
     },
     en: {
         common: common_json_2.default,
@@ -95,6 +99,7 @@ exports.I18N_RESOURCES = {
         chat: chat_json_2.default,
         cmd: cmd_json_2.default,
         share: share_json_2.default,
+        session: session_json_2.default,
     },
     ja: {
         common: common_json_3.default,
@@ -113,6 +118,7 @@ exports.I18N_RESOURCES = {
         chat: chat_json_3.default,
         cmd: cmd_json_3.default,
         share: share_json_3.default,
+        session: session_json_3.default,
     },
 };
 const LOCALE_BCP47 = {

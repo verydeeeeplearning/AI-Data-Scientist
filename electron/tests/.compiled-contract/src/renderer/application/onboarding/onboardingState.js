@@ -31,6 +31,7 @@ exports.ONBOARDING_PRIMARY_STEP_ORDER = [
     'deliverables',
     'mode',
     'model',
+    'notify',
     'confirm',
 ];
 function buildInitialOnboardingState(args) {
@@ -90,6 +91,12 @@ function mapAutonomyModeToQualityPreset(mode) {
     return 'balanced';
 }
 function buildOnboardingFinalizePayload(args) {
+    const notifyMetadata = {
+        choice: args.notifyChoice ?? 'desktop_only',
+        telegramConnected: Boolean(args.telegramConnected),
+        ...(args.telegramChatId ? { telegramChatId: args.telegramChatId } : {}),
+        ...(args.telegramBotUsername ? { telegramBotUsername: args.telegramBotUsername } : {}),
+    };
     return {
         ...(args.sessionId ? { sessionId: args.sessionId } : {}),
         useCaseId: args.useCaseId,
@@ -103,7 +110,9 @@ function buildOnboardingFinalizePayload(args) {
             step3_deliverables: [...args.deliverables],
             step4_mode: args.autonomyMode,
             step5_model: args.modelId,
+            step6_notify: notifyMetadata,
             step6_confirmed: true,
+            step7_confirmed: true,
         },
     };
 }
@@ -133,6 +142,8 @@ function canAdvanceOnboardingStep(state) {
             return true;
         case 'model':
             return state.modelId !== null;
+        case 'notify':
+            return true;
         case 'confirm':
             return true;
         default:

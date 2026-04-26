@@ -12,6 +12,7 @@ import {
 import { Badge } from '../../design-system/primitives';
 import type { PlanNode } from '../../types/events';
 import { useStageReasoningTrace } from '../../hooks/useReasoningTrace';
+import { useI18n } from '../../stores/i18nStore';
 import { planTreeNodeDomId } from './PlanTreePanel';
 
 interface Props {
@@ -58,6 +59,7 @@ function TraceSection({
 
 export function ReasoningTracePanel({ stageKey }: Props) {
   const { traces, planState } = useStageReasoningTrace(stageKey);
+  const t = useI18n((state) => state.t);
   const titleId = useId();
   const planNodeLabels = useMemo(
     () => buildPlanNodeLabelIndex(planState.planTree),
@@ -86,11 +88,11 @@ export function ReasoningTracePanel({ stageKey }: Props) {
         <div className="inline-flex items-center gap-ds-2">
           <BrainCircuit size={12} className="text-ds-muted" aria-hidden="true" />
           <DrawerSurfaceSectionTitle id={titleId}>
-            Reasoning Trace
+            {t('run.runtime.reasoningTrace.title')}
           </DrawerSurfaceSectionTitle>
         </div>
         <Badge compact tone="neutral">
-          {traces.length} item{traces.length === 1 ? '' : 's'}
+          {t('run.runtime.reasoningTrace.itemCount', { count: traces.length })}
         </Badge>
         {planState.lastReplannedAt ? (
           <Badge
@@ -98,7 +100,9 @@ export function ReasoningTracePanel({ stageKey }: Props) {
             tone="warning"
             leadingIcon={<GitBranchPlus size={10} aria-hidden="true" />}
           >
-            Replanned {formatTimestamp(planState.lastReplannedAt)}
+            {t('run.runtime.reasoningTrace.replanned', {
+              time: formatTimestamp(planState.lastReplannedAt),
+            })}
           </Badge>
         ) : null}
       </div>
@@ -112,7 +116,7 @@ export function ReasoningTracePanel({ stageKey }: Props) {
       {traces.length === 0 ? (
         <ResultCardSectionPanel role="status" aria-live="polite">
           <p className="text-ds-xs text-ds-muted">
-            No reasoning trace has been captured for this stage yet.
+            {t('run.runtime.reasoningTrace.empty')}
           </p>
         </ResultCardSectionPanel>
       ) : (
@@ -126,7 +130,9 @@ export function ReasoningTracePanel({ stageKey }: Props) {
               <article
                 key={trace.id}
                 id={`reasoning-trace-${trace.id}`}
-                aria-label={`Trace emitted at ${formatTimestamp(trace.emittedAt)}`}
+                aria-label={t('run.runtime.reasoningTrace.traceAria', {
+                  time: formatTimestamp(trace.emittedAt),
+                })}
               >
                 <ResultCardSectionPanel className="space-y-ds-3">
                   <ResultCardMetaRow>
@@ -135,11 +141,18 @@ export function ReasoningTracePanel({ stageKey }: Props) {
                       <ResultCardPillButton
                         onClick={() => focusPlanNode(planNodeId)}
                         className="border-ds-accent/30 bg-ds-accent/10 text-ds-accent hover:bg-ds-accent/20"
-                        title={`Jump to plan node ${planNodeId}`}
+                        title={t('run.runtime.reasoningTrace.jumpToPlanNodeTitle', {
+                          nodeId: planNodeId,
+                        })}
                         aria-label={
                           planNodeLabel
-                            ? `Jump to plan node ${planNodeLabel} (${planNodeId})`
-                            : `Jump to plan node ${planNodeId}`
+                            ? t('run.runtime.reasoningTrace.jumpToPlanNodeAriaWithLabel', {
+                              label: planNodeLabel,
+                              nodeId: planNodeId,
+                            })
+                            : t('run.runtime.reasoningTrace.jumpToPlanNodeAria', {
+                              nodeId: planNodeId,
+                            })
                         }
                       >
                         <span className="font-mono">{planNodeId}</span>
@@ -152,7 +165,9 @@ export function ReasoningTracePanel({ stageKey }: Props) {
 
                   {trace.thinking ? (
                     <ResultCardSectionPanel className="space-y-ds-2 border-ds-accent/20 bg-ds-accent/5">
-                      <ResultCardSectionTitle>Thinking</ResultCardSectionTitle>
+                      <ResultCardSectionTitle>
+                        {t('run.runtime.reasoningTrace.thinking')}
+                      </ResultCardSectionTitle>
                       <div className="whitespace-pre-wrap text-ds-xs leading-5 text-ds-text">
                         {trace.thinking}
                       </div>
@@ -160,10 +175,22 @@ export function ReasoningTracePanel({ stageKey }: Props) {
                   ) : null}
 
                   <div className="grid gap-ds-2 md:grid-cols-2">
-                    <TraceSection title="Hypothesis" value={trace.hypothesis} />
-                    <TraceSection title="Action" value={trace.action} />
-                    <TraceSection title="Observation" value={trace.observation} />
-                    <TraceSection title="Decision" value={trace.decision} />
+                    <TraceSection
+                      title={t('run.runtime.reasoningTrace.hypothesis')}
+                      value={trace.hypothesis}
+                    />
+                    <TraceSection
+                      title={t('run.runtime.reasoningTrace.action')}
+                      value={trace.action}
+                    />
+                    <TraceSection
+                      title={t('run.runtime.reasoningTrace.observation')}
+                      value={trace.observation}
+                    />
+                    <TraceSection
+                      title={t('run.runtime.reasoningTrace.decision')}
+                      value={trace.decision}
+                    />
                   </div>
                 </ResultCardSectionPanel>
               </article>

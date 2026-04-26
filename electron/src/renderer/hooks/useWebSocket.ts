@@ -51,11 +51,12 @@ type EventHandler = (payload: Record<string, unknown>) => void;
 
 const RECONNECT_DELAY_MS = 2000;
 const HEALTHCHECK_TIMEOUT_MS = 1500;
+const DEFAULT_RPC_TIMEOUT_MS = 30_000;
+const HEARTBEAT_INTERVAL_MS = 25_000;
+const HEARTBEAT_TIMEOUT_MS = 10_000;
 
-let idCounter = 0;
-
-function nextId(): string {
-  return `r${++idCounter}-${Date.now().toString(36)}`;
+export interface RpcOptions {
+  timeoutMs?: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -130,6 +131,8 @@ export function useWebSocket(port: number, token?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [disconnectReason, setDisconnectReason] = useState<DisconnectReason>('unknown');
+  const [lastConnectedAt, setLastConnectedAt] = useState<number | null>(null);
+  const [reconnectEpoch, setReconnectEpoch] = useState(0);
   const pendingRef = useRef<Map<string, {
     resolve: (v: Record<string, unknown>) => void;
     reject: (e: Error) => void;
@@ -137,10 +140,13 @@ export function useWebSocket(port: number, token?: string) {
   }>>(new Map());
   const listenersRef = useRef<Map<string, Set<EventHandler>>>(new Map());
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heartbeatInFlightRef = useRef(false);
   const disposedRef = useRef(false);
   const manualCloseRef = useRef(false);
   const everConnectedRef = useRef(false);
   const disconnectEpochRef = useRef(0);
+  const idCounterRef = useRef(0);
 
   const rejectPending = useCallback((message: string) => {
     for (const [id, pending] of pendingRef.current.entries()) {
@@ -149,6 +155,92 @@ export function useWebSocket(port: number, token?: string) {
       pendingRef.current.delete(id);
     }
   }, []);
+
+  const nextId = useCallback(() => {
+    idCounterRef.current += 1;
+    return `r${idCounterRef.current}-${Date.now().toString(36)}`;
+  }, []);
+
+  const rpc = useCallback(
+    (
+      method: string,
+      params?: Record<string, unknown>,
+      options?: RpcOptions,
+    ): Promise<Record<string, unknown>> => {
+      return new Promise((resolve, reject) => {
+        const ws = wsRef.current;
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          reject(new Error(wsMessage('common.webSocket.notConnected')));
+          return;
+        }
+
+        const id = nextId();
+        const req: WsRequest = { type: 'req', id, method, params };
+        const timeoutMs = options?.timeoutMs ?? DEFAULT_RPC_TIMEOUT_MS;
+
+        const timer = setTimeout(() => {
+          if (pendingRef.current.has(id)) {
+            clearTimeout(timer);
+            pendingRef.current.delete(id);
+            reject(new Error(wsMessage('common.webSocket.timeout', { method })));
+          }
+        }, timeoutMs);
+
+        pendingRef.current.set(id, { resolve, reject, timer });
+        try {
+          ws.send(JSON.stringify(req));
+        } catch (error) {
+          clearTimeout(timer);
+          pendingRef.current.delete(id);
+          reject(
+            error instanceof Error
+              ? error
+              : new Error(wsMessage('common.webSocket.sendFailed')),
+          );
+        }
+      });
+    },
+    [nextId]
+  );
+
+  const clearHeartbeat = useCallback(() => {
+    if (heartbeatTimerRef.current !== null) {
+      clearInterval(heartbeatTimerRef.current);
+      heartbeatTimerRef.current = null;
+    }
+    heartbeatInFlightRef.current = false;
+  }, []);
+
+  const startHeartbeat = useCallback((ws: WebSocket) => {
+    clearHeartbeat();
+    heartbeatTimerRef.current = setInterval(() => {
+      if (disposedRef.current || wsRef.current !== ws || ws.readyState !== WebSocket.OPEN) {
+        clearHeartbeat();
+        return;
+      }
+
+      if (heartbeatInFlightRef.current) {
+        console.warn('[ws] heartbeat still pending, forcing reconnect');
+        ws.close();
+        return;
+      }
+
+      heartbeatInFlightRef.current = true;
+      rpc('ping', undefined, { timeoutMs: HEARTBEAT_TIMEOUT_MS })
+        .catch((error) => {
+          if (disposedRef.current || wsRef.current !== ws || ws.readyState !== WebSocket.OPEN) {
+            return;
+          }
+          console.warn('[ws] heartbeat missed, forcing reconnect:', error);
+          ws.close();
+        })
+        .finally(() => {
+          if (wsRef.current === ws) {
+            heartbeatInFlightRef.current = false;
+          }
+        });
+    }, HEARTBEAT_INTERVAL_MS);
+  }, [clearHeartbeat, rpc]);
 
   const connect = useCallback(() => {
     if (disposedRef.current) return;
@@ -175,6 +267,9 @@ export function useWebSocket(port: number, token?: string) {
       everConnectedRef.current = true;
       setStatus('connected');
       setDisconnectReason('unknown');
+      setLastConnectedAt(Date.now());
+      setReconnectEpoch((epoch) => epoch + 1);
+      startHeartbeat(ws);
     };
 
     ws.onmessage = (ev) => {
@@ -226,7 +321,7 @@ export function useWebSocket(port: number, token?: string) {
 
             const handlers = listenersRef.current.get(envelope.type);
             if (handlers) {
-              for (const handler of handlers) {
+              for (const handler of [...handlers]) {
                 handler(payload);
               }
             }
@@ -246,6 +341,7 @@ export function useWebSocket(port: number, token?: string) {
     ws.onclose = () => {
       if (wsRef.current !== ws) return;
       console.log('[ws] disconnected');
+      clearHeartbeat();
       wsRef.current = null;
       rejectPending(wsMessage('common.webSocket.disconnected'));
 
@@ -269,7 +365,12 @@ export function useWebSocket(port: number, token?: string) {
           console.warn('[ws] disconnect classification failed:', error);
         });
 
-      reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
+      reconnectTimer.current = setTimeout(() => {
+        if (disposedRef.current) {
+          return;
+        }
+        connect();
+      }, RECONNECT_DELAY_MS);
     };
 
     ws.onerror = (error) => {
@@ -281,7 +382,7 @@ export function useWebSocket(port: number, token?: string) {
     };
 
     wsRef.current = ws;
-  }, [port, token, rejectPending]);
+  }, [clearHeartbeat, port, rejectPending, startHeartbeat, token]);
 
   useEffect(() => {
     disposedRef.current = false;
@@ -289,6 +390,7 @@ export function useWebSocket(port: number, token?: string) {
     return () => {
       disposedRef.current = true;
       clearTimeout(reconnectTimer.current);
+      clearHeartbeat();
       rejectPending(wsMessage('common.webSocket.closed'));
       if (wsRef.current) {
         manualCloseRef.current = true;
@@ -296,44 +398,7 @@ export function useWebSocket(port: number, token?: string) {
         wsRef.current = null;
       }
     };
-  }, [connect, rejectPending]);
-
-  const rpc = useCallback(
-    (method: string, params?: Record<string, unknown>): Promise<Record<string, unknown>> => {
-      return new Promise((resolve, reject) => {
-        const ws = wsRef.current;
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
-          reject(new Error(wsMessage('common.webSocket.notConnected')));
-          return;
-        }
-
-        const id = nextId();
-        const req: WsRequest = { type: 'req', id, method, params };
-
-        const timer = setTimeout(() => {
-          if (pendingRef.current.has(id)) {
-            clearTimeout(timer);
-            pendingRef.current.delete(id);
-            reject(new Error(wsMessage('common.webSocket.timeout', { method })));
-          }
-        }, 30_000);
-
-        pendingRef.current.set(id, { resolve, reject, timer });
-        try {
-          ws.send(JSON.stringify(req));
-        } catch (error) {
-          clearTimeout(timer);
-          pendingRef.current.delete(id);
-          reject(
-            error instanceof Error
-              ? error
-              : new Error(wsMessage('common.webSocket.sendFailed')),
-          );
-        }
-      });
-    },
-    []
-  );
+  }, [clearHeartbeat, connect, rejectPending]);
 
   const on = useCallback((event: string, handler: EventHandler) => {
     if (!listenersRef.current.has(event)) {
@@ -346,5 +411,5 @@ export function useWebSocket(port: number, token?: string) {
     };
   }, []);
 
-  return { status, disconnectReason, rpc, on };
+  return { status, disconnectReason, rpc, on, lastConnectedAt, reconnectEpoch };
 }

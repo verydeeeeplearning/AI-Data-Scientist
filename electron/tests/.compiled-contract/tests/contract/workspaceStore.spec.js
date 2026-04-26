@@ -139,7 +139,7 @@ function run() {
             sourceKind: 'file',
         },
     ]);
-    strict_1.default.equal(readModel.sections.find((section) => section.id === 'summary')?.itemCount, 3);
+    strict_1.default.equal(readModel.sections.find((section) => section.id === 'overview')?.itemCount, 3);
     strict_1.default.equal(readModel.recentFiles[0]?.path, 'tables/metrics.csv');
     strict_1.default.equal(readModel.pinnedItems[0]?.cardId, 'card-2');
     workspaceStore_1.useWorkspaceStore.getState().reset();

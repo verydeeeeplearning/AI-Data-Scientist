@@ -43,6 +43,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSecretVaultStatus: () => ipcRenderer.invoke('secrets:getStatus'),
   setApiKey: (provider: string, key: string) => ipcRenderer.invoke('secrets:setApiKey', { provider, key }),
   deleteApiKey: (provider: string) => ipcRenderer.invoke('secrets:deleteApiKey', { provider }),
+  setConfigSecret: (secretPath: string, value: string) =>
+    ipcRenderer.invoke('secrets:setConfigSecret', { path: secretPath, value }),
+  clearConfigSecret: (secretPath: string) =>
+    ipcRenderer.invoke('secrets:clearConfigSecret', { path: secretPath }),
 
   // Onboarding sample datasets (P1-08 Phase 3)
   loadSampleForUseCase: (useCaseId: string) =>
@@ -58,7 +62,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   certification: {
     list: () => ipcRenderer.invoke('certification:list'),
-    status: (params: { missionName: string }) => ipcRenderer.invoke('certification:status', params),
     submit: (params: {
       missionName: string;
       targetLevel: string;

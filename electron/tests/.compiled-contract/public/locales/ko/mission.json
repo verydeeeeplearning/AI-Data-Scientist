@@ -228,5 +228,16 @@
     "brief.create.defaults.title": "초안 기본값",
     "brief.create.defaults.contract_type": "계약 유형: {value}",
     "brief.create.drafting": "초안 작성 중...",
-    "brief.create.submit": "초안 만들기"
+    "brief.create.submit": "초안 만들기",
+    "context.label": "미션 컨텍스트",
+    "context.goalEmpty": "목표가 설정되지 않았습니다 — 에이전트에게 세션 시작을 요청하세요",
+    "context.stage": "단계",
+    "context.stageIdle": "대기",
+    "context.mode": "모드",
+    "context.model": "모델",
+    "context.modelMissing": "—",
+    "context.budget": "예산",
+    "context.warnings": "경고",
+    "context.connected": "연결됨",
+    "context.disconnected": "연결 끊김"
 }

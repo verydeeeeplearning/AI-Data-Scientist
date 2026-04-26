@@ -9,10 +9,10 @@ function run() {
     strict_1.default.equal((0, workspaceRoute_1.normalizeArtifactsView)({ subPath: 'workspace/charts' }), 'workspace');
     strict_1.default.equal((0, workspaceRoute_1.normalizeArtifactsView)({ subPath: 'workspace' }), 'workspace');
     strict_1.default.equal((0, workspaceRoute_1.normalizeArtifactsView)({ subPath: 'unknown' }), 'files');
-    strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceTab)({ subPath: 'workspace/files' }), 'files');
-    strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceTab)({ subPath: 'workspace/highlight/card/card-1' }), 'summary');
-    strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceTab)({ subPath: 'workspace/not-a-tab' }), 'summary');
-    strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceTab)({ subPath: 'files' }), 'summary');
+    strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceTab)({ subPath: 'workspace/files' }), 'overview');
+    strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceTab)({ subPath: 'workspace/highlight/card/card-1' }), 'overview');
+    strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceTab)({ subPath: 'workspace/not-a-tab' }), 'overview');
+    strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceTab)({ subPath: 'files' }), 'overview');
     strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceFocus)({ subPath: 'workspace/files' }), null);
     strict_1.default.deepEqual((0, workspaceRoute_1.normalizeEvidenceWorkspaceFocus)({ subPath: 'workspace/highlight/card/card-1' }), {
         mode: 'highlight',
@@ -28,7 +28,7 @@ function run() {
         },
     });
     strict_1.default.deepEqual((0, workspaceRoute_1.parseEvidenceWorkspaceRoute)({ subPath: 'workspace/detail/message/msg-7' }), {
-        tab: 'summary',
+        tab: 'overview',
         focus: {
             mode: 'detail',
             target: 'message',
@@ -36,18 +36,13 @@ function run() {
         },
     });
     strict_1.default.equal((0, workspaceRoute_1.normalizeEvidenceWorkspaceFocus)({ subPath: 'workspace/summary/highlight/unknown/card-1' }), null);
-    strict_1.default.equal((0, workspaceRoute_1.buildEvidenceWorkspacePath)('summary'), '/artifacts/workspace');
+    strict_1.default.equal((0, workspaceRoute_1.buildEvidenceWorkspacePath)('overview'), '/artifacts/workspace/overview');
     strict_1.default.equal((0, workspaceRoute_1.buildEvidenceWorkspacePath)('export'), '/artifacts/workspace/export');
-    strict_1.default.equal((0, workspaceRoute_1.buildEvidenceWorkspacePath)('summary', {
+    strict_1.default.equal((0, workspaceRoute_1.buildEvidenceWorkspacePath)('overview', {
         mode: 'detail',
         target: 'card',
         value: 'card-1',
-    }), '/artifacts/workspace/detail/card/card-1');
-    strict_1.default.equal((0, workspaceRoute_1.buildEvidenceWorkspacePath)('tables', {
-        mode: 'highlight',
-        target: 'result',
-        value: 'result/with/slash',
-    }), '/artifacts/workspace/tables/highlight/result/result%2Fwith%2Fslash');
-    console.log('[contract] PASS workspace-route (14 cases)');
+    }), '/artifacts/workspace/overview/detail/card/card-1');
+    console.log('[contract] PASS workspace-route (13 cases)');
 }
 run();

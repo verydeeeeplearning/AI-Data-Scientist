@@ -3,6 +3,7 @@
  */
 
 import fs from 'fs/promises';
+import { readFileSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { app } from 'electron';
@@ -129,6 +130,24 @@ function resolveConfigPath(): string {
     return override;
   }
   return path.join(os.homedir(), '.ds-agent', 'config.yaml');
+}
+
+/**
+ * Resolve the workspace directory the backend is using.
+ *
+ * Reads the same config file the Python backend uses so the Electron main
+ * process can derive trusted paths (e.g. the export staging root) without
+ * coupling to the renderer or the live backend connection.  Falls back to the
+ * same default the Python schema uses: `~/.ds-agent/workspace`.
+ */
+export function resolveWorkspaceDir(): string {
+  const fallback = path.join(os.homedir(), '.ds-agent', 'workspace');
+  try {
+    const raw = readFileSync(resolveConfigPath(), 'utf-8');
+    return extractWorkspaceDir(raw) ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function extractWorkspaceDir(raw: string): string | null {

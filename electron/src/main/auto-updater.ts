@@ -23,6 +23,7 @@ const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; // then every 4 hours
 const RETRY_AFTER_FAILURE_MS = 24 * 60 * 60 * 1000;
 
 let initialised = false;
+let updaterEnabled = false;
 let checkTimer: NodeJS.Timeout | null = null;
 let retryTimer: NodeJS.Timeout | null = null;
 
@@ -72,9 +73,68 @@ function resolveChannel(): 'stable' | 'beta' | 'internal' {
   return 'stable';
 }
 
+function registerAutoUpdaterIpcHandlers(): void {
+  ipcMain.removeHandler('updater:check');
+  ipcMain.removeHandler('updater:download');
+  ipcMain.removeHandler('updater:install');
+  ipcMain.removeHandler('updater:getState');
+
+  ipcMain.handle('updater:check', async () => {
+    if (!updaterEnabled) {
+      return {
+        ok: true,
+        updateAvailable: false,
+        version: null,
+        disabled: true,
+      };
+    }
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      return {
+        ok: true,
+        updateAvailable: Boolean(result?.updateInfo && result.updateInfo.version !== app.getVersion()),
+        version: result?.updateInfo?.version ?? null,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Update check failed.';
+      return { ok: false, error: message };
+    }
+  });
+
+  ipcMain.handle('updater:download', async () => {
+    if (!updaterEnabled) {
+      return { ok: false, error: 'Auto-updater is disabled.' };
+    }
+    try {
+      await autoUpdater.downloadUpdate();
+      return { ok: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Download failed.';
+      return { ok: false, error: message };
+    }
+  });
+
+  ipcMain.handle('updater:install', () => {
+    if (!updaterEnabled) {
+      return { ok: false, error: 'Auto-updater is disabled.' };
+    }
+    setImmediate(() => autoUpdater.quitAndInstall(false, true));
+    return { ok: true };
+  });
+
+  ipcMain.handle('updater:getState', () => ({
+    channel: updaterEnabled ? autoUpdater.channel : resolveChannel(),
+    currentVersion: app.getVersion(),
+    enabled: updaterEnabled,
+    isPackaged: app.isPackaged,
+  }));
+}
+
 export function initAutoUpdater(): void {
   if (initialised) return;
   initialised = true;
+
+  registerAutoUpdaterIpcHandlers();
 
   if (process.env.DS_AGENT_E2E_DISABLE_AUTO_UPDATER === '1') {
     log.info('[updater] E2E mode — auto-update disabled.');
@@ -91,6 +151,7 @@ export function initAutoUpdater(): void {
   autoUpdater.autoDownload = false; // User confirms before consuming bandwidth.
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.channel = resolveChannel();
+  updaterEnabled = true;
 
   autoUpdater.on('checking-for-update', () => {
     broadcast('updater:checking', {});
@@ -129,46 +190,6 @@ export function initAutoUpdater(): void {
     });
     scheduleRetry();
   });
-
-  ipcMain.removeHandler('updater:check');
-  ipcMain.removeHandler('updater:download');
-  ipcMain.removeHandler('updater:install');
-  ipcMain.removeHandler('updater:getState');
-
-  ipcMain.handle('updater:check', async () => {
-    try {
-      const result = await autoUpdater.checkForUpdates();
-      return {
-        ok: true,
-        updateAvailable: Boolean(result?.updateInfo && result.updateInfo.version !== app.getVersion()),
-        version: result?.updateInfo?.version ?? null,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Update check failed.';
-      return { ok: false, error: message };
-    }
-  });
-
-  ipcMain.handle('updater:download', async () => {
-    try {
-      await autoUpdater.downloadUpdate();
-      return { ok: true };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Download failed.';
-      return { ok: false, error: message };
-    }
-  });
-
-  ipcMain.handle('updater:install', () => {
-    setImmediate(() => autoUpdater.quitAndInstall(false, true));
-    return { ok: true };
-  });
-
-  ipcMain.handle('updater:getState', () => ({
-    channel: autoUpdater.channel,
-    currentVersion: app.getVersion(),
-    isPackaged: app.isPackaged,
-  }));
 
   scheduleRecurring();
   recordDiagnosticLog('info', 'updater', 'Auto-updater initialised.', {

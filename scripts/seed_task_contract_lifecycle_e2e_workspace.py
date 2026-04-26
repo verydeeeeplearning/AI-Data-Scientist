@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import _repo_imports  # noqa: F401
+
 from ds_agent.application.dtos.task_contract import (
     DeliveryPackInputDTO,
     ReviewVerdictInputDTO,

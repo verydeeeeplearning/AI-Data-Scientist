@@ -12,6 +12,7 @@ import type {
   ChatMessage as ChatMessageType,
   ResultCardRecord,
 } from '../../stores/chatStore';
+import { useI18n } from '../../stores/i18nStore';
 import { getBackendBase } from '../../utils/backendUrl';
 import { ResultCardList } from '../cards/ResultCard';
 import type {
@@ -34,8 +35,12 @@ export function ChatMessage({
   onCardAction,
   renderTrustStrip,
 }: Props) {
+  const t = useI18n((state) => state.t);
   const isUser = message.role === 'user';
-  const hasMarkdownContent = message.content.trim().length > 0 || isStreaming;
+  const showTruncatedNotice = !isUser && message.truncated === true;
+  const hasMarkdownContent = message.content.trim().length > 0
+    || isStreaming
+    || showTruncatedNotice;
   const showCards = !isUser && cards.length > 0;
 
   return (
@@ -55,7 +60,7 @@ export function ChatMessage({
       {/* Content */}
       <div className="flex-1 min-w-0 overflow-hidden">
         <div className="text-xs text-ds-muted mb-1">
-          {isUser ? 'You' : 'DS Agent'}
+          {isUser ? t('chat.you') : t('chat.agent')}
         </div>
         {hasMarkdownContent && (
           <div className="prose prose-invert prose-sm max-w-none
@@ -139,6 +144,14 @@ export function ChatMessage({
             </ReactMarkdown>
             {isStreaming && (
               <span className="inline-block w-2 h-4 bg-ds-accent animate-pulse ml-0.5" />
+            )}
+            {showTruncatedNotice && (
+              <p
+                role="note"
+                className="mt-2 inline-flex rounded-ds-md border border-ds-warning/30 bg-ds-warning/10 px-ds-2 py-ds-1 text-ds-xs text-ds-warning"
+              >
+                {t('chat.message.truncatedNotice')}
+              </p>
             )}
           </div>
         )}

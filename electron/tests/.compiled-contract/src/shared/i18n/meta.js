@@ -19,6 +19,7 @@ exports.DESKTOP_I18N_NAMESPACES = [
     'chat',
     'cmd',
     'share',
+    'session',
 ];
 exports.MOBILE_I18N_NAMESPACES = ['mobile'];
 exports.ALL_I18N_NAMESPACES = [

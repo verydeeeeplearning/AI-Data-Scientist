@@ -8,14 +8,16 @@ import path from 'path';
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
 import { pathToFileURL } from 'url';
-import { buildSupportBundle, recordDiagnosticLog } from './diagnostics-collector';
+import { buildSupportBundle, recordDiagnosticLog, resolveWorkspaceDir } from './diagnostics-collector';
 import { updateMainObservability } from './observability';
 import { getBackendConnection, restartPythonBackend } from './python-backend';
 import { loadSampleForUseCase } from './sample-data';
 import {
+  clearConfigSecret,
   deleteProviderApiKey,
   getMaskedProviderApiKeys,
   getSecretVaultStatus,
+  setConfigSecret,
   setProviderApiKey,
 } from './secret-vault';
 import {
@@ -37,6 +39,15 @@ interface SetApiKeyParams {
 
 interface DeleteApiKeyParams {
   provider?: string;
+}
+
+interface SetConfigSecretParams {
+  path?: string;
+  value?: string;
+}
+
+interface ClearConfigSecretParams {
+  path?: string;
 }
 
 interface LoadSampleParams {
@@ -263,8 +274,9 @@ export function registerMainIpcHandlers(): void {
   ipcMain.removeHandler('secrets:getStatus');
   ipcMain.removeHandler('secrets:setApiKey');
   ipcMain.removeHandler('secrets:deleteApiKey');
+  ipcMain.removeHandler('secrets:setConfigSecret');
+  ipcMain.removeHandler('secrets:clearConfigSecret');
   ipcMain.removeHandler('certification:list');
-  ipcMain.removeHandler('certification:status');
   ipcMain.removeHandler('certification:submit');
   ipcMain.removeHandler('workObject:list');
   ipcMain.removeHandler('workObject:get');
@@ -467,6 +479,54 @@ export function registerMainIpcHandlers(): void {
     return getSecretVaultStatus();
   });
 
+  ipcMain.handle(
+    'secrets:setConfigSecret',
+    async (_event, params: SetConfigSecretParams = {}) => {
+      const secretPath = typeof params.path === 'string' ? params.path.trim() : '';
+      const value = typeof params.value === 'string' ? params.value.trim() : '';
+
+      if (!secretPath || !value) {
+        return buildIpcErrorResult(
+          'Config secret path and value are required.',
+          'config_secret_path_and_value_required',
+        );
+      }
+
+      try {
+        await setConfigSecret(secretPath, value);
+        return { ok: true };
+      } catch (error) {
+        return buildIpcErrorResult(
+          'Failed to save config secret.',
+          'config_secret_save_failed',
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'secrets:clearConfigSecret',
+    async (_event, params: ClearConfigSecretParams = {}) => {
+      const secretPath = typeof params.path === 'string' ? params.path.trim() : '';
+      if (!secretPath) {
+        return buildIpcErrorResult(
+          'Config secret path is required.',
+          'config_secret_path_required',
+        );
+      }
+
+      try {
+        const deleted = await clearConfigSecret(secretPath);
+        return { ok: true, deleted };
+      } catch (error) {
+        return buildIpcErrorResult(
+          'Failed to clear config secret.',
+          'config_secret_clear_failed',
+        );
+      }
+    }
+  );
+
   ipcMain.handle('secrets:setApiKey', async (_event, params: SetApiKeyParams = {}) => {
     const provider = typeof params.provider === 'string' ? params.provider.trim().toLowerCase() : '';
     const key = typeof params.key === 'string' ? params.key.trim() : '';
@@ -559,6 +619,20 @@ export function registerMainIpcHandlers(): void {
       );
     }
 
+    // Containment check: reject any stagedPath that does not resolve to within
+    // the known backend staging root (<workspace>/.ds-agent/exports/).  This
+    // prevents a compromised renderer from crafting an arbitrary path and using
+    // the IPC to read sensitive files (path traversal / absolute-path attack).
+    if (!isStagedPathConfined(stagedPath)) {
+      recordDiagnosticLog('error', 'ipc', 'export:finish rejected: staged path outside staging root.', {
+        stagedPath,
+      });
+      return buildDialogIpcErrorResult(
+        'area.files.export.error.untrustedPath',
+        'artifact_export_untrusted_path',
+      );
+    }
+
     try {
       await fs.access(stagedPath);
     } catch {
@@ -636,34 +710,6 @@ export function registerMainIpcHandlers(): void {
       );
     }
   });
-
-  ipcMain.handle(
-    'certification:status',
-    async (_event, params: { missionName?: string } = {}) => {
-      const connection = getBackendConnection();
-      const missionName =
-        typeof params.missionName === 'string' ? params.missionName.trim() : '';
-      if (!connection) {
-        return buildIpcErrorResult('Backend is not connected.', 'backend_offline');
-      }
-      if (!missionName) {
-        return buildIpcErrorResult('missionName is required.', 'mission_name_required');
-      }
-
-      try {
-        const response = await getBackendJson<{ mission: unknown }>(
-          connection.port,
-          `/api/certification/${encodeURIComponent(missionName)}`
-        );
-        return { ok: true, mission: response.mission };
-      } catch (error) {
-        return buildIpcErrorResult(
-          'Failed to load certification status.',
-          'certification_status_failed',
-        );
-      }
-    }
-  );
 
   ipcMain.handle(
     'certification:submit',
@@ -1554,6 +1600,36 @@ export function registerMainIpcHandlers(): void {
       }
     },
   );
+}
+
+/**
+ * Derive the expected staging root from the backend workspace config.
+ *
+ * The backend always writes staged export files under:
+ *   <workspace>/.ds-agent/exports/<uuid>/
+ *
+ * We resolve the workspace dir from the same config file the Python backend
+ * reads, so this stays consistent across all deployment modes.
+ */
+function resolveStagingRoot(): string {
+  const workspaceDir = resolveWorkspaceDir();
+  return path.resolve(workspaceDir, '.ds-agent', 'exports');
+}
+
+/**
+ * Return true iff `stagedPath` resolves to a location strictly inside the
+ * backend export staging root.  Rejects path-traversal sequences and any
+ * absolute path that lands outside the workspace subtree.
+ */
+function isStagedPathConfined(stagedPath: string): boolean {
+  try {
+    const resolved = path.resolve(stagedPath);
+    const stagingRoot = resolveStagingRoot();
+    // Must be a proper descendant of stagingRoot (not stagingRoot itself).
+    return resolved.startsWith(stagingRoot + path.sep);
+  } catch {
+    return false;
+  }
 }
 
 function sanitizeFilename(name: string): string {

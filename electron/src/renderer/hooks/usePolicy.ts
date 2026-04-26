@@ -2,7 +2,7 @@
  * Policy hook that keeps autonomous policy state in sync with backend RPCs.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   type ActionMatrixOverrideMap,
   type ActionMatrixOverrideRow,
@@ -13,6 +13,7 @@ import {
   type PolicySnapshot,
   type RecurringGoalEntry,
 } from '../stores/policyStore';
+import { useVisiblePolling } from './useVisiblePolling';
 
 type OnFn = (event: string, handler: (payload: Record<string, unknown>) => void) => () => void;
 export type PolicyRpcFn = (
@@ -135,6 +136,7 @@ export function usePolicy(on: OnFn, rpc: PolicyRpcFn, connected: boolean) {
   const setSnapshot = usePolicyStore((s) => s.setSnapshot);
   const markUpdated = usePolicyStore((s) => s.markUpdated);
   const resetPolicy = usePolicyStore((s) => s.resetPolicy);
+  const refreshGenerationRef = useRef(0);
 
   const refreshPolicy = useCallback(async () => {
     setSnapshot(await fetchPolicySnapshot(rpc));
@@ -142,26 +144,35 @@ export function usePolicy(on: OnFn, rpc: PolicyRpcFn, connected: boolean) {
   }, [markUpdated, rpc, setSnapshot]);
 
   useEffect(() => {
+    refreshGenerationRef.current += 1;
     if (!connected) {
       resetPolicy();
-      return;
     }
 
-    let cancelled = false;
-    const guardedRefresh = async () => {
-      try {
-        await refreshPolicy();
-      } catch (err) {
-        if (!cancelled) {
-          console.warn('[usePolicy] refresh failed:', err);
-        }
-      }
+    return () => {
+      refreshGenerationRef.current += 1;
     };
+  }, [connected, refreshPolicy, resetPolicy]);
 
+  const guardedRefresh = useCallback(async () => {
+    const generation = refreshGenerationRef.current;
+    try {
+      await refreshPolicy();
+    } catch (err) {
+      if (refreshGenerationRef.current === generation) {
+        console.warn('[usePolicy] refresh failed:', err);
+      }
+    }
+  }, [refreshPolicy]);
+
+  useVisiblePolling(() => {
     void guardedRefresh();
-    const timer = window.setInterval(() => {
-      void guardedRefresh();
-    }, 5000);
+  }, { intervalMs: 5000, enabled: connected });
+
+  useEffect(() => {
+    if (!connected) {
+      return;
+    }
 
     const unsubs = [
       on('stream.done', () => {
@@ -179,9 +190,7 @@ export function usePolicy(on: OnFn, rpc: PolicyRpcFn, connected: boolean) {
     ];
 
     return () => {
-      cancelled = true;
-      window.clearInterval(timer);
       unsubs.forEach((unsub) => unsub());
     };
-  }, [connected, on, refreshPolicy, resetPolicy]);
+  }, [connected, guardedRefresh, on]);
 }

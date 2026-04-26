@@ -198,6 +198,7 @@ export function RunDetailDrawer() {
   const tasks = useRuntimeStore((s) => s.tasks);
   const clearSelectedRun = useRuntimeStore((s) => s.clearSelectedRun);
   const [busyAbort, setBusyAbort] = useState(false);
+  const [abortError, setAbortError] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<RunScorecard | null>(null);
   const [scorecardBusy, setScorecardBusy] = useState(false);
   const [scorecardError, setScorecardError] = useState<string | null>(null);
@@ -277,7 +278,8 @@ export function RunDetailDrawer() {
         }
       } catch (err) {
         if (!cancelled) {
-          const message = err instanceof Error ? err.message : 'Scorecard unavailable.';
+          const message =
+            err instanceof Error ? err.message : t('run.runtime.runDetail.error.scorecardUnavailable');
           setScorecard(null);
           setScorecardError(message);
         }
@@ -352,10 +354,13 @@ export function RunDetailDrawer() {
 
   const abortRun = async () => {
     setBusyAbort(true);
+    setAbortError(null);
     try {
       await rpc('run.abort', { runId: run.runId });
     } catch (err) {
       console.warn('[RunDetailDrawer] run.abort failed:', err);
+      const detail = err instanceof Error ? err.message : String(err);
+      setAbortError(t('run.runtime.runs.error.abortFailed', { message: detail }));
     } finally {
       setBusyAbort(false);
     }
@@ -375,7 +380,7 @@ export function RunDetailDrawer() {
     if (!scorecard) return;
     const reviewerId = rubricReviewerId.trim();
     if (!reviewerId) {
-      setRubricError('Reviewer ID is required.');
+      setRubricError(t('run.runtime.runDetail.review.reviewerRequired'));
       return;
     }
 
@@ -384,7 +389,9 @@ export function RunDetailDrawer() {
       const rawValue = rubricDimensions[dimension.name] ?? '';
       const parsedValue = Number(rawValue);
       if (!Number.isFinite(parsedValue) || parsedValue < 0 || parsedValue > 1) {
-        setRubricError(`Invalid score for ${dimension.label}. Use a value between 0.00 and 1.00.`);
+        setRubricError(
+          t('run.runtime.runDetail.review.invalidScore', { label: dimension.label }),
+        );
         return;
       }
       parsedDimensions[dimension.name] = parsedValue;
@@ -401,9 +408,10 @@ export function RunDetailDrawer() {
         dimensions: parsedDimensions,
       })) as RunScorecardRpcResponse;
       setScorecard(response.scorecard ?? null);
-      setRubricStatus('Human review saved.');
+      setRubricStatus(t('run.runtime.runDetail.review.saved'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save human review.';
+      const message =
+        error instanceof Error ? error.message : t('run.runtime.runDetail.review.saveFailed');
       setRubricError(message);
     } finally {
       setRubricBusy(false);
@@ -419,9 +427,10 @@ export function RunDetailDrawer() {
         runId: run.runId,
       })) as RunScorecardRpcResponse;
       setScorecard(response.scorecard ?? null);
-      setShadowStatus('Shadow comparison refreshed.');
+      setShadowStatus(t('run.runtime.runDetail.shadow.refreshed'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to run shadow comparison.';
+      const message =
+        error instanceof Error ? error.message : t('run.runtime.runDetail.shadow.failed');
       setShadowError(message);
     } finally {
       setShadowBusy(false);
@@ -464,7 +473,7 @@ export function RunDetailDrawer() {
     try {
       const opened = await openSession(run.sessionId);
       if (!opened) {
-        setResumeError('Failed to open the linked session for checkpoint resume.');
+        setResumeError(t('run.runtime.runDetail.resume.openSessionFailed'));
         return;
       }
 
@@ -482,8 +491,8 @@ export function RunDetailDrawer() {
         });
         setResumeStatus(
           result.resumed
-            ? 'Resumed agent from the latest persisted checkpoint.'
-            : 'No checkpoint was available, so a fresh resume turn was started using the prepared prompt.',
+            ? t('run.runtime.runDetail.resume.fromCheckpoint')
+            : t('run.runtime.runDetail.resume.fromFreshTurn'),
         );
       } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
@@ -491,8 +500,8 @@ export function RunDetailDrawer() {
         setResumeFallback({ prompt, errorDetail: detail, clipboardCopied: copied });
         setResumeError(
           copied
-            ? `Resume RPC failed (${detail}). Resume prompt copied to clipboard so it can be pasted manually.`
-            : `Resume RPC failed (${detail}). Use the dialog to copy the resume prompt manually.`,
+            ? t('run.runtime.runDetail.resume.failedCopied', { reason: detail })
+            : t('run.runtime.runDetail.resume.failedManual', { reason: detail }),
         );
       }
     } finally {
@@ -509,10 +518,10 @@ export function RunDetailDrawer() {
           <div className="min-w-0 flex-1 space-y-ds-1">
             <DrawerSurfaceEyebrow className="flex items-center gap-ds-2">
               <ListTree size={12} aria-hidden="true" />
-              Run Inspector
+              {t('run.runtime.runDetail.eyebrow')}
             </DrawerSurfaceEyebrow>
             <p className="text-ds-sm text-ds-muted">
-              Inspect lifecycle, branching, scorecards, and linked task context.
+              {t('run.runtime.runDetail.description')}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-ds-1">
@@ -521,8 +530,8 @@ export function RunDetailDrawer() {
               variant="ghost"
               size="sm"
               onClick={clearSelectedRun}
-              title="Close inspector"
-              aria-label="Close inspector"
+              title={t('run.runtime.runDetail.closeTitle')}
+              aria-label={t('run.runtime.runDetail.closeAria')}
             >
               <X size={16} aria-hidden="true" />
             </Button>
@@ -552,11 +561,11 @@ export function RunDetailDrawer() {
                 size="sm"
                 onClick={() => void prepareCheckpointResume()}
                 disabled={resumeBusy || openingSessionId === run.sessionId}
-                title="Open this session and prepare a safe checkpoint resume prompt."
+                title={t('run.runtime.runDetail.action.resumeTitle')}
               >
                 {resumeBusy || openingSessionId === run.sessionId
-                  ? 'Preparing...'
-                  : 'Resume via Chat'}
+                  ? t('run.runtime.runDetail.action.resumePreparing')
+                  : t('run.runtime.runDetail.action.resume')}
               </Button>
               <Button
                 variant="secondary"
@@ -565,7 +574,9 @@ export function RunDetailDrawer() {
                 onClick={() => void openSession(run.sessionId)}
                 disabled={openingSessionId === run.sessionId}
               >
-                {openingSessionId === run.sessionId ? 'Opening...' : 'Open Session'}
+                {openingSessionId === run.sessionId
+                  ? t('run.runtime.runDetail.action.openSessionOpening')
+                  : t('run.runtime.runDetail.action.openSession')}
               </Button>
               <Button
                 variant="secondary"
@@ -575,7 +586,7 @@ export function RunDetailDrawer() {
                   setBranchDialogOpen(true);
                 }}
                 disabled={branchBusy}
-                title="Spawn a new run linked to this run as its parent."
+                title={t('run.runtime.runDetail.action.branchTitle')}
               >
                 {branchBusy ? t('run:branchDialog.confirmBusy') : t('run:branchDialog.confirm')}
               </Button>
@@ -587,14 +598,22 @@ export function RunDetailDrawer() {
                   onClick={() => void abortRun()}
                   disabled={busyAbort}
                 >
-                  Abort Run
+                  {t('run.runtime.runDetail.action.abort')}
                 </Button>
               )}
             </div>
             <div className="text-[10px] text-ds-muted">
-              Uses the existing session history and checkpoint, if one is available. No dedicated
-              checkpoint resume RPC is exposed here.
+              {t('run.runtime.runDetail.helper.checkpointResume')}
             </div>
+            {abortError && (
+              <p
+                role="alert"
+                className="text-ds-xs text-ds-error"
+                data-testid="run-detail-abort-error"
+              >
+                {abortError}
+              </p>
+            )}
             {resumeError && (
               <div className="text-[11px] text-ds-error" role="status" aria-live="polite">
                 {resumeError}
@@ -625,28 +644,28 @@ export function RunDetailDrawer() {
           />
 
           <DrawerSurfaceSection className="space-y-ds-2">
-            <DrawerSurfaceSectionTitle>Lifecycle</DrawerSurfaceSectionTitle>
-            <DetailRow label="Created" value={formatDateTime(run.createdAt)} />
-            <DetailRow label="Started" value={formatDateTime(run.startedAt)} />
-            <DetailRow label="Finished" value={formatDateTime(run.finishedAt)} />
-            <DetailRow label="Duration" value={formatDuration(run)} />
-            <DetailRow label="Cost" value={`$${run.costUsd.toFixed(4)}`} />
-            <DetailRow label="Conversation" value={run.conversationId ?? '-'} />
-            <DetailRow label="Thread" value={run.threadLabel ?? '-'} />
-            <DetailRow label="Task" value={run.taskId ?? task?.taskId ?? '-'} mono />
+            <DrawerSurfaceSectionTitle>{t('run.runtime.runDetail.section.lifecycle')}</DrawerSurfaceSectionTitle>
+            <DetailRow label={t('run.runtime.runDetail.label.created')} value={formatDateTime(run.createdAt)} />
+            <DetailRow label={t('run.runtime.runDetail.label.started')} value={formatDateTime(run.startedAt)} />
+            <DetailRow label={t('run.runtime.runDetail.label.finished')} value={formatDateTime(run.finishedAt)} />
+            <DetailRow label={t('run.runtime.runDetail.label.duration')} value={formatDuration(run)} />
+            <DetailRow label={t('run.runtime.runDetail.label.cost')} value={`$${run.costUsd.toFixed(4)}`} />
+            <DetailRow label={t('run.runtime.runDetail.label.conversation')} value={run.conversationId ?? '-'} />
+            <DetailRow label={t('run.runtime.runDetail.label.thread')} value={run.threadLabel ?? '-'} />
+            <DetailRow label={t('run.runtime.runDetail.label.task')} value={run.taskId ?? task?.taskId ?? '-'} mono />
           </DrawerSurfaceSection>
 
           <DrawerSurfaceSection className="space-y-ds-3">
-            <DrawerSurfaceSectionTitle>Scorecard</DrawerSurfaceSectionTitle>
+            <DrawerSurfaceSectionTitle>{t('run.runtime.runDetail.section.scorecard')}</DrawerSurfaceSectionTitle>
           {scorecardBusy ? (
-            <div className="text-xs text-ds-muted">Scoring persisted run trace...</div>
+            <div className="text-xs text-ds-muted">{t('run.runtime.runDetail.loading.scorecard')}</div>
           ) : scorecardError ? (
             <div className="text-xs text-ds-error">{scorecardError}</div>
           ) : scorecard ? (
             <>
               <div className="flex items-end gap-3">
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider text-ds-muted">Overall</div>
+                  <div className="text-[10px] uppercase tracking-wider text-ds-muted">{t('run.runtime.runDetail.label.overall')}</div>
                   <div className="text-2xl font-semibold text-ds-text">
                     {formatPercent(scorecard.weightedScore)}
                   </div>
@@ -656,20 +675,20 @@ export function RunDetailDrawer() {
                   compact
                   className="uppercase"
                 >
-                  {scorecard.passed ? 'Pass' : 'Fail'}
+                  {scorecard.passed ? t('run.runtime.runDetail.label.pass') : t('run.runtime.runDetail.label.fail')}
                 </Badge>
               </div>
 
               <DrawerSurfaceStatGrid>
-                <SummaryChip label="Threshold" value={formatPercent(scorecard.passThreshold)} />
-                <SummaryChip label="Decision" value={formatLatency(scorecard.decisionLatencySeconds)} />
-                <SummaryChip label="Tools" value={String(scorecard.toolCallCount)} />
-                <SummaryChip label="Approvals" value={String(scorecard.approvalCount)} />
+                <SummaryChip label={t('run.runtime.runDetail.label.threshold')} value={formatPercent(scorecard.passThreshold)} />
+                <SummaryChip label={t('run.runtime.runDetail.label.decision')} value={formatLatency(scorecard.decisionLatencySeconds)} />
+                <SummaryChip label={t('run.runtime.runDetail.label.tools')} value={String(scorecard.toolCallCount)} />
+                <SummaryChip label={t('run.runtime.runDetail.label.approvals')} value={String(scorecard.approvalCount)} />
               </DrawerSurfaceStatGrid>
 
               <DrawerSurfaceSection className="space-y-ds-3 bg-ds-surface/60">
                 <div className="flex items-center gap-2">
-                  <DrawerSurfaceSectionTitle>Shadow Compare</DrawerSurfaceSectionTitle>
+                  <DrawerSurfaceSectionTitle>{t('run.runtime.runDetail.section.shadowCompare')}</DrawerSurfaceSectionTitle>
                   <Button
                     variant="secondary"
                     size="sm"
@@ -677,7 +696,7 @@ export function RunDetailDrawer() {
                     disabled={shadowBusy}
                     className="ml-auto"
                   >
-                    {shadowBusy ? 'Running...' : 'Run Shadow'}
+                    {shadowBusy ? t('run.runtime.runDetail.button.runShadowBusy') : t('run.runtime.runDetail.button.runShadow')}
                   </Button>
                 </div>
 
@@ -688,42 +707,46 @@ export function RunDetailDrawer() {
                   <div className="space-y-3">
                     <DrawerSurfaceStatGrid>
                       <SummaryChip
-                        label="Baseline"
+                        label={t('run.runtime.runDetail.label.baseline')}
                         value={formatPercent(scorecard.shadowComparison.baselineWeightedScore)}
                       />
                       <SummaryChip
-                        label="Shadow"
+                        label={t('run.runtime.runDetail.label.shadow')}
                         value={formatPercent(scorecard.shadowComparison.shadowWeightedScore)}
                       />
                       <SummaryChip
-                        label="Delta"
+                        label={t('run.runtime.runDetail.label.delta')}
                         value={`${scorecard.shadowComparison.weightedScoreDelta >= 0 ? '+' : ''}${formatPercent(scorecard.shadowComparison.weightedScoreDelta)}`}
                       />
                       <SummaryChip
-                        label="Budget"
+                        label={t('run.runtime.runDetail.label.budget')}
                         value={`${Math.round(scorecard.shadowComparison.shadowBudgetFactor * 100)}%`}
                       />
                     </DrawerSurfaceStatGrid>
                     <div className="text-xs text-ds-muted">
-                      {scorecard.shadowComparison.shadowModel || 'default-model'} / saved{' '}
-                      {formatDateTime(scorecard.shadowComparison.createdAt)}
+                      {t('run.runtime.runDetail.label.modelSavedAt', {
+                        model:
+                          scorecard.shadowComparison.shadowModel ||
+                          t('run.runtime.runDetail.label.defaultModel'),
+                        date: formatDateTime(scorecard.shadowComparison.createdAt),
+                      })}
                     </div>
                     {scorecard.shadowComparison.topImprovements.length > 0 && (
                       <ComparisonList
-                        title="Top Improvements"
+                        title={t('run.runtime.runDetail.label.topImprovements')}
                         items={scorecard.shadowComparison.topImprovements}
                       />
                     )}
                     {scorecard.shadowComparison.topRegressions.length > 0 && (
                       <ComparisonList
-                        title="Top Regressions"
+                        title={t('run.runtime.runDetail.label.topRegressions')}
                         items={scorecard.shadowComparison.topRegressions}
                       />
                     )}
                   </div>
                 ) : (
                   <div className="text-xs text-ds-muted">
-                    No shadow comparison recorded for this run yet.
+                    {t('run.runtime.runDetail.empty.shadowComparison')}
                   </div>
                 )}
               </DrawerSurfaceSection>
@@ -755,8 +778,8 @@ export function RunDetailDrawer() {
                       </div>
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-[10px] text-ds-muted">
-                      <span>Weight {formatPercent(dimension.weight)}</span>
-                      <span>Judge {dimension.judgeType}</span>
+                      <span>{t('run.runtime.runDetail.label.weight', { value: formatPercent(dimension.weight) })}</span>
+                      <span>{t('run.runtime.runDetail.label.judge', { value: dimension.judgeType })}</span>
                     </div>
                     <div className="mt-2 text-xs text-ds-text">{dimension.rationale}</div>
                     {Object.keys(dimension.subScores).length > 0 && (
@@ -777,10 +800,12 @@ export function RunDetailDrawer() {
 
               <DrawerSurfaceSection className="space-y-ds-3 bg-ds-surface/60">
                 <div className="flex items-center gap-2">
-                  <DrawerSurfaceSectionTitle>Reviewer Rubric</DrawerSurfaceSectionTitle>
+                  <DrawerSurfaceSectionTitle>{t('run.runtime.runDetail.section.reviewerRubric')}</DrawerSurfaceSectionTitle>
                   {scorecard.humanRubric?.recordedAt && (
                     <div className="ml-auto text-[10px] text-ds-muted">
-                      Saved {formatDateTime(scorecard.humanRubric.recordedAt)}
+                      {t('run.runtime.runDetail.label.savedAt', {
+                        date: formatDateTime(scorecard.humanRubric.recordedAt),
+                      })}
                     </div>
                   )}
                 </div>
@@ -795,14 +820,16 @@ export function RunDetailDrawer() {
                   >
                     <div className="font-medium">
                       {scorecard.reviewSampling.status === 'requested'
-                        ? 'Selected for sampled review'
+                        ? t('run.runtime.runDetail.review.requested')
                         : scorecard.reviewSampling.status === 'completed'
-                          ? 'Review sampling completed'
-                          : 'Optional review'}
+                          ? t('run.runtime.runDetail.review.completed')
+                          : t('run.runtime.runDetail.review.optional')}
                     </div>
                     <div className="mt-1 text-[10px]">
-                      Target {formatPercent(scorecard.reviewSampling.targetRate)} /{' '}
-                      {scorecard.reviewSampling.stratum}
+                      {t('run.runtime.runDetail.label.targetStratum', {
+                        target: formatPercent(scorecard.reviewSampling.targetRate),
+                        stratum: scorecard.reviewSampling.stratum,
+                      })}
                     </div>
                   </div>
                 )}
@@ -814,8 +841,8 @@ export function RunDetailDrawer() {
                     setRubricError(null);
                     setRubricStatus(null);
                   }}
-                  label="Reviewer"
-                  placeholder="local-operator"
+                  label={t('run.runtime.runDetail.label.reviewer')}
+                  placeholder={t('run.runtime.runDetail.placeholder.reviewer')}
                 />
 
                 <div className="space-y-2">
@@ -829,7 +856,10 @@ export function RunDetailDrawer() {
                         <div className="min-w-0">
                           <div className="text-xs text-ds-text">{dimension.label}</div>
                           <div className="text-[10px] text-ds-muted">
-                            Auto {formatPercent(autoScore)} / Judge {dimension.judgeType}
+                            {t('run.runtime.runDetail.label.auto', {
+                              value: formatPercent(autoScore),
+                              judge: dimension.judgeType,
+                            })}
                           </div>
                         </div>
                         <input
@@ -862,8 +892,8 @@ export function RunDetailDrawer() {
                   }}
                   rows={3}
                   resize="none"
-                  label="Comment"
-                  placeholder="Reviewer rationale for overrides"
+                  label={t('run.runtime.runDetail.label.comment')}
+                  placeholder={t('run.runtime.runDetail.placeholder.comment')}
                 />
 
                 {rubricError && <div className="text-xs text-ds-error">{rubricError}</div>}
@@ -876,7 +906,9 @@ export function RunDetailDrawer() {
                     onClick={() => void submitHumanRubric()}
                     disabled={rubricBusy}
                   >
-                    {rubricBusy ? 'Saving...' : 'Save review'}
+                    {rubricBusy
+                      ? t('run.runtime.runDetail.button.saveReviewBusy')
+                      : t('run.runtime.runDetail.button.saveReview')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -884,50 +916,50 @@ export function RunDetailDrawer() {
                     onClick={resetRubricDraft}
                     disabled={rubricBusy}
                   >
-                    Reset
+                    {t('run.runtime.runDetail.button.reset')}
                   </Button>
                 </div>
               </DrawerSurfaceSection>
             </>
           ) : (
-            <div className="text-xs text-ds-muted">No scorecard available.</div>
+            <div className="text-xs text-ds-muted">{t('run.runtime.runDetail.empty.scorecard')}</div>
           )}
           </DrawerSurfaceSection>
 
           <DrawerSurfaceSection className="space-y-ds-2">
-            <DrawerSurfaceSectionTitle>Message</DrawerSurfaceSectionTitle>
+            <DrawerSurfaceSectionTitle>{t('run.runtime.runDetail.section.message')}</DrawerSurfaceSectionTitle>
           <pre className="whitespace-pre-wrap break-words text-xs text-ds-text font-sans">
             {run.message || '-'}
           </pre>
           </DrawerSurfaceSection>
 
           <DrawerSurfaceSection className="space-y-ds-2">
-            <DrawerSurfaceSectionTitle>Result Preview</DrawerSurfaceSectionTitle>
+            <DrawerSurfaceSectionTitle>{t('run.runtime.runDetail.section.resultPreview')}</DrawerSurfaceSectionTitle>
           <pre className="whitespace-pre-wrap break-words text-xs text-ds-text font-sans">
             {run.resultPreview || '-'}
           </pre>
           </DrawerSurfaceSection>
 
           <DrawerSurfaceSection className="space-y-ds-2">
-            <DrawerSurfaceSectionTitle>Error</DrawerSurfaceSectionTitle>
+            <DrawerSurfaceSectionTitle>{t('run.runtime.runDetail.section.error')}</DrawerSurfaceSectionTitle>
           <pre className="whitespace-pre-wrap break-words text-xs font-sans text-ds-error">
             {run.error || '-'}
           </pre>
           </DrawerSurfaceSection>
 
           <DrawerSurfaceSection className="space-y-ds-2">
-            <DrawerSurfaceSectionTitle>Task Context</DrawerSurfaceSectionTitle>
+            <DrawerSurfaceSectionTitle>{t('run.runtime.runDetail.section.taskContext')}</DrawerSurfaceSectionTitle>
           {task ? (
             <>
-              <DetailRow label="Task Id" value={task.taskId} mono />
-              <DetailRow label="Status" value={task.status} />
-              <DetailRow label="Created" value={formatDateTime(task.createdAt)} />
-              <DetailRow label="Started" value={formatDateTime(task.startedAt)} />
-              <DetailRow label="Finished" value={formatDateTime(task.finishedAt)} />
-              <DetailRow label="Task Error" value={task.error || '-'} />
+              <DetailRow label={t('run.runtime.runDetail.label.taskId')} value={task.taskId} mono />
+              <DetailRow label={t('run.runtime.runDetail.label.status')} value={task.status} />
+              <DetailRow label={t('run.runtime.runDetail.label.created')} value={formatDateTime(task.createdAt)} />
+              <DetailRow label={t('run.runtime.runDetail.label.started')} value={formatDateTime(task.startedAt)} />
+              <DetailRow label={t('run.runtime.runDetail.label.finished')} value={formatDateTime(task.finishedAt)} />
+              <DetailRow label={t('run.runtime.runDetail.label.taskError')} value={task.error || '-'} />
             </>
           ) : (
-            <div className="text-xs text-ds-muted">No linked task information.</div>
+            <div className="text-xs text-ds-muted">{t('run.runtime.runDetail.empty.taskInfo')}</div>
           )}
           </DrawerSurfaceSection>
         </DrawerSurfaceBody>

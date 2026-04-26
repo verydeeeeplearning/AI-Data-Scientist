@@ -38,9 +38,6 @@ export function createMainWindow(backendPort: number, wsToken: string = ''): Bro
   if (process.env.DS_AGENT_E2E_SKIP_ONBOARDING === '1') {
     query.e2e_skip_onboarding = '1';
   }
-  if (process.env.DS_AGENT_E2E_FORCE_LEGACY_IA === '1') {
-    query.e2e_force_legacy_ia = '1';
-  }
   loadRenderer(mainWindow, query);
 
   mainWindow.on('closed', () => {
@@ -96,9 +93,6 @@ export function navigateMainWindowToBackend(backendPort: number, wsToken: string
   if (wsToken) query.token = wsToken;
   if (process.env.DS_AGENT_E2E_SKIP_ONBOARDING === '1') {
     query.e2e_skip_onboarding = '1';
-  }
-  if (process.env.DS_AGENT_E2E_FORCE_LEGACY_IA === '1') {
-    query.e2e_force_legacy_ia = '1';
   }
   loadRenderer(mainWindow, query);
 }

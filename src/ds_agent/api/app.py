@@ -33,12 +33,12 @@ import structlog
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from ds_agent.api.routes.access_log import router as access_log_router
 from ds_agent.api.routes.admin import router as admin_router
 from ds_agent.api.routes.approval_grants import router as approval_grants_router
 from ds_agent.api.routes.cards import router as cards_router
 from ds_agent.api.routes.certification import router as certification_router
 from ds_agent.api.routes.config import router as config_router
-from ds_agent.api.routes.access_log import router as access_log_router
 from ds_agent.api.routes.export import router as export_router
 from ds_agent.api.routes.files import router as files_router
 from ds_agent.api.routes.integrations import router as integrations_router
@@ -66,6 +66,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup / shutdown lifecycle."""
     app.state.app_state = AppState()
     configure_backend_observability(app.state.app_state.config)
+    from ds_agent.gateway.bot_supervisor import BotSupervisor
+
+    telegram_supervisor = BotSupervisor(
+        app.state.app_state.config,
+        app_state=app.state.app_state,
+    )
+    app.state.app_state.set_telegram_supervisor(telegram_supervisor)
+    telegram_config = app.state.app_state.config.channels.telegram
+    if telegram_config.enabled and telegram_config.bot_token:
+        await telegram_supervisor.start()
     await app.state.app_state.start_background_runtime()
     logger.info("api_started", port=app.state.port if hasattr(app.state, "port") else "?")
     # Emit READY only after startup work is done. Uvicorn binds the listening
@@ -79,6 +89,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         print(f"READY:{port}:{token}", flush=True)
         sys.stdout.flush()
     yield
+    await app.state.app_state.stop_telegram_gateway()
     await app.state.app_state.stop_background_runtime()
     shutdown_backend_observability()
     logger.info("api_stopped")
@@ -147,8 +158,13 @@ def create_app(ws_token: str | None = None) -> FastAPI:
         token: str | None = Query(default=None),
     ) -> None:
         # Validate token when auth is enabled
+        # DEV-ONLY: DS_AGENT_DEV_NO_AUTH=1 bypasses token check (Playwright audit)
         expected = app.state.ws_token
-        if expected is not None and token != expected:
+        if (
+            expected is not None
+            and token != expected
+            and os.getenv("DS_AGENT_DEV_NO_AUTH") != "1"
+        ):
             logger.warning("ws_auth_rejected", reason="invalid_or_missing_token")
             await websocket.close(code=1008)  # Policy violation
             return

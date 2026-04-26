@@ -19,6 +19,7 @@ export type OnboardingPrimaryStepId =
   | 'deliverables'
   | 'mode'
   | 'model'
+  | 'notify'
   | 'confirm';
 
 export type OnboardingDataChoiceId = 'upload' | 'sample' | 'database_deferred';
@@ -36,6 +37,15 @@ export type OnboardingExecutionMode = 'auto' | 'supervised' | 'step-by-step';
 export type OnboardingQualityPreset = 'fast' | 'balanced' | 'best_quality';
 
 export type OnboardingUseCaseId = SharedOnboardingUseCaseId;
+
+export type OnboardingNotifyChoice = 'telegram' | 'desktop_only';
+
+export interface OnboardingNotifyMetadata {
+  choice: OnboardingNotifyChoice;
+  telegramConnected: boolean;
+  telegramChatId?: string;
+  telegramBotUsername?: string;
+}
 
 export interface OnboardingUseCaseDefaults {
   deliverables: OnboardingDeliverableId[];
@@ -55,7 +65,9 @@ export interface OnboardingFinalizeRequest {
     step3_deliverables: OnboardingDeliverableId[];
     step4_mode: OnboardingAutonomyMode;
     step5_model: string;
+    step6_notify: OnboardingNotifyMetadata;
     step6_confirmed: true;
+    step7_confirmed: true;
   };
 }
 
@@ -74,6 +86,7 @@ export const ONBOARDING_PRIMARY_STEP_ORDER: readonly OnboardingPrimaryStepId[] =
   'deliverables',
   'mode',
   'model',
+  'notify',
   'confirm',
 ];
 
@@ -149,7 +162,18 @@ export function buildOnboardingFinalizePayload(args: {
   deliverables: readonly OnboardingDeliverableId[];
   autonomyMode: OnboardingAutonomyMode;
   modelId: string;
+  notifyChoice?: OnboardingNotifyChoice | null;
+  telegramConnected?: boolean;
+  telegramChatId?: string | null;
+  telegramBotUsername?: string | null;
 }): OnboardingFinalizeRequest {
+  const notifyMetadata: OnboardingNotifyMetadata = {
+    choice: args.notifyChoice ?? 'desktop_only',
+    telegramConnected: Boolean(args.telegramConnected),
+    ...(args.telegramChatId ? { telegramChatId: args.telegramChatId } : {}),
+    ...(args.telegramBotUsername ? { telegramBotUsername: args.telegramBotUsername } : {}),
+  };
+
   return {
     ...(args.sessionId ? { sessionId: args.sessionId } : {}),
     useCaseId: args.useCaseId,
@@ -163,7 +187,9 @@ export function buildOnboardingFinalizePayload(args: {
       step3_deliverables: [...args.deliverables],
       step4_mode: args.autonomyMode,
       step5_model: args.modelId,
+      step6_notify: notifyMetadata,
       step6_confirmed: true,
+      step7_confirmed: true,
     },
   };
 }
@@ -200,6 +226,8 @@ export function canAdvanceOnboardingStep(state: OnboardingState): boolean {
       return true;
     case 'model':
       return state.modelId !== null;
+    case 'notify':
+      return true;
     case 'confirm':
       return true;
     default:

@@ -228,5 +228,16 @@
     "brief.create.defaults.title": "Draft Defaults",
     "brief.create.defaults.contract_type": "Contract Type: {value}",
     "brief.create.drafting": "Drafting...",
-    "brief.create.submit": "Create Draft"
+    "brief.create.submit": "Create Draft",
+    "context.label": "Mission context",
+    "context.goalEmpty": "No goal set — ask the agent to start a session",
+    "context.stage": "Stage",
+    "context.stageIdle": "idle",
+    "context.mode": "Mode",
+    "context.model": "Model",
+    "context.modelMissing": "—",
+    "context.budget": "Budget",
+    "context.warnings": "Warnings",
+    "context.connected": "Connected",
+    "context.disconnected": "Disconnected"
 }

@@ -62,14 +62,18 @@ function RunCard({
 }) {
   const { rpc } = useWs();
   const [busy, setBusy] = useState(false);
+  const [abortError, setAbortError] = useState<string | null>(null);
   const sessionLabel = run.sessionLabel || run.sessionId;
 
   const abortRun = async () => {
     setBusy(true);
+    setAbortError(null);
     try {
       await rpc('run.abort', { runId: run.runId });
     } catch (err) {
       console.warn('[RunsPanel] run.abort failed:', err);
+      const detail = err instanceof Error ? err.message : String(err);
+      setAbortError(t('run.runtime.runs.error.abortFailed', { message: detail }));
     } finally {
       setBusy(false);
     }
@@ -117,6 +121,15 @@ function RunCard({
           )}
         </div>
       </div>
+      {abortError ? (
+        <p
+          role="alert"
+          className="text-ds-xs text-ds-error"
+          data-testid={`runs-panel-abort-error-${run.runId}`}
+        >
+          {abortError}
+        </p>
+      ) : null}
     </div>
   );
 }

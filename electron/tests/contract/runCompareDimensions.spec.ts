@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 
-import type { RuntimeRunEntry } from '../../src/renderer/stores/runtimeStore';
 import {
   filterRunsForComparison,
   formatRunCompareOption,
   parseCompareThreshold,
   sortRunsForComparison,
+  type RunCompareEntry,
   type RunCompareScorecardSummary,
 } from '../../src/renderer/components/runtime/runsCompareBoardModel';
 
-function makeRun(overrides: Partial<RuntimeRunEntry> & Pick<RuntimeRunEntry, 'runId'>): RuntimeRunEntry {
+function makeRun(overrides: Partial<RunCompareEntry> & Pick<RunCompareEntry, 'runId'>): RunCompareEntry {
   return {
     runId: overrides.runId,
     sessionId: overrides.sessionId ?? 'session-1',

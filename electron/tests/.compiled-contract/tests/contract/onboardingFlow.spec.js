@@ -6,8 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const OnboardingWizard_1 = require("../../src/renderer/components/settings/OnboardingWizard");
 function run() {
-    strict_1.default.deepEqual(OnboardingWizard_1.ONBOARDING_PRIMARY_STEPS.map((entry) => entry.id), ['use_case', 'data', 'deliverables', 'mode', 'model', 'confirm']);
-    strict_1.default.equal(OnboardingWizard_1.ONBOARDING_PRIMARY_STEPS.length, 6);
+    strict_1.default.deepEqual(OnboardingWizard_1.ONBOARDING_PRIMARY_STEPS.map((entry) => entry.id), ['use_case', 'data', 'deliverables', 'mode', 'model', 'notify', 'confirm']);
+    strict_1.default.equal(OnboardingWizard_1.ONBOARDING_PRIMARY_STEPS.length, 7);
     const reportingDefaults = (0, OnboardingWizard_1.deriveUseCaseDefaults)('reporting');
     strict_1.default.deepEqual(reportingDefaults.deliverables, ['report', 'presentation']);
     strict_1.default.equal(reportingDefaults.mode, 'controlled');

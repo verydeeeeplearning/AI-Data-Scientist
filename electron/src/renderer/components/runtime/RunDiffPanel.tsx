@@ -1,8 +1,7 @@
 import { GitCompareArrows } from 'lucide-react';
 import { useId } from 'react';
 import { Badge, Card, cn } from '../../design-system/primitives';
-import type { RuntimeRunEntry } from '../../stores/runtimeStore';
-import type { RunCompareScorecardSummary } from './runsCompareBoardModel';
+import type { RunCompareEntry, RunCompareScorecardSummary } from './runsCompareBoardModel';
 
 type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info';
 
@@ -62,8 +61,8 @@ export interface RunsCompareResult {
 }
 
 interface Props {
-  readonly baseRun: RuntimeRunEntry | null;
-  readonly candidateRun: RuntimeRunEntry | null;
+  readonly baseRun: RunCompareEntry | null;
+  readonly candidateRun: RunCompareEntry | null;
   readonly compareResult: RunsCompareResult | null;
   readonly scorecardsByRunId: ReadonlyMap<string, RunCompareScorecardSummary | null>;
 }
@@ -204,7 +203,7 @@ function RunSnapshotCard({
   toolCallCount,
 }: {
   title: string;
-  run: RuntimeRunEntry;
+  run: RunCompareEntry;
   weightedScore: number | null;
   toolCallCount: number | null;
 }) {

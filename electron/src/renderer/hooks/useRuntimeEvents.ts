@@ -2,11 +2,12 @@
  * Runtime timeline hook for alert/recovery/operator-visible events.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   useRuntimeEventStore,
   type RuntimeEventEntry,
 } from '../stores/runtimeEventStore';
+import { useVisiblePolling } from './useVisiblePolling';
 
 type OnFn = (event: string, handler: (payload: Record<string, unknown>) => void) => () => void;
 type RpcFn = (method: string, params?: Record<string, unknown>) => Promise<Record<string, unknown>>;
@@ -88,32 +89,42 @@ export function useRuntimeEvents(on: OnFn, rpc: RpcFn, connected: boolean) {
   const setEvents = useRuntimeEventStore((s) => s.setEvents);
   const upsertEvent = useRuntimeEventStore((s) => s.upsertEvent);
   const resetEvents = useRuntimeEventStore((s) => s.resetEvents);
+  const refreshGenerationRef = useRef(0);
 
   const refreshEvents = useCallback(async () => {
     setEvents(await fetchRuntimeEvents(rpc));
   }, [rpc, setEvents]);
 
   useEffect(() => {
+    refreshGenerationRef.current += 1;
     if (!connected) {
       resetEvents();
-      return;
     }
 
-    let cancelled = false;
-    const guardedRefresh = async () => {
-      try {
-        await refreshEvents();
-      } catch (err) {
-        if (!cancelled) {
-          console.warn('[useRuntimeEvents] refresh failed:', err);
-        }
-      }
+    return () => {
+      refreshGenerationRef.current += 1;
     };
+  }, [connected, refreshEvents, resetEvents]);
 
+  const guardedRefresh = useCallback(async () => {
+    const generation = refreshGenerationRef.current;
+    try {
+      await refreshEvents();
+    } catch (err) {
+      if (refreshGenerationRef.current === generation) {
+        console.warn('[useRuntimeEvents] refresh failed:', err);
+      }
+    }
+  }, [refreshEvents]);
+
+  useVisiblePolling(() => {
     void guardedRefresh();
-    const timer = window.setInterval(() => {
-      void guardedRefresh();
-    }, 4000);
+  }, { intervalMs: 4000, enabled: connected });
+
+  useEffect(() => {
+    if (!connected) {
+      return;
+    }
 
     const unsubs = [
       on('runtime.alert', (payload) => {
@@ -137,9 +148,7 @@ export function useRuntimeEvents(on: OnFn, rpc: RpcFn, connected: boolean) {
     ];
 
     return () => {
-      cancelled = true;
-      window.clearInterval(timer);
       unsubs.forEach((unsub) => unsub());
     };
-  }, [connected, on, refreshEvents, resetEvents, upsertEvent]);
+  }, [connected, on, upsertEvent]);
 }

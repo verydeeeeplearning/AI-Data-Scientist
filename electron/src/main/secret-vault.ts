@@ -202,6 +202,19 @@ export async function setConfigSecret(secretPath: string, value: string): Promis
   await writeVaultFile(vault);
 }
 
+export async function clearConfigSecret(secretPath: string): Promise<boolean> {
+  ensureConfigSecretSupported(secretPath);
+  assertVaultAvailable();
+  const vault = await readVaultFile();
+  const key = configSecretKey(secretPath);
+  if (!(key in vault.secrets)) {
+    return false;
+  }
+  delete vault.secrets[key];
+  await writeVaultFile(vault);
+  return true;
+}
+
 export async function buildDesktopSecretEnv(): Promise<NodeJS.ProcessEnv> {
   const status = getSecretVaultStatus();
   if (!status.available) {

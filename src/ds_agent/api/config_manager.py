@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from pydantic import ValidationError
@@ -46,6 +46,8 @@ PERSISTENT_CONFIG_PATHS: frozenset[str] = frozenset(
         "gateway.automation_profile",
         "gateway.authority_overlay",
         "gateway.authority_overlay_started_at",
+        "channels.telegram.enabled",
+        "channels.telegram.allow_from",
         "observability.telemetry_enabled",
         "observability.error_reporting_enabled",
     }
@@ -178,7 +180,7 @@ class ConfigManager:
 
     def get_api_keys_masked(self) -> dict[str, str]:
         """Return configured API keys with masking for display."""
-        return self._api_key_manager.masked(API_KEY_PROVIDERS)
+        return cast("dict[str, str]", self._api_key_manager.masked(API_KEY_PROVIDERS))
 
     def _persist(self) -> None:
         """Write current config to disk."""

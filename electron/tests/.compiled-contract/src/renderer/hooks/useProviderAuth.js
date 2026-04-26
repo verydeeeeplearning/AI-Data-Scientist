@@ -7,6 +7,7 @@ exports.fetchAuthSnapshot = fetchAuthSnapshot;
 exports.useProviderAuth = useProviderAuth;
 const react_1 = require("react");
 const authStore_1 = require("../stores/authStore");
+const useVisiblePolling_1 = require("./useVisiblePolling");
 function normalizeOauthStatuses(payload) {
     if (!payload || typeof payload !== 'object') {
         return {};
@@ -123,6 +124,7 @@ function useProviderAuth(on, rpc, connected) {
     const setFallbackEvent = (0, authStore_1.useAuthStore)((s) => s.setFallbackEvent);
     const setLoading = (0, authStore_1.useAuthStore)((s) => s.setLoading);
     const resetAuth = (0, authStore_1.useAuthStore)((s) => s.resetAuth);
+    const refreshGenerationRef = (0, react_1.useRef)(0);
     const refreshAuth = (0, react_1.useCallback)(async () => {
         setLoading(true);
         try {
@@ -133,25 +135,32 @@ function useProviderAuth(on, rpc, connected) {
         }
     }, [rpc, setLoading, setSnapshot]);
     (0, react_1.useEffect)(() => {
+        refreshGenerationRef.current += 1;
         if (!connected) {
             resetAuth();
+        }
+        return () => {
+            refreshGenerationRef.current += 1;
+        };
+    }, [connected, refreshAuth, resetAuth]);
+    const guardedRefresh = (0, react_1.useCallback)(async () => {
+        const generation = refreshGenerationRef.current;
+        try {
+            await refreshAuth();
+        }
+        catch (err) {
+            if (refreshGenerationRef.current === generation) {
+                console.warn('[useProviderAuth] refresh failed:', err);
+            }
+        }
+    }, [refreshAuth]);
+    (0, useVisiblePolling_1.useVisiblePolling)(() => {
+        void guardedRefresh();
+    }, { intervalMs: 10000, enabled: connected });
+    (0, react_1.useEffect)(() => {
+        if (!connected) {
             return;
         }
-        let cancelled = false;
-        const guardedRefresh = async () => {
-            try {
-                await refreshAuth();
-            }
-            catch (err) {
-                if (!cancelled) {
-                    console.warn('[useProviderAuth] refresh failed:', err);
-                }
-            }
-        };
-        void guardedRefresh();
-        const timer = window.setInterval(() => {
-            void guardedRefresh();
-        }, 10000);
         const unsubs = [
             on('oauth.complete', () => {
                 void guardedRefresh();
@@ -164,9 +173,7 @@ function useProviderAuth(on, rpc, connected) {
             }),
         ];
         return () => {
-            cancelled = true;
-            window.clearInterval(timer);
             unsubs.forEach((unsub) => unsub());
         };
-    }, [connected, on, refreshAuth, resetAuth, setFallbackEvent]);
+    }, [connected, guardedRefresh, on, setFallbackEvent]);
 }

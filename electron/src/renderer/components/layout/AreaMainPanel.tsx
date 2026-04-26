@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import {
   buildPaletteCommands,
   type PaletteFileSource,
@@ -6,24 +6,31 @@ import {
   type PaletteRunSource,
 } from '../../application/command/buildPaletteCommands';
 import { AreaSidebar } from './AreaSidebar';
+import { MissionContextBar } from './MissionContextBar';
+import { SessionDrawer } from './SessionDrawer';
 import { StatusBar } from './StatusBar';
+import { FloatingChat } from '../chat/FloatingChat';
 import { useHashNavigation } from '../../hooks/useHashNavigation';
 import { useKeyboardShortcut } from '../../hooks/useKeyboardShortcut';
 import { MigrationBanner } from '../navigation/MigrationBanner';
-import { MissionPage } from '../../pages/mission/MissionPage';
 import { RunsPage } from '../../pages/runs/RunsPage';
 import { ArtifactsPage } from '../../pages/artifacts/ArtifactsPage';
 import { GovernancePage } from '../../pages/governance/GovernancePage';
-import { MemoryPage } from '../../pages/memory/MemoryPage';
 import { AdminPage } from '../../pages/admin/AdminPage';
 import { CommandPalette } from '../palette/CommandPalette';
 import type { UploadedFileResult } from '../../domain/workspace/uploadedFile';
 import type { ModelGroup } from '../../hooks/useModels';
+import { useChatStore } from '../../stores/chatStore';
 import { useI18n } from '../../stores/i18nStore';
 import { useFilesStore } from '../../stores/filesStore';
+import { useMissionContext } from '../../hooks/useMissionContext';
 import { useRuntimeStore } from '../../stores/runtimeStore';
 import type { SimpleQualityPreset } from '../../utils/qualityPreset';
 import type { RpcFn } from '../settings/types';
+
+const GoalDrawer = lazy(() =>
+  import('../mission/GoalDrawer').then((m) => ({ default: m.GoalDrawer })),
+);
 
 interface Props {
   onSend: (message: string) => void;
@@ -32,6 +39,7 @@ interface Props {
   onChangeModel: (model: string) => void;
   onChangeQualityPreset: (preset: SimpleQualityPreset) => void;
   onChangeMode: (mode: 'auto' | 'supervised' | 'step-by-step') => void;
+  onChangeMaxBudget: (value: number, previousValue?: number) => void | Promise<void>;
   onUploadFile: (file: File) => Promise<UploadedFileResult>;
   onRestartOnboarding: () => void;
   disabled?: boolean;
@@ -46,6 +54,7 @@ export function AreaMainPanel({
   onChangeModel,
   onChangeQualityPreset,
   onChangeMode,
+  onChangeMaxBudget,
   onUploadFile,
   onRestartOnboarding,
   disabled,
@@ -59,9 +68,19 @@ export function AreaMainPanel({
   const { currentPath, selection, migrationNotice, navigate, dismissMigrationNotice } =
     useHashNavigation();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [sessionDrawerOpen, setSessionDrawerOpen] = useState(false);
+  const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
+  const sessionId = useChatStore((state) => state.sessionId);
+  const { mission } = useMissionContext(sessionId);
 
   useKeyboardShortcut('ctrl+k', () => setCommandPaletteOpen(true));
   useKeyboardShortcut('meta+k', () => setCommandPaletteOpen(true));
+  useKeyboardShortcut('ctrl+;', () => {
+    setSessionDrawerOpen((value) => !value);
+  });
+  useKeyboardShortcut('meta+;', () => {
+    setSessionDrawerOpen((value) => !value);
+  });
 
   useEffect(() => {
     const handleOpenCommandPalette = () => {
@@ -79,6 +98,18 @@ export function AreaMainPanel({
       );
     };
   }, []);
+
+  // v3 redirect: 'mission' and 'memory' areas are folded into the
+  // MissionContextBar (top strip) and Admin > Memory respectively.
+  // Anyone landing on those areas — fresh nav, deep link, persisted state —
+  // gets bounced to their v3 home on the next tick.
+  useEffect(() => {
+    if (selection.areaId === 'mission') {
+      navigate('/artifacts/files');
+    } else if (selection.areaId === 'memory') {
+      navigate('/admin/memory');
+    }
+  }, [navigate, selection.areaId]);
 
   const paletteRuns = useMemo<PaletteRunSource[]>(
     () =>
@@ -138,6 +169,13 @@ export function AreaMainPanel({
 
   return (
     <div className="flex h-screen flex-col bg-ds-bg text-ds-text">
+      <MissionContextBar
+        connected={!disabled}
+        onOpenGoal={() => setGoalDrawerOpen(true)}
+        onOpenStage={() => navigate('/runs')}
+        onOpenSession={() => setSessionDrawerOpen(true)}
+      />
+
       <div className="flex flex-1 overflow-hidden">
         <AreaSidebar selection={selection} onNavigate={navigate} />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -151,11 +189,7 @@ export function AreaMainPanel({
             </div>
           )}
 
-          {selection.areaId === 'mission' && (
-            <MissionPage onSend={onSend} onAbort={onAbort} disabled={disabled} />
-          )}
-
-          {selection.areaId === 'runs' && <RunsPage />}
+          {selection.areaId === 'runs' && <RunsPage onNavigate={navigate} />}
 
           {selection.areaId === 'artifacts' && (
             <ArtifactsPage
@@ -169,8 +203,6 @@ export function AreaMainPanel({
           {selection.areaId === 'governance' && (
             <GovernancePage selection={selection} onNavigate={navigate} />
           )}
-
-          {selection.areaId === 'memory' && <MemoryPage />}
 
           {selection.areaId === 'admin' && (
             <AdminPage
@@ -186,13 +218,42 @@ export function AreaMainPanel({
           )}
         </div>
       </div>
-      <StatusBar />
+      <StatusBar onNavigate={navigate} />
       <CommandPalette
         open={commandPaletteOpen}
         commands={paletteCommands}
         onSend={onSend}
         onClose={() => setCommandPaletteOpen(false)}
       />
+
+      <FloatingChat
+        onSend={onSend}
+        onAbort={onAbort}
+        disabled={disabled}
+      />
+      <SessionDrawer
+        open={sessionDrawerOpen}
+        onClose={() => setSessionDrawerOpen(false)}
+        onChangeMode={onChangeMode}
+        onChangeModel={onChangeModel}
+        onChangeQualityPreset={onChangeQualityPreset}
+        onChangeMaxBudget={onChangeMaxBudget}
+        onOpenAdmin={() => {
+          setSessionDrawerOpen(false);
+          navigate('/admin/settings');
+        }}
+        modelGroups={modelGroups}
+      />
+      {mission && (
+        <Suspense fallback={null}>
+          <GoalDrawer
+            open={goalDrawerOpen}
+            mission={mission}
+            onClose={() => setGoalDrawerOpen(false)}
+          />
+        </Suspense>
+      )}
+
       <div className="sr-only" aria-live="polite">
         {currentPath}
       </div>

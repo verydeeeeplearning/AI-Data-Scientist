@@ -14,6 +14,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  truncated?: boolean;
 }
 
 export interface PersistedChatMessage {
@@ -64,14 +65,27 @@ interface ChatState {
   sessionId: string | null;
   cardsById: Record<string, ResultCardRecord>;
   cardIdsByMessageId: Record<string, string[]>;
+  /** Mission-level goal string, displayed in MissionContextBar. */
+  goal: string | null;
+  /** Wall-clock timestamp of the first user message in the current session. */
+  startedAt: number | null;
+  /** Assistant messages received while FloatingChat was collapsed. */
+  unreadCount: number;
 
   // Actions
   addUserMessage: (content: string) => string;
   startAssistantMessage: () => string;
-  appendStreamDelta: (token: string) => void;
-  finalizeStream: (content: string, messageId?: string | null) => void;
+  appendStreamDelta: (token: string, expectedMessageId?: string) => void;
+  finalizeStream: (
+    content: string,
+    messageId?: string | null,
+    expectedMessageId?: string,
+  ) => boolean;
   setStreaming: (v: boolean) => void;
   setSessionId: (id: string) => void;
+  setGoal: (goal: string | null) => void;
+  markAllRead: () => void;
+  markLastAssistantTruncated: (expectedMessageId?: string | null) => void;
   upsertCards: (cards: ResultCardRecord[]) => void;
   replaceConversation: (
     messages: PersistedChatMessage[],
@@ -86,6 +100,7 @@ interface ChatState {
     elapsed?: number,
     result?: string,
   ) => void;
+  markRunningToolsCancelled: () => void;
   clearToolActivities: () => void;
 
   resetConversation: (keepSessionId?: boolean) => void;
@@ -338,6 +353,9 @@ export const useChatStore = create<ChatState>((set) => ({
   sessionId: null,
   cardsById: {},
   cardIdsByMessageId: {},
+  goal: null,
+  startedAt: null,
+  unreadCount: 0,
 
   addUserMessage: (content) => {
     const id = nextMsgId();
@@ -348,6 +366,9 @@ export const useChatStore = create<ChatState>((set) => ({
         content,
         timestamp: Date.now(),
       }],
+      startedAt: s.startedAt ?? Date.now(),
+      // user just typed → presumably looking at chat → reset unread
+      unreadCount: 0,
     }));
     return id;
   },
@@ -367,37 +388,84 @@ export const useChatStore = create<ChatState>((set) => ({
     return id;
   },
 
-  appendStreamDelta: (token) => {
+  appendStreamDelta: (token, expectedMessageId) => {
     set((s) => {
       const msgs = [...s.messages];
-      if (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') {
-        msgs[msgs.length - 1] = {
-          ...msgs[msgs.length - 1],
-          content: msgs[msgs.length - 1].content + token,
-        };
+      if (msgs.length === 0) {
+        return s;
       }
+      const last = msgs[msgs.length - 1];
+      if (last.role !== 'assistant') {
+        return s;
+      }
+      if (expectedMessageId !== undefined && last.id !== expectedMessageId) {
+        return s;
+      }
+      msgs[msgs.length - 1] = {
+        ...last,
+        content: last.content + token,
+      };
       return { messages: msgs, streamBuffer: s.streamBuffer + token };
     });
   },
 
-  finalizeStream: (content, messageId) => {
+  finalizeStream: (content, messageId, expectedMessageId) => {
+    let finalized = false;
     set((s) => {
       const msgs = [...s.messages];
       if (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') {
+        const last = msgs[msgs.length - 1];
+        if (expectedMessageId !== undefined && last.id !== expectedMessageId) {
+          return s;
+        }
         msgs[msgs.length - 1] = {
-          ...msgs[msgs.length - 1],
+          ...last,
           id: typeof messageId === 'string' && messageId.length > 0
             ? messageId
-            : msgs[msgs.length - 1].id,
+            : last.id,
           content,
+          truncated: false,
         };
+        finalized = true;
       }
-      return { messages: msgs, isStreaming: false, streamBuffer: '' };
+      return {
+        messages: msgs,
+        isStreaming: false,
+        streamBuffer: '',
+        // assistant message landed; bump unread (FloatingChat resets when visible)
+        unreadCount: s.unreadCount + 1,
+      };
     });
+    return finalized;
   },
 
   setStreaming: (v) => set({ isStreaming: v }),
   setSessionId: (id) => set({ sessionId: id }),
+  setGoal: (goal) => set({ goal }),
+  markAllRead: () => set({ unreadCount: 0 }),
+  markLastAssistantTruncated: (expectedMessageId) => {
+    set((s) => {
+      const msgs = [...s.messages];
+      for (let index = msgs.length - 1; index >= 0; index -= 1) {
+        const message = msgs[index];
+        if (message.role !== 'assistant') {
+          continue;
+        }
+        if (
+          expectedMessageId != null
+          && message.id !== expectedMessageId
+        ) {
+          return s;
+        }
+        if (message.truncated === true) {
+          return s;
+        }
+        msgs[index] = { ...message, truncated: true };
+        return { messages: msgs };
+      }
+      return s;
+    });
+  },
 
   upsertCards: (cards) => {
     if (cards.length === 0) {
@@ -434,6 +502,8 @@ export const useChatStore = create<ChatState>((set) => ({
       isStreaming: false,
       streamBuffer: '',
       sessionId,
+      unreadCount: 0,
+      startedAt: messages.length > 0 ? Date.now() : null,
     }),
 
   addToolActivity: (name, args) => {
@@ -466,6 +536,26 @@ export const useChatStore = create<ChatState>((set) => ({
     });
   },
 
+  markRunningToolsCancelled: () => {
+    set((s) => {
+      let changed = false;
+      const now = Date.now();
+      const toolActivities = s.toolActivities.map((activity) => {
+        if (activity.status !== 'running') {
+          return activity;
+        }
+        changed = true;
+        return {
+          ...activity,
+          status: 'error' as const,
+          result: activity.result ?? 'cancelled',
+          elapsed: activity.elapsed ?? now - activity.startedAt,
+        };
+      });
+      return changed ? { toolActivities } : s;
+    });
+  },
+
   clearToolActivities: () => set({ toolActivities: [] }),
   resetConversation: (keepSessionId = false) =>
     set((s) => ({
@@ -476,6 +566,9 @@ export const useChatStore = create<ChatState>((set) => ({
       sessionId: keepSessionId ? s.sessionId : null,
       cardsById: {},
       cardIdsByMessageId: {},
+      goal: null,
+      startedAt: null,
+      unreadCount: 0,
     })),
   clearMessages: () =>
     set({
@@ -486,5 +579,8 @@ export const useChatStore = create<ChatState>((set) => ({
       sessionId: null,
       cardsById: {},
       cardIdsByMessageId: {},
+      goal: null,
+      startedAt: null,
+      unreadCount: 0,
     }),
 }));

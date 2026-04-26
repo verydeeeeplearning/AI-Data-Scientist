@@ -2,8 +2,9 @@ import { RotateCcw } from 'lucide-react';
 import { useConfigStore } from '../../stores/configStore';
 import { Button, Select } from '../../design-system/primitives';
 import { THEME_OPTIONS } from '../../design-system/themes';
-import { getLocaleOption, useI18n } from '../../stores/i18nStore';
+import { useI18n } from '../../stores/i18nStore';
 import { ApprovalGrantsPanel } from '../../components/admin/ApprovalGrantsPanel';
+import { NotificationsPanel } from '../../components/admin/NotificationsPanel';
 import {
   fetchApprovalGrants,
   revokeApprovalGrant,
@@ -18,6 +19,7 @@ import { SupportPanel } from '../../components/settings/SupportPanel';
 import { ModelSelector } from '../../components/sidebar/ModelSelector';
 import { ModeSelector } from '../../components/sidebar/ModeSelector';
 import type { RpcFn } from '../../components/settings/types';
+import { useAgent } from '../../hooks/useAgent';
 import type { AreaSelection } from '../../domain/navigation/area';
 import type { ModelGroup } from '../../hooks/useModels';
 import type { SimpleQualityPreset } from '../../utils/qualityPreset';
@@ -58,8 +60,9 @@ export function AdminPage({
   rpc,
   modelGroups,
 }: Props) {
-  const { theme, setTheme, useIaV2, setUseIaV2 } = useConfigStore();
-  const { locale, setLocale, t } = useI18n();
+  const { theme, setTheme } = useConfigStore();
+  const { locale, t } = useI18n();
+  const { changeLanguage } = useAgent();
   const currentSection = selection.adminSectionId ?? 'models';
 
   return (
@@ -68,7 +71,7 @@ export function AdminPage({
         <h1 className="text-lg font-semibold text-ds-text">{t('area.admin.label')}</h1>
         <p className="mt-1 text-sm text-ds-muted">{t('area.admin.description')}</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {(['models', 'connectors', 'policies', 'settings'] as const).map((candidate) => (
+          {(['models', 'connectors', 'policies', 'notifications', 'settings'] as const).map((candidate) => (
             <button
               key={candidate}
               type="button"
@@ -97,9 +100,6 @@ export function AdminPage({
             <CardSection title={t('settings.section.mode')}>
               <ModeSelector onChange={onChangeMode} />
             </CardSection>
-            <CardSection title={t('settings.section.language')}>
-              <LocaleSelector value={locale} onChange={setLocale} compact />
-            </CardSection>
             <CardSection title={t('settings.section.onboarding')}>
               <div className="space-y-3 text-sm text-ds-muted">
                 <div>{t('settings.onboarding.description')}</div>
@@ -121,26 +121,12 @@ export function AdminPage({
 
         {currentSection === 'policies' && <PolicyStudio />}
 
+        {currentSection === 'notifications' && <NotificationsPanel rpc={rpc} />}
+
         {currentSection === 'settings' && (
           <div className="grid gap-4 xl:grid-cols-2">
-            <CardSection title={t('area.admin.iaV2.title')}>
-              <div className="space-y-3 text-sm text-ds-muted">
-                <div>{t('area.admin.iaV2.description')}</div>
-                <button
-                  type="button"
-                  onClick={() => setUseIaV2(!useIaV2)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-ds-border px-3 py-2 text-xs text-ds-text transition-colors hover:border-ds-accent hover:text-ds-accent"
-                >
-                  {useIaV2 ? t('area.admin.iaV2.disable') : t('area.admin.iaV2.enable')}
-                </button>
-              </div>
-            </CardSection>
             <CardSection title={t('settings.section.appearance')}>
               <div className="space-y-3">
-                <div>
-                  <div className="text-xs text-ds-text">{t('settings.theme')}</div>
-                  <div className="mt-1 text-[11px] text-ds-muted">{getLocaleOption(locale).nativeLabel}</div>
-                </div>
                 <Select
                   id="admin-theme-selector"
                   label={t('settings.theme')}
@@ -157,7 +143,7 @@ export function AdminPage({
               </div>
             </CardSection>
             <CardSection title={t('settings.section.language')}>
-              <LocaleSelector value={locale} onChange={setLocale} compact />
+              <LocaleSelector value={locale} onChange={changeLanguage} compact />
             </CardSection>
             <CardSection title={t('settings.section.costGovernance')}>
               <CostSettings rpc={rpc} />

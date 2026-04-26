@@ -10,6 +10,7 @@ import {
 } from '../../design-system/composites';
 import { Badge, Button, Card, Select } from '../../design-system/primitives';
 import { useRegressionBoard } from '../../hooks/useRegressionBoard';
+import { useI18n } from '../../stores/i18nStore';
 import {
   buildRegressionBoardModel,
   getDefaultRegressionPointKey,
@@ -62,6 +63,7 @@ function alertTone(severity: string): 'danger' | 'warning' {
 }
 
 export function RegressionBoard() {
+  const { t } = useI18n();
   const {
     board,
     selectedMode,
@@ -96,14 +98,25 @@ export function RegressionBoard() {
   );
   const freezeDisabled =
     !model || !model.canFreezeBaseline || !model.selectedPoint || freezeLoading;
+  const freezeDisabledReason = (() => {
+    if (!model || freezeLoading) return null;
+    if (!model.selectedPoint) return t('run.regression.freezeDisabledNoPoint');
+    if (model.axisKind !== 'commit') return t('run.regression.freezeDisabledCommitOnly');
+    if (model.selectedPointIsFrozenBaseline)
+      return t('run.regression.freezeDisabledAlreadyBaseline');
+    return null;
+  })();
+  const freezeButtonTitle = freezeDisabled && freezeDisabledReason
+    ? freezeDisabledReason
+    : t('run.regression.freezeActionTitle');
   const modeOptions = [
-    { value: '', label: 'All modes' },
+    { value: '', label: t('run.regression.allModes') },
     { value: 'offline', label: 'offline' },
     { value: 'online', label: 'online' },
     { value: 'shadow', label: 'shadow' },
   ];
   const domainOptions = [
-    { value: '', label: 'All domains' },
+    { value: '', label: t('run.regression.allDomains') },
     ...(board?.availableDomains ?? []).map((domain) => ({
       value: domain,
       label: domain,
@@ -115,7 +128,7 @@ export function RegressionBoard() {
           value: point.axisKey,
           label: `${point.axisLabel} (${point.runCount})`,
         }))
-      : [{ value: '', label: 'No board points' }];
+      : [{ value: '', label: t('run.regression.noBoardPoints') }];
 
   return (
     <Card className="space-y-ds-3 bg-ds-bg/70 p-ds-3" aria-labelledby={titleId}>
@@ -126,14 +139,14 @@ export function RegressionBoard() {
             className="flex items-center gap-ds-2 text-ds-xs font-semibold uppercase tracking-[0.16em] text-ds-muted"
           >
             <Activity size={14} aria-hidden="true" />
-            <span>Regression Board</span>
+            <span>{t('run.regression.title')}</span>
           </div>
           <p className="text-ds-xs text-ds-muted">
-            Track eval drift against rolling and frozen baselines across recent runs.
+            {t('run.regression.description')}
           </p>
         </div>
         <Badge compact className="ml-auto">
-          {model?.totalRecords ?? 0} record{(model?.totalRecords ?? 0) === 1 ? '' : 's'}
+          {t('run.regression.recordCount', { count: model?.totalRecords ?? 0 })}
         </Badge>
       </header>
 
@@ -167,9 +180,9 @@ export function RegressionBoard() {
                 aria-hidden="true"
               />
             }
-            title="Refresh regression board"
+            title={t('run.regression.refreshTitle')}
           >
-            Sync
+            {t('run.regression.sync')}
           </Button>
         </div>
       </section>
@@ -180,7 +193,7 @@ export function RegressionBoard() {
           aria-live="polite"
           className={boardNoticeToneClass()}
         >
-          Loading regression board...
+          {t('run.regression.loading')}
         </ResultCardSectionPanel>
       ) : error ? (
         <ResultCardSectionPanel role="alert" className={boardNoticeToneClass('danger')}>
@@ -192,7 +205,7 @@ export function RegressionBoard() {
           aria-live="polite"
           className={boardNoticeToneClass()}
         >
-          Regression board unavailable.
+          {t('run.regression.unavailable')}
         </ResultCardSectionPanel>
       ) : board.totalRecords === 0 ? (
         <ResultCardSectionPanel
@@ -200,27 +213,26 @@ export function RegressionBoard() {
           aria-live="polite"
           className={boardNoticeToneClass()}
         >
-          No persisted eval dataset records yet. Run `ds-agent eval run`, `ingest-session`, or
-          `shadow-session` first.
+          {t('run.regression.noRecords')}
         </ResultCardSectionPanel>
       ) : (
         <>
-          <section className="grid grid-cols-2 gap-ds-2" aria-label="Overall regression metrics">
+          <section className="grid grid-cols-2 gap-ds-2" aria-label={t('run.regression.overallMetricsAria')}>
             <MetricCard
-              label="Recent Score"
+              label={t('run.regression.metric.recentScore')}
               value={formatPercent(board.overall.recent.avgWeightedScore)}
             />
             <MetricCard
-              label="Baseline Score"
+              label={t('run.regression.metric.baselineScore')}
               value={formatPercent(board.overall.baseline.avgWeightedScore)}
             />
             <MetricCard
-              label="Score Delta"
+              label={t('run.regression.metric.scoreDelta')}
               value={formatPercentPoints(model.deltaScorePercentPoints)}
               tone={deltaTone(model.deltaScorePercentPoints)}
             />
             <MetricCard
-              label="Pass Delta"
+              label={t('run.regression.metric.passDelta')}
               value={formatPercentPoints(model.deltaPassRatePercentPoints)}
               tone={deltaTone(model.deltaPassRatePercentPoints)}
             />
@@ -228,18 +240,18 @@ export function RegressionBoard() {
 
           <ResultCardSectionPanel className="space-y-ds-2 bg-ds-surface/60">
             <div className="flex flex-wrap items-center gap-ds-2">
-              <ResultCardSectionTitle>Baseline</ResultCardSectionTitle>
+              <ResultCardSectionTitle>{t('run.regression.baseline')}</ResultCardSectionTitle>
               <Badge
                 compact
                 tone={model.baselineSource === 'frozen' ? 'accent' : 'neutral'}
                 leadingIcon={<Snowflake size={12} aria-hidden="true" />}
                 className="ml-auto"
               >
-                {model.baselineSource === 'frozen' ? 'Frozen' : 'Rolling'}
+                {model.baselineSource === 'frozen' ? t('run.regression.frozen') : t('run.regression.rolling')}
               </Badge>
             </div>
             <p className="text-ds-xs text-ds-muted">
-              Axis {model.axisKind} / {model.pointCount} point{model.pointCount === 1 ? '' : 's'}
+              Axis {model.axisKind} / {t('run.regression.pointCount', { count: model.pointCount })}
             </p>
             {board.frozenBaseline ? (
               <div className="space-y-ds-1 text-ds-xs">
@@ -257,22 +269,22 @@ export function RegressionBoard() {
                 </p>
                 {model.selectedPointIsFrozenBaseline ? (
                   <p className="text-ds-xs text-ds-success">
-                    The selected point is already the active frozen baseline.
+                    {t('run.regression.alreadyFrozen')}
                   </p>
                 ) : null}
               </div>
             ) : (
               <p className="text-ds-xs text-ds-muted">
-                Using the {board.baselineWindowDays}-day rolling baseline.
+                {t('run.regression.rollingBaselineInfo', { count: board.baselineWindowDays })}
               </p>
             )}
           </ResultCardSectionPanel>
 
           <ResultCardSectionPanel className="space-y-ds-3 bg-ds-surface/60">
             <div className="flex flex-wrap items-center gap-ds-2">
-              <ResultCardSectionTitle>Point Diff</ResultCardSectionTitle>
+              <ResultCardSectionTitle>{t('run.regression.pointDiff')}</ResultCardSectionTitle>
               <Badge compact tone="neutral" className="ml-auto">
-                {board.points.length} point{board.points.length === 1 ? '' : 's'}
+                {t('run.regression.pointCount', { count: board.points.length })}
               </Badge>
             </div>
 
@@ -295,9 +307,10 @@ export function RegressionBoard() {
                   size="sm"
                   loading={freezeLoading}
                   leadingIcon={<Snowflake size={14} aria-hidden="true" />}
-                  title="Freeze the selected point as the current baseline"
+                  title={freezeButtonTitle}
+                  aria-label={freezeButtonTitle}
                 >
-                  {freezeLoading ? 'Freezing...' : 'Freeze'}
+                  {freezeLoading ? t('run.regression.freezing') : t('run.regression.freeze')}
                 </Button>
               </div>
             </section>
@@ -310,13 +323,13 @@ export function RegressionBoard() {
 
             {!freezeError && model.axisKind !== 'commit' ? (
               <p className="text-ds-xs text-ds-muted">
-                Freeze is available only when the board is grouped by commit.
+                {t('run.regression.freezeCommitOnly')}
               </p>
             ) : null}
 
             {!freezeError && model.selectedPointIsFrozenBaseline ? (
               <p className="text-ds-xs text-ds-success">
-                This commit already defines the frozen baseline.
+                {t('run.regression.commitAlreadyBaseline')}
               </p>
             ) : null}
 
@@ -337,20 +350,22 @@ export function RegressionBoard() {
                   <>
                     <ResultCardSectionPanel className="space-y-ds-2 bg-ds-bg/60">
                       <p className="text-ds-xs text-ds-muted">
-                        Comparing against {model.previousPoint.axisLabel} (
-                        {model.previousPoint.runCount} runs).
+                        {t('run.regression.comparingAgainst', {
+                          label: model.previousPoint.axisLabel,
+                          count: model.previousPoint.runCount,
+                        })}
                       </p>
                       <section
                         className="grid grid-cols-2 gap-ds-2"
-                        aria-label="Point comparison metrics"
+                        aria-label={t('run.regression.pointComparisonAria')}
                       >
                         <MetricCard
-                          label="Vs Previous Score"
+                          label={t('run.regression.metric.vsPreviousScore')}
                           value={formatPercentPoints(model.pointScoreDeltaPercentPoints)}
                           tone={deltaTone(model.pointScoreDeltaPercentPoints)}
                         />
                         <MetricCard
-                          label="Vs Previous Pass"
+                          label={t('run.regression.metric.vsPreviousPass')}
                           value={formatPercentPoints(model.pointPassRateDeltaPercentPoints)}
                           tone={deltaTone(model.pointPassRateDeltaPercentPoints)}
                         />
@@ -359,7 +374,7 @@ export function RegressionBoard() {
 
                     {model.pointModeDiffs.length > 0 ? (
                       <DeltaListSection
-                        title="Mode Deltas"
+                        title={t('run.regression.modeDeltas')}
                         items={model.pointModeDiffs.map((item) => ({
                           key: item.mode,
                           label: item.mode,
@@ -372,7 +387,7 @@ export function RegressionBoard() {
 
                     {model.pointDiffs.length > 0 ? (
                       <DeltaListSection
-                        title="Dimension Deltas"
+                        title={t('run.regression.dimensionDeltas')}
                         items={model.pointDiffs.map((item) => ({
                           key: item.name,
                           label: item.label,
@@ -389,24 +404,24 @@ export function RegressionBoard() {
                   </>
                 ) : (
                   <p className="text-ds-xs text-ds-muted">
-                    Select a later point to compare against the previous snapshot.
+                    {t('run.regression.selectLaterPoint')}
                   </p>
                 )}
               </div>
             ) : (
-              <p className="text-ds-xs text-ds-muted">No board points available.</p>
+              <p className="text-ds-xs text-ds-muted">{t('run.regression.noBoardPointsAvailable')}</p>
             )}
           </ResultCardSectionPanel>
 
           <ResultCardSectionPanel className="space-y-ds-2 bg-ds-surface/60">
             <div className="flex flex-wrap items-center gap-ds-2">
-              <ResultCardSectionTitle>Alerts</ResultCardSectionTitle>
+              <ResultCardSectionTitle>{t('run.regression.alerts')}</ResultCardSectionTitle>
               <Badge compact className="ml-auto">
                 {model.alertCount}
               </Badge>
             </div>
             {model.topAlerts.length > 0 ? (
-              <ul className="space-y-ds-2" aria-label="Regression alerts">
+              <ul className="space-y-ds-2" aria-label={t('run.regression.alertsAria')}>
                 {model.topAlerts.map((alert) => (
                   <li
                     key={`${alert.kind}-${alert.scopeKey ?? 'global'}`}
@@ -432,14 +447,14 @@ export function RegressionBoard() {
                 ))}
               </ul>
             ) : (
-              <p className="text-ds-xs text-ds-success">No active regression alerts.</p>
+              <p className="text-ds-xs text-ds-success">{t('run.regression.noAlerts')}</p>
             )}
           </ResultCardSectionPanel>
 
           <ResultCardSectionPanel className="space-y-ds-2 bg-ds-surface/60">
-            <ResultCardSectionTitle>Tasks</ResultCardSectionTitle>
+            <ResultCardSectionTitle>{t('run.regression.tasks')}</ResultCardSectionTitle>
             {model.topTaskRegressions.length > 0 ? (
-              <ul className="space-y-ds-2" aria-label="Regressed tasks">
+              <ul className="space-y-ds-2" aria-label={t('run.regression.regressedTasksAria')}>
                 {model.topTaskRegressions.map((task) => (
                   <li
                     key={task.taskId}
@@ -458,14 +473,14 @@ export function RegressionBoard() {
                 ))}
               </ul>
             ) : (
-              <p className="text-ds-xs text-ds-muted">No regressed tasks in this filter.</p>
+              <p className="text-ds-xs text-ds-muted">{t('run.regression.noRegressedTasks')}</p>
             )}
           </ResultCardSectionPanel>
 
           <ResultCardSectionPanel className="space-y-ds-2 bg-ds-surface/60">
-            <ResultCardSectionTitle>Dimensions</ResultCardSectionTitle>
+            <ResultCardSectionTitle>{t('run.regression.dimensions')}</ResultCardSectionTitle>
             {model.topDimensionRegressions.length > 0 ? (
-              <ul className="space-y-ds-2" aria-label="Dimension regressions">
+              <ul className="space-y-ds-2" aria-label={t('run.regression.dimensionRegressionsAria')}>
                 {model.topDimensionRegressions.map((dimension) => (
                   <li
                     key={dimension.name}
@@ -484,15 +499,18 @@ export function RegressionBoard() {
               </ul>
             ) : (
               <p className="text-ds-xs text-ds-muted">
-                No negative per-dimension drift in this filter.
+                {t('run.regression.noDimensionDrift')}
               </p>
             )}
           </ResultCardSectionPanel>
 
           <footer className="text-ds-xs text-ds-muted">
-            Updated {formatTimestamp(board.generatedAt)} with recent {board.recentWindow} runs and
-            a {board.baselineWindowDays}-day{' '}
-            {board.baselineSource === 'frozen' ? 'frozen-aware' : 'rolling'} baseline.
+            {t('run.regression.footer', {
+              timestamp: formatTimestamp(board.generatedAt),
+              recentWindow: board.recentWindow,
+              days: board.baselineWindowDays,
+              source: board.baselineSource === 'frozen' ? 'frozen-aware' : 'rolling',
+            })}
           </footer>
         </>
       )}

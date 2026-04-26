@@ -8,7 +8,7 @@ const audienceView_1 = require("../../src/renderer/domain/workspace/audienceView
 const applyAudienceView_1 = require("../../src/renderer/application/workspace/applyAudienceView");
 const cardEmphasisAdopter_1 = require("../../src/renderer/application/workspace/cardEmphasisAdopter");
 const workspaceStore_1 = require("../../src/renderer/stores/workspaceStore");
-const ALL_TABS = ['summary', 'tables', 'charts', 'files', 'export'];
+const ALL_TABS = ['overview', 'export'];
 function createFakeStorage(initial = {}) {
     const store = { ...initial };
     return {
@@ -26,31 +26,38 @@ function run() {
     // === applyAudienceViewToTabs returns the correct visible-tab subset for each profile ===
     {
         const dsTabs = (0, applyAudienceView_1.applyAudienceViewToTabs)(ALL_TABS, audienceView_1.AUDIENCE_VIEW_PROFILES.ds);
-        strict_1.default.deepEqual(dsTabs, ['summary', 'tables', 'charts', 'files', 'export']);
+        strict_1.default.deepEqual(dsTabs, ['overview', 'export']);
         cases += 1;
         const execTabs = (0, applyAudienceView_1.applyAudienceViewToTabs)(ALL_TABS, audienceView_1.AUDIENCE_VIEW_PROFILES.exec);
-        strict_1.default.deepEqual(execTabs, ['summary', 'charts', 'export']);
+        strict_1.default.deepEqual(execTabs, ['overview', 'export']);
         cases += 1;
         const mlTabs = (0, applyAudienceView_1.applyAudienceViewToTabs)(ALL_TABS, audienceView_1.AUDIENCE_VIEW_PROFILES.ml);
-        strict_1.default.deepEqual(mlTabs, ['summary', 'tables', 'charts', 'files', 'export']);
+        strict_1.default.deepEqual(mlTabs, ['overview', 'export']);
         cases += 1;
         // Order is preserved: feed a permuted input and expect the same permutation back, filtered.
-        const permuted = ['export', 'charts', 'tables', 'summary', 'files'];
+        const permuted = ['export', 'overview'];
         const execPermuted = (0, applyAudienceView_1.applyAudienceViewToTabs)(permuted, audienceView_1.AUDIENCE_VIEW_PROFILES.exec);
-        strict_1.default.deepEqual(execPermuted, ['export', 'charts', 'summary']);
+        strict_1.default.deepEqual(execPermuted, ['export', 'overview']);
         cases += 1;
     }
     // === resolveActiveTabForAudience: in-profile vs filtered-out vs empty ===
     {
         // In-profile active tab is preserved
-        strict_1.default.equal((0, applyAudienceView_1.resolveActiveTabForAudience)('charts', ALL_TABS, audienceView_1.AUDIENCE_VIEW_PROFILES.exec), 'charts');
+        strict_1.default.equal((0, applyAudienceView_1.resolveActiveTabForAudience)('export', ALL_TABS, audienceView_1.AUDIENCE_VIEW_PROFILES.exec), 'export');
         cases += 1;
-        // Active tab filtered out by Exec profile (`tables`) falls back to first visible (`summary`).
-        strict_1.default.equal((0, applyAudienceView_1.resolveActiveTabForAudience)('tables', ALL_TABS, audienceView_1.AUDIENCE_VIEW_PROFILES.exec), 'summary');
+        // Active tab filtered out by a constrained profile falls back to first visible (`export`).
+        const exportOnlyProfile = {
+            id: 'exec',
+            label: 'Export only (test)',
+            description: 'Synthetic profile with a constrained tab set.',
+            visibleTabs: ['export'],
+            emphasis: 'summary',
+        };
+        strict_1.default.equal((0, applyAudienceView_1.resolveActiveTabForAudience)('overview', ALL_TABS, exportOnlyProfile), 'export');
         cases += 1;
         // Active tab filtered out, fallback respects the order of `allTabs` (not profile order).
-        const reordered = ['export', 'charts', 'summary', 'tables', 'files'];
-        strict_1.default.equal((0, applyAudienceView_1.resolveActiveTabForAudience)('files', reordered, audienceView_1.AUDIENCE_VIEW_PROFILES.exec), 'export');
+        const reordered = ['export', 'overview'];
+        strict_1.default.equal((0, applyAudienceView_1.resolveActiveTabForAudience)('overview', reordered, exportOnlyProfile), 'export');
         cases += 1;
         // Empty visible-tab set returns null. Construct a synthetic profile to hit that branch
         // (shipped profiles all have non-empty visibleTabs).
@@ -61,7 +68,7 @@ function run() {
             visibleTabs: [],
             emphasis: 'detail',
         };
-        strict_1.default.equal((0, applyAudienceView_1.resolveActiveTabForAudience)('summary', ALL_TABS, emptyProfile), null);
+        strict_1.default.equal((0, applyAudienceView_1.resolveActiveTabForAudience)('overview', ALL_TABS, emptyProfile), null);
         cases += 1;
     }
     // === AUDIENCE_VIEW_PROFILES integrity ===

@@ -57,11 +57,12 @@ from ds_agent.domain.notification import (
     QuietHoursPolicy,
 )
 from ds_agent.gateway.session_manager import SessionManager
+from ds_agent.gateway.telegram_strings import telegram_string
+from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
 from ds_agent.infrastructure.task_contract_container import (
     TaskContractContainer,
     build_task_contract_container,
 )
-from ds_agent.infrastructure.persistence.learning_store import SqliteLearningStore
 from ds_agent.infrastructure.verifier_container import VerifierContainer, build_verifier_container
 from ds_agent.presentation.certification_presenters import (
     render_certification_status,
@@ -422,8 +423,15 @@ def _first_non_empty_string(*values: object) -> str | None:
 class TelegramGatewayRunner:
     """Main Telegram gateway loop."""
 
-    def __init__(self, config: DSAgentConfig) -> None:
+    def __init__(
+        self,
+        config: DSAgentConfig,
+        *,
+        supervisor: object | None = None,
+        token_override: str | None = None,
+    ) -> None:
         self._config = config
+        self._supervisor = supervisor
         self._token_store = create_auth_profile_store(config)
         self._transcript_store = JsonTranscriptStore(config.agent.workspace_dir)
         self._checkpoint_store = JsonCheckpointStore(config.agent.workspace_dir)
@@ -435,8 +443,9 @@ class TelegramGatewayRunner:
         self._runtime_event_log = RuntimeEventLog(config.agent.workspace_dir)
         self._workspace = WorkspaceService(str(config.agent.workspace_dir))
         self._config_path = get_default_config_path()
+        bot_token = token_override or config.channels.telegram.bot_token
         self._plugin = TelegramPlugin(
-            bot_token=config.channels.telegram.bot_token,
+            bot_token=bot_token,
             allow_from=config.channels.telegram.allow_from or None,
             workspace_dir=config.agent.workspace_dir,
         )
@@ -467,6 +476,10 @@ class TelegramGatewayRunner:
             ),
             deferred_store=self._deferred_notification_store,
         )
+
+    # Threshold (seconds) before surfacing the "Analyzing... + Run/Stop controls"
+    # operator block. Quick chat-style replies that finish under this stay silent.
+    _RUN_ANNOUNCE_DELAY_SECONDS: typing.ClassVar[float] = 60.0
 
     _BOT_COMMANDS: typing.ClassVar[list[tuple[str, str]]] = [
         ("status", "Runtime summary"),
@@ -528,6 +541,11 @@ class TelegramGatewayRunner:
             await self._handle_callback_query(inbound)
             return
 
+        text = (inbound.text or "").strip()
+        if text.lower().startswith("/pair "):
+            await self._handle_pairing_command(inbound, text)
+            return
+
         if inbound.text.startswith("/"):
             await self._handle_command(inbound)
             return
@@ -553,6 +571,40 @@ class TelegramGatewayRunner:
             return
 
         await self._execute_agent_turn(inbound, inbound.text)
+
+    async def _handle_pairing_command(self, inbound: object, text: str) -> None:
+        """Handle OTP pairing before normal command dispatch."""
+        from ds_agent.channels.base import InboundMessage
+        from ds_agent.domain.errors.telegram_errors import PairingError
+
+        msg: InboundMessage = inbound  # type: ignore[assignment]
+        language = getattr(self._config.agent, "language", "en")
+        parts = text.split(maxsplit=1)
+        code = parts[1].strip() if len(parts) == 2 else ""
+        supervisor = self._supervisor
+        confirm = getattr(supervisor, "confirm_pairing_by_code", None)
+        if not code or not callable(confirm):
+            await self._send_text(
+                telegram_string(language, "pairing.invalid_code"),
+                msg.conversation_id,
+                thread_id=msg.thread_id,
+            )
+            return
+        try:
+            paired_chat_id = msg.sender_id or msg.conversation_id
+            await confirm(code, paired_chat_id)
+        except PairingError:
+            await self._send_text(
+                telegram_string(language, "pairing.invalid_code"),
+                msg.conversation_id,
+                thread_id=msg.thread_id,
+            )
+            return
+        await self._send_text(
+            telegram_string(language, "pairing.success"),
+            msg.conversation_id,
+            thread_id=msg.thread_id,
+        )
 
     async def _handle_command(self, msg: object) -> None:
         """Handle Telegram slash commands."""
@@ -707,23 +759,44 @@ class TelegramGatewayRunner:
 
         self._runtime_sessions.ensure(session.session_key, "telegram")
         run = self._runs.create(session.session_key, "telegram", user_message)
-        await self._send_text(
-            "\n".join(
-                [
-                    announce_text,
-                    f"Run: {run.run_id}",
-                    f"Session: {self._display_session(session.session_key)}",
-                    f"Fallback: /stop {run.run_id} or /run {run.run_id}",
-                ]
-            ),
-            message.conversation_id,
-            thread_id=message.thread_id,
-            reply_markup=self._build_run_markup(
-                run.run_id,
-                running=True,
-                actor=message.sender_id,
-                chat_id=message.conversation_id,
-            ),
+
+        # Deferred run announcement: only surface "Analyzing... + Run/Stop controls"
+        # if the agent task is still going after RUN_ANNOUNCE_DELAY_SECONDS. Quick
+        # replies (chat-style messages that finish in <1 min) stay quiet.
+        async def _deferred_announce() -> None:
+            try:
+                await asyncio.sleep(self._RUN_ANNOUNCE_DELAY_SECONDS)
+            except asyncio.CancelledError:
+                return
+            try:
+                await self._send_text(
+                    "\n".join(
+                        [
+                            announce_text,
+                            f"Run: {run.run_id}",
+                            f"Session: {self._display_session(session.session_key)}",
+                            f"Fallback: /stop {run.run_id} or /run {run.run_id}",
+                        ]
+                    ),
+                    message.conversation_id,
+                    thread_id=message.thread_id,
+                    reply_markup=self._build_run_markup(
+                        run.run_id,
+                        running=True,
+                        actor=message.sender_id,
+                        chat_id=message.conversation_id,
+                    ),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "telegram_announce_failed",
+                    run_id=run.run_id,
+                    error=str(exc),
+                )
+
+        announce_task = asyncio.create_task(
+            _deferred_announce(),
+            name=f"telegram-announce:{run.run_id}",
         )
 
         set_runtime_context = getattr(session.agent, "set_runtime_context", None)
@@ -737,19 +810,27 @@ class TelegramGatewayRunner:
         self._runs.attach_task(run.run_id, task_state.task_id)
 
         try:
-            result = await task
-            cost = 0.0
-            if hasattr(session.agent, "_budget"):
-                cost = session.agent._budget.state.total_cost_usd  # type: ignore[attr-defined]
-            self._runs.mark_succeeded(run.run_id, result, cost_usd=cost)
-        except asyncio.CancelledError:
-            self._runs.mark_cancelled(run.run_id)
-            result = "Current run aborted."
-            logger.info("telegram_run_cancelled", run_id=run.run_id)
-        except Exception as exc:
-            self._runs.mark_failed(run.run_id, str(exc))
-            result = f"Error: {exc}"
-            logger.error("telegram_run_failed", run_id=run.run_id, error=str(exc), exc_info=True)
+            try:
+                result = await task
+                cost = 0.0
+                if hasattr(session.agent, "_budget"):
+                    cost = session.agent._budget.state.total_cost_usd  # type: ignore[attr-defined]
+                self._runs.mark_succeeded(run.run_id, result, cost_usd=cost)
+            except asyncio.CancelledError:
+                self._runs.mark_cancelled(run.run_id)
+                result = "Current run aborted."
+                logger.info("telegram_run_cancelled", run_id=run.run_id)
+            except Exception as exc:
+                self._runs.mark_failed(run.run_id, str(exc))
+                result = f"Error: {exc}"
+                logger.error("telegram_run_failed", run_id=run.run_id, error=str(exc), exc_info=True)
+        finally:
+            if not announce_task.done():
+                announce_task.cancel()
+                try:
+                    await announce_task
+                except (asyncio.CancelledError, Exception):
+                    pass
 
         await self._send_chunks(
             result,

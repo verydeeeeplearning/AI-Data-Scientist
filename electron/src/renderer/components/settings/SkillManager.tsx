@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useI18n } from '../../stores/i18nStore';
 import type { RpcFn, SkillSummary } from './types';
 
 interface SkillFormState {
@@ -65,6 +66,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function SkillManager({ rpc }: { rpc: RpcFn }) {
+  const { t } = useI18n();
   const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [form, setForm] = useState<SkillFormState>(buildEmptyForm);
   const [importMarkdown, setImportMarkdown] = useState('');
@@ -246,7 +248,7 @@ export function SkillManager({ rpc }: { rpc: RpcFn }) {
         <div className="rounded-xl border border-ds-border bg-ds-surface p-4">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
-              <h4 className="text-sm font-semibold text-ds-text">Custom Skills</h4>
+              <h4 className="text-sm font-semibold text-ds-text">{t('settings.skillManager.title')}</h4>
               <p className="text-[11px] text-ds-muted">
                 Enable, edit, and permission-bound local skills available to the agent prompt.
               </p>
@@ -340,7 +342,7 @@ export function SkillManager({ rpc }: { rpc: RpcFn }) {
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <h4 className="text-sm font-semibold text-ds-text">
-                  {editingName ? `Edit ${editingName}` : 'Create Skill'}
+                  {editingName ? `Edit ${editingName}` : t('settings.skillManager.createSkill')}
                 </h4>
                 <p className="text-[11px] text-ds-muted">
                   Tools and permissions become enforceable metadata during sandboxed execution.
@@ -463,7 +465,11 @@ export function SkillManager({ rpc }: { rpc: RpcFn }) {
                   className="inline-flex items-center gap-2 rounded-lg bg-ds-accent px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:opacity-40"
                 >
                   <Save size={12} />
-                  {saving ? 'Saving...' : editingName ? 'Save Changes' : 'Create Skill'}
+                  {saving
+                    ? t('settings.skillManager.saving')
+                    : editingName
+                      ? t('settings.skillManager.saveChanges')
+                      : t('settings.skillManager.createSkill')}
                 </button>
               </div>
             </div>
@@ -471,7 +477,7 @@ export function SkillManager({ rpc }: { rpc: RpcFn }) {
 
           <div className="rounded-xl border border-ds-border bg-ds-surface p-4">
             <div className="mb-3">
-              <h4 className="text-sm font-semibold text-ds-text">Import Markdown</h4>
+              <h4 className="text-sm font-semibold text-ds-text">{t('settings.skillManager.importMarkdown')}</h4>
               <p className="text-[11px] text-ds-muted">
                 Paste an existing skill file with YAML frontmatter to bring it into this workspace.
               </p>
@@ -490,13 +496,15 @@ export function SkillManager({ rpc }: { rpc: RpcFn }) {
                 className="inline-flex items-center gap-2 rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50 disabled:opacity-40"
               >
                 {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                {importing ? 'Importing...' : 'Import Skill'}
+                {importing
+                  ? t('settings.skillManager.importing')
+                  : t('settings.skillManager.importSkill')}
               </button>
             </div>
 
             <div className="mt-4 border-t border-ds-border/60 pt-4">
               <div className="mb-2">
-                <h5 className="text-xs font-semibold text-ds-text">Install from URL</h5>
+                <h5 className="text-xs font-semibold text-ds-text">{t('settings.skillManager.installFromUrl')}</h5>
                 <p className="text-[11px] text-ds-muted">
                   Use a raw GitHub or Gist markdown URL to install a remote skill.
                 </p>
@@ -515,7 +523,9 @@ export function SkillManager({ rpc }: { rpc: RpcFn }) {
                   className="inline-flex items-center justify-center gap-2 rounded-lg border border-ds-border bg-ds-bg px-3 py-2 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50 disabled:opacity-40"
                 >
                   {importingUrl ? <Loader2 size={12} className="animate-spin" /> : <Globe size={12} />}
-                  {importingUrl ? 'Installing...' : 'Install from URL'}
+                  {importingUrl
+                    ? t('settings.skillManager.installing')
+                    : t('settings.skillManager.installFromUrl')}
                 </button>
               </div>
             </div>

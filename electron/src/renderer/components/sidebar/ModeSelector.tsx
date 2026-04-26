@@ -5,26 +5,44 @@
 import { Settings } from 'lucide-react';
 import { Card, Radio } from '../../design-system/primitives';
 import { useAgentStore } from '../../stores/agentStore';
+import { useI18n } from '../../stores/i18nStore';
 
 interface Props {
   onChange: (mode: 'auto' | 'supervised' | 'step-by-step') => void;
 }
 
-const MODES: { value: 'auto' | 'supervised' | 'step-by-step'; label: string; desc: string }[] = [
-  { value: 'auto', label: 'Auto', desc: 'Agent runs freely' },
-  { value: 'supervised', label: 'Supervised', desc: 'Confirm before actions' },
-  { value: 'step-by-step', label: 'Step-by-Step', desc: 'Approve each step' },
+const MODES: Array<{
+  value: 'auto' | 'supervised' | 'step-by-step';
+  labelKey: string;
+  descKey: string;
+}> = [
+  {
+    value: 'auto',
+    labelKey: 'settings.modeSelector.auto.label',
+    descKey: 'settings.modeSelector.auto.description',
+  },
+  {
+    value: 'supervised',
+    labelKey: 'settings.modeSelector.supervised.label',
+    descKey: 'settings.modeSelector.supervised.description',
+  },
+  {
+    value: 'step-by-step',
+    labelKey: 'settings.modeSelector.stepByStep.label',
+    descKey: 'settings.modeSelector.stepByStep.description',
+  },
 ];
 
 export function ModeSelector({ onChange }: Props) {
   const { mode } = useAgentStore();
+  const { t } = useI18n();
 
   return (
     <div className="px-3 py-1.5">
-      <fieldset className="space-y-ds-3" aria-label="Execution mode">
+      <fieldset className="space-y-ds-3" aria-label={t('settings.modeSelector.ariaLabel')}>
         <legend className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-ds-muted">
           <Settings size={12} aria-hidden="true" />
-          Mode
+          {t('settings.mode')}
         </legend>
         <Card className="space-y-ds-2 bg-ds-bg/40 px-ds-3 py-ds-3 shadow-none">
           {MODES.map((m) => (
@@ -34,8 +52,8 @@ export function ModeSelector({ onChange }: Props) {
               value={m.value}
               checked={mode === m.value}
               onChange={() => onChange(m.value)}
-              label={m.label}
-              description={m.desc}
+              label={t(m.labelKey)}
+              description={t(m.descKey)}
               className="rounded-ds-lg px-ds-2 py-ds-2 hover:bg-ds-bg/60"
             />
           ))}

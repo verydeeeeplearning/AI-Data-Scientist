@@ -15,6 +15,7 @@ import {
 } from '../../application/runtime/planTreeKeyboardNav';
 import { Badge, Card } from '../../design-system/primitives';
 import type { PlanNode, PlanNodeStatus } from '../../types/events';
+import { useI18n } from '../../stores/i18nStore';
 import { useReasoningTraceStore } from '../../stores/reasoningTraceStore';
 
 const KEYBOARD_KEYS: ReadonlySet<string> = new Set([
@@ -247,6 +248,7 @@ function PlanNodeRow({
 }
 
 export function PlanTreePanel() {
+  const { t } = useI18n();
   const reduceMotion = prefersReducedMotion();
   const planState = useReasoningTraceStore((state) => state.planState);
   const planTree = planState.planTree;
@@ -342,41 +344,41 @@ export function PlanTreePanel() {
   }, []);
 
   return (
-    <Card className="mb-3 bg-black/10" aria-label="Plan tree">
+    <Card className="mb-3 bg-black/10" aria-label={t('run.planTree.ariaLabel')}>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-ds-muted">
           <GitBranch size={12} />
-          Plan Tree
+          {t('run.planTree.title')}
         </div>
         <Badge compact>
-          {nodeCount} stage{nodeCount === 1 ? '' : 's'}
+          {t('run.planTree.stageCount', { count: nodeCount })}
         </Badge>
         {createdAt ? (
           <Badge compact>
-            Created {createdAt}
+            {t('run.planTree.created', { time: createdAt })}
           </Badge>
         ) : null}
         {updatedAt ? (
           <Badge compact>
-            Updated {updatedAt}
+            {t('run.planTree.updated', { time: updatedAt })}
           </Badge>
         ) : null}
         {replannedAt ? (
           <Badge tone="warning" compact>
-            Replanned {replannedAt}
+            {t('run.planTree.replanned', { time: replannedAt })}
           </Badge>
         ) : null}
       </div>
 
       {planTree == null ? (
         <div className="mt-3 rounded-lg border border-ds-border/70 bg-ds-bg/60 px-3 py-3 text-xs text-ds-muted">
-          No plan tree has been emitted for this run yet.
+          {t('run.planTree.empty')}
         </div>
       ) : (
         <ol
           className="mt-3 space-y-2 list-none p-0"
           role="tree"
-          aria-label="Plan tree nodes"
+          aria-label={t('run.planTree.nodesAria')}
         >
           <PlanNodeRow
             node={planTree}

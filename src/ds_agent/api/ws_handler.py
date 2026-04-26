@@ -11,8 +11,10 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+import ipaddress
 import json
 import os
+import socket
 import time
 import uuid
 from collections.abc import Callable, Sequence
@@ -242,8 +244,52 @@ def _regression_alert_dedupe_key(*, mode: str | None, domain: str | None) -> str
     return f"mode={mode or 'all'}::domain={domain or 'all'}"
 
 
+def _validate_skill_import_url(url: str) -> None:
+    """Guard against SSRF by rejecting non-public destinations.
+
+    Raises ValueError if:
+    - scheme is not http or https
+    - any resolved IP is private, loopback, link-local, reserved, or multicast
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError(
+            f"URL scheme '{parsed.scheme}' is not allowed; only http and https are permitted"
+        )
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL must contain a hostname")
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as exc:
+        raise ValueError(f"Could not resolve hostname '{hostname}': {exc}") from exc
+    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
+        raw_ip = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(raw_ip)
+        except ValueError:
+            continue
+        if ip.is_loopback:
+            raise ValueError(f"Requests to loopback addresses are not allowed (resolved to {ip})")
+        if ip.is_link_local:
+            raise ValueError(
+                f"Requests to link-local addresses are not allowed (resolved to {ip})"
+            )
+        if ip.is_private:
+            raise ValueError(f"Requests to private IP addresses are not allowed (resolved to {ip})")
+        if ip.is_reserved:
+            raise ValueError(
+                f"Requests to reserved IP addresses are not allowed (resolved to {ip})"
+            )
+        if ip.is_multicast:
+            raise ValueError(
+                f"Requests to multicast addresses are not allowed (resolved to {ip})"
+            )
+
+
 def _fetch_remote_skill_markdown(url: str, *, timeout_seconds: float = 10.0) -> str:
     """Fetch markdown content from an HTTP(S) URL with basic safety limits."""
+    _validate_skill_import_url(url)
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"}:
         raise ValueError("Only http and https URLs are supported")
@@ -528,14 +574,131 @@ class WsRpcHandler:
                 await self._state.start_background_runtime(force=True)
             else:
                 await self._state.stop_background_runtime()
+        elif path == "channels.telegram.enabled":
+            if bool(value):
+                await self._state.start_telegram_gateway(force=True)
+            else:
+                await self._state.stop_telegram_gateway()
         elif restart_background_runtime:
             await self._state.stop_background_runtime()
             await self._state.start_background_runtime(force=True)
         return {"ok": True}
 
+    async def _telegram_test(self, params: dict) -> dict:
+        """Validate a Telegram bot token without persisting it."""
+        from ds_agent.domain.errors.telegram_errors import (
+            TelegramApiError,
+            TelegramAuthError,
+            TelegramNetworkError,
+        )
+        from ds_agent.infrastructure.telegram.telegram_api_client import TelegramApiClient
+
+        token = str(params.get("token") or "").strip()
+        token_len = len(token)
+        token_has_colon = ":" in token
+        logger.info(
+            "telegram_test_request",
+            token_present=bool(token),
+            token_len=token_len,
+            token_has_colon=token_has_colon,
+        )
+        if not token:
+            return {"ok": False, "reason": "invalid_format"}
+
+        client = TelegramApiClient()
+        try:
+            identity = await client.get_me(token)
+        except TelegramAuthError as exc:
+            logger.warning("telegram_test_auth_error", error=str(exc))
+            return {"ok": False, "reason": "unauthorized"}
+        except TelegramNetworkError as exc:
+            logger.warning("telegram_test_network_error", error=str(exc), error_type=type(exc.__cause__).__name__ if exc.__cause__ else None)
+            return {"ok": False, "reason": "network_error"}
+        except TelegramApiError as exc:
+            logger.warning("telegram_test_api_error", error=str(exc))
+            reason = "bot_disabled" if "disabled" in str(exc).lower() else "api_error"
+            return {"ok": False, "reason": reason}
+        finally:
+            await client.aclose()
+        logger.info("telegram_test_success", username=identity.username)
+        return {
+            "ok": True,
+            "username": identity.username,
+            "firstName": identity.first_name,
+            "botId": identity.id,
+        }
+
+    async def _telegram_start_pairing(self, params: dict) -> dict:
+        """Start Telegram OTP pairing using an in-memory token."""
+        token = str(params.get("token") or "").strip()
+        if not token:
+            raise ValueError("token is required")
+        handle = await self._state.get_telegram_supervisor().begin_pairing(token)
+        return handle.to_dict()
+
+    async def _telegram_pairing_status(self, params: dict) -> dict:
+        """Return pairing state for a handle."""
+        handle_id = str(params.get("handleId") or "").strip()
+        if not handle_id:
+            raise ValueError("handleId is required")
+        state = self._state.get_telegram_supervisor().pairing_status(handle_id)
+        return {"state": state.value}
+
+    async def _telegram_cancel_pairing(self, params: dict) -> dict:
+        """Cancel Telegram OTP pairing."""
+        handle_id = str(params.get("handleId") or "").strip()
+        if not handle_id:
+            raise ValueError("handleId is required")
+        await self._state.get_telegram_supervisor().cancel_pairing(handle_id)
+        return {"ok": True}
+
+    async def _telegram_status(self, _params: dict) -> dict:
+        """Return Telegram supervisor status."""
+        return self._state.get_telegram_supervisor().status.to_payload()
+
+    async def _telegram_send_test_message(self, params: dict) -> dict:
+        """Send a one-off Telegram test message."""
+        chat_id = str(params.get("chatId") or "").strip()
+        if not chat_id:
+            raise ValueError("chatId is required")
+        await self._state.get_telegram_supervisor().send_test_message(
+            chat_id,
+            "DS Agent Telegram test message.",
+        )
+        return {"ok": True}
+
+    async def _telegram_disconnect(self, params: dict) -> dict:
+        """Disconnect Telegram entirely or remove one paired chat."""
+        chat_id = str(params.get("chatId") or "").strip()
+        if chat_id:
+            allow_from = [
+                str(value)
+                for value in self._state.config.channels.telegram.allow_from
+                if str(value) != chat_id
+            ]
+            self._state.set_config("channels.telegram.allow_from", allow_from)
+        else:
+            await self._state.stop_telegram_gateway()
+            self._state.set_config("channels.telegram.enabled", False)
+        self._state.broadcast_event(
+            "telegram.statusChanged",
+            self._state.get_telegram_supervisor().status.to_payload(),
+        )
+        return {"ok": True}
+
+    async def _telegram_reconnect(self, _params: dict) -> dict:
+        """Restart Telegram after an error or network outage."""
+        self._state.set_config("channels.telegram.enabled", True)
+        await self._state.start_telegram_gateway(force=True)
+        return {"ok": True}
+
     async def _status_get(self, _params: dict) -> dict:
         """Return agent status summary."""
         return self._state.get_status()
+
+    async def _ping(self, _params: dict) -> dict:
+        """Return a lightweight heartbeat response."""
+        return {"pong": True, "ts": time.time()}
 
     async def _usage_summary(self, params: dict) -> dict:
         """Return the current actor's usage dashboard summary."""
@@ -2491,7 +2654,16 @@ class WsRpcHandler:
         "learning.finalizePromotion": _learning_finalize_promotion,
         "config.get": _config_get,
         "config.set": _config_set,
+        "telegram.test": _telegram_test,
+        "telegram.startPairing": _telegram_start_pairing,
+        "telegram.pairingStatus": _telegram_pairing_status,
+        "telegram.cancelPairing": _telegram_cancel_pairing,
+        "telegram.status": _telegram_status,
+        "telegram.sendTestMessage": _telegram_send_test_message,
+        "telegram.disconnect": _telegram_disconnect,
+        "telegram.reconnect": _telegram_reconnect,
         "status.get": _status_get,
+        "ping": _ping,
         "usage.summary": _usage_summary,
         "files.list": _files_list,
         "files.upload": _files_upload,
@@ -2726,6 +2898,7 @@ class AppState:
         )
         self._runtime_event_listeners: set[Callable[[str, dict], None]] = set()
         self._autonomous_daemon: Any | None = None
+        self._telegram_supervisor: Any | None = None
         self._semantic_memory_container: Any | None = None
         self._decision_os_container: Any | None = None
         self._skill_hub = SkillHub.from_directories(
@@ -3635,6 +3808,44 @@ class AppState:
     def unregister_runtime_listener(self, listener: Callable[[str, dict], None]) -> None:
         """Remove a previously registered runtime alert listener."""
         self._runtime_event_listeners.discard(listener)
+
+    def broadcast_event(self, event: str, payload: dict[str, object]) -> None:
+        """Broadcast one non-persisted event to connected WebSocket clients."""
+        for listener in list(self._runtime_event_listeners):
+            try:
+                listener(event, dict(payload))
+            except Exception as exc:
+                logger.warning("event_listener_failed", event=event, error=str(exc))
+
+    def set_telegram_supervisor(self, supervisor: Any) -> None:
+        """Attach the process-local Telegram supervisor."""
+        self._telegram_supervisor = supervisor
+
+    @property
+    def telegram_supervisor(self) -> Any | None:
+        """Return the Telegram supervisor if the lifespan has attached one."""
+        return self._telegram_supervisor
+
+    def get_telegram_supervisor(self) -> Any:
+        """Return the Telegram supervisor, creating it lazily for tests."""
+        if self._telegram_supervisor is None:
+            from ds_agent.gateway.bot_supervisor import BotSupervisor
+
+            self._telegram_supervisor = BotSupervisor(self.config, app_state=self)
+        return self._telegram_supervisor
+
+    async def start_telegram_gateway(self, *, force: bool = False) -> None:
+        """Start or restart the Telegram supervisor."""
+        supervisor = self.get_telegram_supervisor()
+        if force:
+            await supervisor.restart()
+        else:
+            await supervisor.start()
+
+    async def stop_telegram_gateway(self) -> None:
+        """Stop the Telegram supervisor if it is active."""
+        if self._telegram_supervisor is not None:
+            await self._telegram_supervisor.stop()
 
     def record_runtime_event(
         self,
@@ -5088,9 +5299,18 @@ class AppState:
                     latest_run=failed_run,
                     active_agent=agent,
                 )
-                emit_stream_done = getattr(callbacks, "emit_stream_done", None)
-                if callable(emit_stream_done):
-                    await emit_stream_done("Internal server error", 0.0)
+                emit_stream_error = getattr(callbacks, "emit_stream_error", None)
+                if callable(emit_stream_error):
+                    message_id = getattr(agent, "last_assistant_message_id", None)
+                    await emit_stream_error(
+                        "Internal server error",
+                        code="agent_run_failed",
+                        message_id=message_id if isinstance(message_id, str) else None,
+                    )
+                else:
+                    emit_stream_done = getattr(callbacks, "emit_stream_done", None)
+                    if callable(emit_stream_done):
+                        await emit_stream_done("Internal server error", 0.0)
             finally:
                 self._runtime_sessions.bind_run(session_id, run.run_id, surface)
 

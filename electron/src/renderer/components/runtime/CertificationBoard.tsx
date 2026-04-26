@@ -10,6 +10,7 @@ import {
 } from '../../design-system/composites';
 import { Badge, Button, Card, Input, Select } from '../../design-system/primitives';
 import { useCertificationBoard } from '../../hooks/useCertificationBoard';
+import { useI18n } from '../../stores/i18nStore';
 
 function parseApprovers(input: string): string[] {
   const seen = new Set<string>();
@@ -44,6 +45,7 @@ function boardNoticeToneClass(tone: 'neutral' | 'danger' = 'neutral'): string {
 }
 
 export function CertificationBoard() {
+  const { t } = useI18n();
   const {
     missions,
     selectedMission,
@@ -65,7 +67,7 @@ export function CertificationBoard() {
   const nextTarget = selectedMission?.next_target ?? null;
   const missionOptions =
     missions.length === 0
-      ? [{ value: '', label: 'No missions' }]
+      ? [{ value: '', label: t('run.certification.noMissions') }]
       : missions.map((mission) => ({
           value: mission.mission_name,
           label: mission.mission_name,
@@ -86,7 +88,7 @@ export function CertificationBoard() {
         evidenceRef: evidenceRef.trim() || undefined,
       });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Certification submit failed.');
+      setSubmitError(err instanceof Error ? err.message : t('run.certification.submitFailed'));
     } finally {
       setBusy(false);
     }
@@ -105,14 +107,14 @@ export function CertificationBoard() {
             className="flex items-center gap-ds-2 text-ds-xs font-semibold uppercase tracking-[0.16em] text-ds-muted"
           >
             <BadgeCheck size={14} aria-hidden="true" />
-            <span>Certification</span>
+            <span>{t('run.certification.title')}</span>
           </div>
           <p className="text-ds-xs text-ds-muted">
-            Review mission readiness and submit the next certification level.
+            {t('run.certification.description')}
           </p>
         </div>
         <Badge compact className="ml-auto">
-          {missions.length} mission{missions.length === 1 ? '' : 's'}
+          {t('run.certification.missionCount', { count: missions.length })}
         </Badge>
       </header>
 
@@ -139,9 +141,9 @@ export function CertificationBoard() {
                 aria-hidden="true"
               />
             }
-            title="Refresh certification board"
+            title={t('run.certification.refreshTitle')}
           >
-            Sync
+            {t('run.certification.sync')}
           </Button>
         </div>
       </section>
@@ -152,7 +154,7 @@ export function CertificationBoard() {
           aria-live="polite"
           className={boardNoticeToneClass()}
         >
-          Loading mission certification state...
+          {t('run.certification.loading')}
         </ResultCardSectionPanel>
       ) : error ? (
         <ResultCardSectionPanel role="alert" className={boardNoticeToneClass('danger')}>
@@ -164,39 +166,39 @@ export function CertificationBoard() {
           aria-live="polite"
           className={boardNoticeToneClass()}
         >
-          No mission packs with certification metadata were found.
+          {t('run.certification.empty')}
         </ResultCardSectionPanel>
       ) : (
         <>
           <ResultCardSectionPanel className="space-y-ds-2 bg-ds-surface/60">
             <div className="flex items-center justify-between gap-ds-2">
-              <ResultCardSectionTitle>Mission State</ResultCardSectionTitle>
+              <ResultCardSectionTitle>{t('run.certification.missionState')}</ResultCardSectionTitle>
               <Badge compact>v{selectedMission.mission_version}</Badge>
             </div>
-            <DetailRow label="Current" value={selectedMission.current_level ?? 'none'} />
-            <DetailRow label="Effective" value={selectedMission.effective_level ?? 'none'} />
-            <DetailRow label="Next" value={selectedMission.next_target ?? 'none'} />
+            <DetailRow label={t('run.certification.detail.current')} value={selectedMission.current_level ?? 'none'} />
+            <DetailRow label={t('run.certification.detail.effective')} value={selectedMission.effective_level ?? 'none'} />
+            <DetailRow label={t('run.certification.detail.next')} value={selectedMission.next_target ?? 'none'} />
           </ResultCardSectionPanel>
 
           <section
             className="grid grid-cols-2 gap-ds-2"
-            aria-label="Certification readiness metrics"
+            aria-label={t('run.certification.readinessMetricsAria')}
           >
             <MetricCard
-              label="Shadow Runs"
+              label={t('run.certification.metric.shadowRuns')}
               value={String(selectedMission.stats.shadow_runs_passed)}
             />
             <MetricCard
-              label="Verifier"
+              label={t('run.certification.metric.verifier')}
               value={formatScore(selectedMission.stats.verifier_avg_score)}
             />
             <MetricCard
-              label="Critical"
+              label={t('run.certification.metric.critical')}
               value={String(selectedMission.stats.critical_violations)}
               tone={selectedMission.stats.critical_violations > 0 ? 'warn' : 'normal'}
             />
             <MetricCard
-              label="Rollback"
+              label={t('run.certification.metric.rollback')}
               value={selectedMission.stats.rollback_rehearsal_passed ? 'pass' : 'pending'}
               tone={selectedMission.stats.rollback_rehearsal_passed ? 'success' : 'warn'}
             />
@@ -204,7 +206,7 @@ export function CertificationBoard() {
 
           <ResultCardSectionPanel className="space-y-ds-2 bg-ds-surface/60">
             <div className="flex flex-wrap items-center gap-ds-2">
-              <ResultCardSectionTitle>Readiness</ResultCardSectionTitle>
+              <ResultCardSectionTitle>{t('run.certification.readiness')}</ResultCardSectionTitle>
               <Badge
                 tone={selectedMission.certified_for_next_target ? 'success' : 'warning'}
                 compact
@@ -217,24 +219,29 @@ export function CertificationBoard() {
                 }
                 className="ml-auto"
               >
-                {selectedMission.certified_for_next_target ? 'Ready' : 'Pending'}
+                {selectedMission.certified_for_next_target ? t('run.certification.ready') : t('run.certification.pending')}
               </Badge>
             </div>
             <p className="text-ds-sm text-ds-text">
               {selectedMission.certified_for_next_target
-                ? `${selectedMission.next_target ?? 'Target'} evidence is ready.`
-                : `Needs ${selectedMission.required_approvers} owner approvals for ${
-                    selectedMission.next_target ?? 'the next level'
-                  }.`}
+                ? t('run.certification.readinessReady', {
+                    target: selectedMission.next_target ?? 'Target',
+                  })
+                : t('run.certification.readinessNeeds', {
+                    count: selectedMission.required_approvers,
+                    target: selectedMission.next_target ?? 'the next level',
+                  })}
             </p>
             {selectedMission.latest_certification ? (
               <p className="text-ds-xs text-ds-muted">
-                Latest approval: {selectedMission.latest_certification.level} on{' '}
-                {formatDate(selectedMission.latest_certification.approved_at)}
+                {t('run.certification.latestApproval', {
+                  level: selectedMission.latest_certification.level,
+                  date: formatDate(selectedMission.latest_certification.approved_at),
+                })}
               </p>
             ) : null}
             {selectedMission.gaps.length > 0 ? (
-              <ul className="space-y-1" aria-label="Evidence gaps">
+              <ul className="space-y-1" aria-label={t('run.certification.evidenceGapsAria')}>
                 {selectedMission.gaps.slice(0, 3).map((gap) => (
                   <li key={gap} className="text-ds-xs text-ds-warning">
                     {gap}
@@ -242,22 +249,22 @@ export function CertificationBoard() {
                 ))}
               </ul>
             ) : (
-              <p className="text-ds-xs text-ds-success">No evidence gaps reported.</p>
+              <p className="text-ds-xs text-ds-success">{t('run.certification.noGaps')}</p>
             )}
           </ResultCardSectionPanel>
 
           <ResultCardSectionPanel className="space-y-ds-3 bg-ds-surface/60">
             <div className="flex flex-wrap items-center gap-ds-2">
-              <ResultCardSectionTitle>Submit Certification</ResultCardSectionTitle>
+              <ResultCardSectionTitle>{t('run.certification.submitCertification')}</ResultCardSectionTitle>
               <Badge compact tone={nextTarget ? 'accent' : 'neutral'} className="ml-auto">
-                {nextTarget ?? 'No next target'}
+                {nextTarget ?? t('run.certification.noNextTarget')}
               </Badge>
             </div>
 
             <Input
               id="certification-approvers"
-              label="Approvers"
-              description="Separate owner IDs with spaces or commas."
+              label={t('run.certification.approversLabel')}
+              description={t('run.certification.approversDescription')}
               value={approverDraft}
               onChange={(event) => setApproverDraft(event.target.value)}
               placeholder="owner-park owner-cho"
@@ -265,14 +272,14 @@ export function CertificationBoard() {
 
             <Input
               id="certification-evidence-ref"
-              label="Evidence Reference"
+              label={t('run.certification.evidenceRefLabel')}
               value={evidenceRef}
               onChange={(event) => setEvidenceRef(event.target.value)}
-              placeholder="evidence ref (optional)"
+              placeholder={t('run.certification.evidenceRefPlaceholder')}
             />
 
             <div className="flex items-center justify-between gap-ds-2 text-ds-xs text-ds-muted">
-              <span>Parsed approvers</span>
+              <span>{t('run.certification.parsedApprovers')}</span>
               <Badge
                 compact
                 tone={
@@ -291,7 +298,11 @@ export function CertificationBoard() {
               loading={busy}
               className="w-full"
             >
-              {busy ? 'Submitting...' : nextTarget ? `Submit ${nextTarget}` : 'No next target'}
+              {busy
+                ? t('run.certification.submitting')
+                : nextTarget
+                  ? t('run.certification.submitLevel', { level: nextTarget })
+                  : t('run.certification.noNextTarget')}
             </Button>
 
             {submitError ? (
@@ -302,7 +313,10 @@ export function CertificationBoard() {
 
             {lastSubmission && lastSubmission.mission_name === selectedMission.mission_name ? (
               <p aria-live="polite" className="text-ds-xs text-ds-muted">
-                Last submit: {lastSubmission.status} to {lastSubmission.target_level}
+                {t('run.certification.lastSubmit', {
+                  status: lastSubmission.status,
+                  level: lastSubmission.target_level,
+                })}
               </p>
             ) : null}
           </ResultCardSectionPanel>

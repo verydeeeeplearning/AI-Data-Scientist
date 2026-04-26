@@ -28,6 +28,9 @@ interface ElectronAPI {
   deleteApiKey: (
     provider: string
   ) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>;
+  clearConfigSecret: (
+    secretPath: string
+  ) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>;
   getMaskedApiKeys: () => Promise<{
     available: boolean;
     persistent: boolean;
@@ -70,6 +73,10 @@ interface ElectronAPI {
     provider: string,
     key: string
   ) => Promise<{ ok: boolean; error?: string }>;
+  setConfigSecret: (
+    secretPath: string,
+    value: string
+  ) => Promise<{ ok: boolean; error?: string }>;
   loadSampleForUseCase: (useCaseId: string) => Promise<
     | {
         ok: true;
@@ -97,10 +104,6 @@ interface ElectronAPI {
   certification: {
     list: () => Promise<
       | { ok: true; missions: CertificationStatusView[] }
-      | { ok: false; error: string }
-    >;
-    status: (params: { missionName: string }) => Promise<
-      | { ok: true; mission: CertificationStatusView }
       | { ok: false; error: string }
     >;
     submit: (params: {

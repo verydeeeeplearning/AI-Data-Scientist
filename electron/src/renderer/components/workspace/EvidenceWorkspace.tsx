@@ -38,6 +38,7 @@ interface Props {
   activeTab: EvidenceWorkspaceTab;
   focus: EvidenceWorkspaceFocus | null;
   onChangeTab: (tab: EvidenceWorkspaceTab) => void;
+  onOpenFiles: () => void;
   onOpenPinnedItem: (item: WorkspacePinnedProjectionItem) => void;
   onRefreshFiles: () => void;
   authoritativeExportCandidates?: readonly ExportWizardCandidate[];
@@ -50,6 +51,7 @@ export function EvidenceWorkspace({
   activeTab,
   focus,
   onChangeTab,
+  onOpenFiles,
   onOpenPinnedItem,
   onRefreshFiles,
   authoritativeExportCandidates,
@@ -295,8 +297,7 @@ export function EvidenceWorkspace({
             exportCandidatesLoading={authoritativeExportLoading}
             exportCandidatesRunId={authoritativeExportRunId}
             onOpenPinnedItem={onOpenPinnedItem}
-            onRefreshFiles={onRefreshFiles}
-            onOpenFiles={() => onChangeTab('files')}
+            onOpenFiles={onOpenFiles}
             onLaunchExportWizard={() => setExportWizardOpen(true)}
           />
         </div>
@@ -307,7 +308,7 @@ export function EvidenceWorkspace({
         readModel={readModel}
         onOpenPinnedItem={onOpenPinnedItem}
         onRefreshFiles={onRefreshFiles}
-        onOpenFiles={() => onChangeTab('files')}
+        onOpenFiles={onOpenFiles}
       />
 
       <ExportWizardModal

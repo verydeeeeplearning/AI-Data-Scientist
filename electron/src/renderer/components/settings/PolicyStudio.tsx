@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useCanMutate } from '../../hooks/useCanMutate';
+import { useI18n } from '../../stores/i18nStore';
 import { useWs } from '../../hooks/WsProvider';
 import { fetchPolicySnapshot } from '../../hooks/usePolicy';
 import { useCertificationBoard } from '../../hooks/useCertificationBoard';
@@ -136,6 +137,7 @@ function countMatrixDiffCells(
 }
 
 export function PolicyStudio() {
+  const { t } = useI18n();
   const { rpc } = useWs();
   const runtimeStatus = useRuntimeStore((s) => s.status);
   const policySnapshot = usePolicyStore((s) => s.snapshot);
@@ -310,6 +312,21 @@ export function PolicyStudio() {
   const hasPendingMatrixChanges = matrixChangedCells > 0;
   const legacyDraftApplied = authorityDraft === legacyMigration.authority
     && audienceDraft === legacyMigration.audience;
+  const quickPresetDisabledReason = !activeContract
+    ? t('settings.policyStudio.quickPresetsDisabledNoContract')
+    : undefined;
+  const legacyMappingDisabledReason = !activeContract
+    ? t('settings.policyStudio.legacyMappingDisabledNoContract')
+    : undefined;
+  const matrixSaveDisabledReason = !hasPendingMatrixChanges
+    ? t('settings.policyStudio.matrixSaveDisabledNoChanges')
+    : undefined;
+  const matrixResetDisabledReason = !hasPendingMatrixChanges
+    ? t('settings.policyStudio.matrixResetDisabledNoChanges')
+    : undefined;
+  const matrixClearDisabledReason = draftMatrixOverrideCount === 0
+    ? t('settings.policyStudio.matrixClearDisabledNoOverrides')
+    : undefined;
 
   const refreshPolicy = async () => {
     const nextSnapshot = await fetchPolicySnapshot(rpc);
@@ -366,7 +383,7 @@ export function PolicyStudio() {
         },
         'operator updated policy studio autonomy axes',
       );
-      setNotice('Task contract autonomy axes updated.');
+      setNotice(t('settings.policyStudio.notice.contractUpdated'));
     } catch (error) {
       setActionError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -384,7 +401,7 @@ export function PolicyStudio() {
       });
       await refreshPolicy();
       setMatrixDirty(false);
-      setMatrixNotice('Action Matrix overrides saved.');
+      setMatrixNotice(t('settings.policyStudio.notice.matrixSaved'));
     } catch (error) {
       setMatrixError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -401,11 +418,10 @@ export function PolicyStudio() {
         <div>
           <div className="flex items-center gap-2 text-xs font-medium text-ds-text">
             <ShieldAlert size={14} className="text-ds-accent" />
-            Policy Studio
+            {t('settings.policyStudio.title')}
           </div>
           <p className="mt-1 text-[11px] text-ds-muted">
-            Overlay {'>'} contract authority {'>'} mission defaults {'>'} legacy runtime mode.
-            Audience follows the same inheritance rule.
+            {t('settings.policyStudio.headerDescription')}
           </p>
         </div>
         {loading && <Loader2 size={14} className="mt-0.5 animate-spin text-ds-accent" />}
@@ -416,8 +432,8 @@ export function PolicyStudio() {
           data-testid="policy-overlay-banner"
           className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200"
         >
-          Runtime overlay <span className="font-medium">{formatAuthorityLabel(overlayMode)}</span>{' '}
-          is active. It overrides the task-contract authority until cleared in Runtime Console.
+          {t('settings.policyStudio.overlayBannerPrefix')} <span className="font-medium">{t(formatAuthorityLabel(overlayMode))}</span>{' '}
+          {t('settings.policyStudio.overlayBannerSuffix')}
         </div>
       )}
 
@@ -428,38 +444,56 @@ export function PolicyStudio() {
             className="rounded border border-ds-border/60 bg-ds-bg/70 px-3 py-2"
           >
             <div className="text-[11px] font-medium text-ds-text">
-              Quick presets
+              {t('settings.policyStudio.quickPresets')}
             </div>
             <p className="mt-1 text-[11px] text-ds-muted">
-              Apply one common authority + audience pair to the draft. Mission stays unchanged.
+              {t('settings.policyStudio.quickPresetsDescription')}
             </p>
+            {!activeContract && (
+              <p className="mt-2 rounded border border-amber-400/30 bg-amber-400/10 px-2 py-1.5 text-[11px] text-amber-200">
+                {t('settings.policyStudio.quickPresetsDisabledNoContract')}
+              </p>
+            )}
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {POLICY_STUDIO_PRESETS.map((preset) => {
                 const active = authorityDraft === preset.authority
                   && audienceDraft === preset.audience;
+                const presetDisabledReason = quickPresetDisabledReason
+                  ?? (active ? t('settings.policyStudio.quickPresetAlreadySelected') : undefined);
                 return (
                   <button
                     key={preset.id}
                     type="button"
                     data-testid={`policy-quick-preset-${preset.id}`}
                     disabled={!activeContract || saving || active}
+                    title={presetDisabledReason}
+                    aria-label={presetDisabledReason
+                      ? `${t(preset.label)}. ${presetDisabledReason}`
+                      : t(preset.label)}
                     onClick={() => {
                       setAuthorityDraft(preset.authority);
                       setAudienceDraft(preset.audience);
                       setActionError(null);
                       setNotice(null);
                     }}
-                    className={`rounded border px-3 py-2 text-left disabled:opacity-50 ${
+                    className={`rounded border px-3 py-2 text-left transition disabled:opacity-50 ${
                       active
-                        ? 'border-ds-accent/60 bg-ds-accent/10'
-                        : 'border-ds-border bg-ds-surface hover:border-ds-accent/40'
+                        ? 'border-ds-accent/70 bg-ds-accent/10 ring-1 ring-ds-accent/40'
+                        : 'border-ds-border bg-ds-surface hover:border-ds-accent/40 hover:bg-ds-bg'
                     }`}
                   >
-                    <div className="text-xs font-medium text-ds-text">{preset.label}</div>
-                    <div className="mt-1 text-[11px] text-ds-muted">
-                      {formatAuthorityLabel(preset.authority)} + {formatAudienceLabel(preset.audience)}
+                    <div className="flex items-center gap-2 text-xs font-medium text-ds-text">
+                      <span>{t(preset.label)}</span>
+                      {active && (
+                        <span className="ml-auto rounded border border-ds-accent/50 px-1.5 py-0.5 text-[10px] text-ds-accent">
+                          {t('settings.policyStudio.tag.selected')}
+                        </span>
+                      )}
                     </div>
-                    <div className="mt-1 text-[11px] text-ds-muted">{preset.summary}</div>
+                    <div className="mt-1 text-[11px] text-ds-muted">
+                      {t(formatAuthorityLabel(preset.authority))} + {t(formatAudienceLabel(preset.audience))}
+                    </div>
+                    <div className="mt-1 text-[11px] text-ds-muted">{t(preset.summary)}</div>
                   </button>
                 );
               })}
@@ -473,15 +507,15 @@ export function PolicyStudio() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <div className="text-[11px] font-medium text-ds-text">
-                  Legacy mode migration helper
+                  {t('settings.policyStudio.legacyMigrationHelper')}
                 </div>
                 <div
                   data-testid="policy-legacy-migration-mode"
                   className="mt-1 text-[11px] text-ds-muted"
                 >
-                  Runtime mode <span className="font-medium text-ds-text">{legacyMigration.legacyMode}</span>
-                  {' '}maps to <span className="font-medium text-ds-text">{formatAuthorityLabel(legacyMigration.authority)}</span>
-                  {' '}+ <span className="font-medium text-ds-text">{formatAudienceLabel(legacyMigration.audience)}</span>.
+                  {t('settings.policyStudio.runtimeModeLabel')} <span className="font-medium text-ds-text">{legacyMigration.legacyMode}</span>
+                  {' '}{t('settings.policyStudio.mapsTo')} <span className="font-medium text-ds-text">{t(formatAuthorityLabel(legacyMigration.authority))}</span>
+                  {' '}+ <span className="font-medium text-ds-text">{t(formatAudienceLabel(legacyMigration.audience))}</span>.
                 </div>
               </div>
               <span
@@ -491,19 +525,28 @@ export function PolicyStudio() {
                     : 'border-amber-400/40 bg-amber-400/10 text-amber-200'
                 }`}
               >
-                {legacyMigration.exactMatch ? 'Exact' : 'Approximate'}
+                {legacyMigration.exactMatch ? t('settings.policyStudio.exact') : t('settings.policyStudio.approximate')}
               </span>
             </div>
-            <p className="mt-2 text-[11px] text-ds-muted">{legacyMigration.summary}</p>
+            <p className="mt-2 text-[11px] text-ds-muted">{t(legacyMigration.summary)}</p>
+            {!activeContract && (
+              <p className="mt-2 rounded border border-amber-400/30 bg-amber-400/10 px-2 py-1.5 text-[11px] text-amber-200">
+                {t('settings.policyStudio.legacyMappingGuidanceNoContract')}
+              </p>
+            )}
             <div className="mt-2 space-y-1 text-[11px] text-ds-muted">
               {legacyMigration.notes.map((note) => (
-                <div key={note}>- {note}</div>
+                <div key={note}>- {t(note)}</div>
               ))}
             </div>
             <button
               type="button"
               data-testid="policy-apply-legacy-mapping"
               disabled={!activeContract || saving || legacyDraftApplied}
+              title={legacyMappingDisabledReason}
+              aria-label={legacyMappingDisabledReason
+                ? `${t('settings.policyStudio.applyLegacyMapping')}. ${legacyMappingDisabledReason}`
+                : t('settings.policyStudio.applyLegacyMapping')}
               onClick={() => {
                 setAuthorityDraft(legacyMigration.authority);
                 setAudienceDraft(legacyMigration.audience);
@@ -512,25 +555,24 @@ export function PolicyStudio() {
               }}
               className="mt-3 rounded border border-ds-border px-3 py-1.5 text-xs text-ds-text disabled:opacity-50"
             >
-              Apply legacy mapping to draft
+              {t('settings.policyStudio.applyLegacyMapping')}
             </button>
           </div>
 
           <div className="flex items-center gap-2 text-[11px] font-medium text-ds-text">
             <BriefcaseBusiness size={13} className="text-ds-muted" />
-            Current Session Contract
+            {t('settings.policyStudio.currentSessionContract')}
           </div>
 
           {!sessionId && (
             <p className="text-[11px] text-ds-muted">
-              Open or start a session first. Policy Studio edits the active TaskContract for the
-              current chat session.
+              {t('settings.policyStudio.openSessionFirst')}
             </p>
           )}
 
           {sessionId && !activeContract && !contractLoading && (
             <p className="text-[11px] text-ds-muted">
-              No active TaskContract was found for <span className="font-mono">{sessionId}</span>.
+              {t('settings.policyStudio.noActiveContract', { sessionId })}
             </p>
           )}
 
@@ -560,7 +602,7 @@ export function PolicyStudio() {
 
               <div className="grid gap-2 md:grid-cols-3">
                 <label className="space-y-1 text-[11px] text-ds-muted">
-                  <span>Contract authority</span>
+                  <span>{t('settings.policyStudio.contractAuthorityLabel')}</span>
                   <select
                     value={authorityDraft}
                     onChange={(event) =>
@@ -572,14 +614,14 @@ export function PolicyStudio() {
                   >
                     {CONTRACT_AUTHORITY_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
-                        {option.label}
+                        {t(option.label)}
                       </option>
                     ))}
                   </select>
                 </label>
 
                 <label className="space-y-1 text-[11px] text-ds-muted">
-                  <span>Audience persona</span>
+                  <span>{t('settings.policyStudio.audiencePersona')}</span>
                   <select
                     value={audienceDraft}
                     onChange={(event) => setAudienceDraft(event.target.value as AudienceDraft)}
@@ -589,14 +631,14 @@ export function PolicyStudio() {
                   >
                     {AUDIENCE_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
-                        {option.label}
+                        {t(option.label)}
                       </option>
                     ))}
                   </select>
                 </label>
 
                 <label className="space-y-1 text-[11px] text-ds-muted">
-                  <span>Mission pack</span>
+                  <span>{t('settings.policyStudio.missionPack')}</span>
                   <select
                     value={missionDraft}
                     onChange={(event) => setMissionDraft(event.target.value)}
@@ -604,11 +646,11 @@ export function PolicyStudio() {
                     disabled={saving}
                     className="w-full rounded border border-ds-border bg-ds-bg px-2 py-1.5 text-xs text-ds-text"
                   >
-                    <option value={NO_MISSION_VALUE}>None</option>
+                    <option value={NO_MISSION_VALUE}>{t('settings.policyStudio.none')}</option>
                     {missionOptions.map((mission) => (
                       <option key={mission.name} value={mission.name}>
                         {mission.name}
-                        {mission.fromCatalog ? '' : ' (current)'}
+                        {mission.fromCatalog ? '' : ` ${t('settings.policyStudio.current')}`}
                       </option>
                     ))}
                   </select>
@@ -617,13 +659,13 @@ export function PolicyStudio() {
 
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-ds-muted">
                 <span>
-                  Current authority: <span className="text-ds-text">{formatAuthorityLabel(activeContract.contract.authority)}</span>
+                  {t('settings.policyStudio.currentAuthority')}: <span className="text-ds-text">{t(formatAuthorityLabel(activeContract.contract.authority))}</span>
                 </span>
                 <span>
-                  Current audience: <span className="text-ds-text">{formatAudienceLabel(activeContract.contract.audience)}</span>
+                  {t('settings.policyStudio.currentAudience')}: <span className="text-ds-text">{t(formatAudienceLabel(activeContract.contract.audience))}</span>
                 </span>
                 <span>
-                  Current mission: <span className="text-ds-text">{activeContract.contract.mission ?? 'None'}</span>
+                  {t('settings.policyStudio.currentMission')}: <span className="text-ds-text">{activeContract.contract.mission ?? t('settings.policyStudio.none')}</span>
                 </span>
               </div>
 
@@ -637,7 +679,7 @@ export function PolicyStudio() {
                   title={canMutate ? undefined : mutateBlockedTitle}
                   className="rounded bg-ds-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
                 >
-                  {saving ? 'Applying...' : 'Apply to TaskContract'}
+                  {saving ? t('settings.policyStudio.applying') : t('settings.policyStudio.applyToTaskContract')}
                 </button>
                 <button
                   type="button"
@@ -651,7 +693,7 @@ export function PolicyStudio() {
                   disabled={!hasPendingChanges || saving}
                   className="rounded border border-ds-border px-3 py-1.5 text-xs text-ds-text disabled:opacity-50"
                 >
-                  Reset Draft
+                  {t('settings.policyStudio.resetDraft')}
                 </button>
               </div>
 
@@ -674,8 +716,11 @@ export function PolicyStudio() {
         <div className="space-y-2 rounded-lg border border-ds-border/60 bg-ds-surface/70 p-3">
           <div className="flex items-center gap-2 text-[11px] font-medium text-ds-text">
             <Layers3 size={13} className="text-ds-muted" />
-            Runtime Guardrails
+            {t('settings.policyStudio.runtimeGuardrails')}
           </div>
+          <p className="text-[11px] text-ds-muted">
+            {t('settings.policyStudio.runtimeGuardrailsDescription')}
+          </p>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {EFFECTIVE_AUTHORITY_CARDS.map((card) => {
               const active = card.value === effectiveAuthorityCard;
@@ -683,34 +728,43 @@ export function PolicyStudio() {
               return (
                 <div
                   key={card.value}
-                  className={`rounded border px-2 py-2 ${
+                  aria-current={active ? 'true' : undefined}
+                  className={`rounded border px-2 py-2 transition ${
                     active
-                      ? 'border-ds-accent/70 bg-ds-accent/10'
+                      ? 'border-ds-accent/70 bg-ds-accent/10 ring-1 ring-ds-accent/35'
                       : 'border-ds-border/70 bg-ds-bg/70'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] font-medium text-ds-text">{card.label}</div>
+                    <div className="text-[11px] font-medium text-ds-text">{t(card.label)}</div>
+                    {active && (
+                      <span className="rounded border border-ds-accent/50 px-1.5 py-0.5 text-[10px] text-ds-accent">
+                        {t('settings.policyStudio.tag.live')}
+                      </span>
+                    )}
                     {outlined && (
                       <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-300">
-                        overlay
+                        {t('settings.policyStudio.tag.overlay')}
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 text-[10px] leading-5 text-ds-muted">{card.summary}</div>
+                  <div className="mt-1 text-[10px] leading-5 text-ds-muted">{t(card.summary)}</div>
                 </div>
               );
             })}
           </div>
+          <p className="text-[10px] text-ds-muted">
+            {t('settings.policyStudio.runtimeGuardrailsInformational')}
+          </p>
           <div className="grid gap-2 text-[11px] text-ds-muted sm:grid-cols-2">
             <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-2 py-2">
-              <div>Legacy runtime mode</div>
+              <div>{t('settings.policyStudio.legacyRuntimeMode')}</div>
               <div className="mt-1 font-medium text-ds-text">{runtimeStatus?.mode ?? 'auto'}</div>
             </div>
             <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-2 py-2">
-              <div>Runtime effective authority</div>
+              <div>{t('settings.policyStudio.runtimeEffectiveAuthority')}</div>
               <div className="mt-1 font-medium text-ds-text">
-                {formatAuthorityLabel(runtimeEffectiveAuthority)}
+                {t(formatAuthorityLabel(runtimeEffectiveAuthority))}
               </div>
             </div>
           </div>
@@ -721,8 +775,11 @@ export function PolicyStudio() {
         <div className="space-y-2 rounded-lg border border-ds-border/60 bg-ds-surface/70 p-3">
           <div className="flex items-center gap-2 text-[11px] font-medium text-ds-text">
             <ShieldAlert size={13} className="text-ds-muted" />
-            Mission Catalog
+            {t('settings.policyStudio.missionCatalog')}
           </div>
+          <p className="text-[11px] text-ds-muted">
+            {t('settings.policyStudio.missionCatalogDescription')}
+          </p>
 
           {missionError && (
             <p className="text-[11px] text-ds-error">{missionError}</p>
@@ -730,7 +787,7 @@ export function PolicyStudio() {
 
           {missions.length === 0 && !missionLoading ? (
             <p className="text-[11px] text-ds-muted">
-              No mission packs with certification metadata were found.
+              {t('settings.policyStudio.noMissionPacks')}
             </p>
           ) : (
             <div className="space-y-1.5">
@@ -743,17 +800,23 @@ export function PolicyStudio() {
                     key={mission.name}
                     type="button"
                     onClick={() => setMissionDraft(mission.name)}
-                    className={`w-full rounded border px-3 py-2 text-left ${
+                    aria-pressed={selected}
+                    className={`w-full rounded border px-3 py-2 text-left transition ${
                       selected
-                        ? 'border-ds-accent/70 bg-ds-accent/10'
-                        : 'border-ds-border/70 bg-ds-bg/70 hover:border-ds-accent/40'
+                        ? 'border-ds-accent/70 bg-ds-accent/10 ring-1 ring-ds-accent/40'
+                        : 'border-ds-border/70 bg-ds-bg/70 hover:border-ds-accent/40 hover:bg-ds-bg'
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-2 text-xs text-ds-text">
                       <span className="font-medium">{mission.name}</span>
+                      {selected && (
+                        <span className="rounded border border-ds-accent/50 px-1.5 py-0.5 text-[10px] text-ds-accent">
+                          {t('settings.policyStudio.tag.selected')}
+                        </span>
+                      )}
                       {active && (
                         <span className="rounded bg-ds-success/15 px-1.5 py-0.5 text-[10px] text-ds-success">
-                          active
+                          {t('settings.policyStudio.tag.active')}
                         </span>
                       )}
                       {status?.effective_level && (
@@ -763,16 +826,16 @@ export function PolicyStudio() {
                       )}
                       {status?.next_target && (
                         <span className="rounded bg-ds-surface px-1.5 py-0.5 text-[10px] text-ds-muted">
-                          next {status.next_target}
+                          {t('settings.policyStudio.tag.next', { target: status.next_target })}
                         </span>
                       )}
                     </div>
                     <div className="mt-1 text-[10px] text-ds-muted">
                       {status
                         ? status.certified_for_next_target
-                          ? 'Ready for the next certification target.'
-                          : `${status.gaps.length} open certification gap(s).`
-                        : 'Mission is present on the contract but has no catalog metadata yet.'}
+                          ? t('settings.policyStudio.certReady')
+                          : t('settings.policyStudio.certGaps', { count: status.gaps.length })
+                        : t('settings.policyStudio.certNoCatalog')}
                     </div>
                   </button>
                 );
@@ -785,31 +848,30 @@ export function PolicyStudio() {
               <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-3">
                   <span>
-                    Effective level:{' '}
+                    {t('settings.policyStudio.effectiveLevel')}:{' '}
                     <span className="font-medium text-ds-text">
-                      {selectedMissionStatus.effective_level ?? 'none'}
+                      {selectedMissionStatus.effective_level ?? t('settings.policyStudio.none')}
                     </span>
                   </span>
                   <span>
-                    Required approvers:{' '}
+                    {t('settings.policyStudio.requiredApprovers')}:{' '}
                     <span className="font-medium text-ds-text">
                       {selectedMissionStatus.required_approvers}
                     </span>
                   </span>
                 </div>
                 <div>
-                  Gaps:{' '}
+                  {t('settings.policyStudio.gaps')}:{' '}
                   <span className="text-ds-text">
                     {selectedMissionStatus.gaps.length > 0
                       ? selectedMissionStatus.gaps.slice(0, 3).join(' | ')
-                      : 'none'}
+                      : t('settings.policyStudio.none')}
                   </span>
                 </div>
               </div>
             ) : (
               <span>
-                Select a mission pack to inspect its certification readiness and use it in the
-                current contract.
+                {t('settings.policyStudio.selectMissionPrompt')}
               </span>
             )}
           </div>
@@ -818,7 +880,7 @@ export function PolicyStudio() {
         <div className="space-y-2 rounded-lg border border-ds-border/60 bg-ds-surface/70 p-3">
           <div className="flex items-center gap-2 text-[11px] font-medium text-ds-text">
             <ShieldAlert size={13} className="text-ds-muted" />
-            Audience Preview
+            {t('settings.policyStudio.audiencePreviewTitle')}
           </div>
 
           <div className="flex flex-wrap gap-1.5">
@@ -835,7 +897,7 @@ export function PolicyStudio() {
                       : 'border-ds-border bg-ds-bg text-ds-muted hover:text-ds-text'
                   }`}
                 >
-                  {option.label}
+                  {t(option.label)}
                 </button>
               );
             })}
@@ -843,12 +905,12 @@ export function PolicyStudio() {
 
           <div className="rounded border border-ds-border/70 bg-ds-bg/70 p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-ds-text">{preview.label}</span>
+              <span className="text-xs font-medium text-ds-text">{t(preview.label)}</span>
               <span className="rounded bg-ds-surface px-1.5 py-0.5 text-[10px] text-ds-muted">
-                tone {preview.tone}
+                {t('settings.policyStudio.toneLabel')} {t(preview.tone)}
               </span>
               <span className="rounded bg-ds-surface px-1.5 py-0.5 text-[10px] text-ds-muted">
-                depth {preview.depth}
+                {t('settings.policyStudio.depthLabel')} {t(preview.depth)}
               </span>
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -862,16 +924,16 @@ export function PolicyStudio() {
               ))}
             </div>
             <p className="mt-2 text-[11px] text-ds-muted">
-              Uncertainty handling: <span className="text-ds-text">{preview.uncertaintyStyle}</span>
+              {t('settings.policyStudio.uncertaintyHandling')} <span className="text-ds-text">{t(preview.uncertaintyStyle)}</span>
             </p>
             <div className="mt-3 rounded border border-ds-border/70 bg-ds-surface/70 px-3 py-2">
               <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-ds-muted">
                 <ShieldAlert size={11} />
-                Sample response
+                {t('settings.policyStudio.sampleResponse')}
               </div>
               <div className="mt-2 space-y-1.5 text-[11px] leading-5 text-ds-text">
                 {preview.sample.map((line) => (
-                  <p key={line}>{line}</p>
+                  <p key={line}>{t(line)}</p>
                 ))}
               </div>
             </div>
@@ -880,12 +942,11 @@ export function PolicyStudio() {
           <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-3 py-2 text-[11px] text-ds-muted">
             <div className="flex items-center gap-2">
               <Layers3 size={12} />
-              Preview currently reflects{' '}
-              <span className="font-medium text-ds-text">{formatAudienceLabel(audienceDraft)}</span>.
+              {t('settings.policyStudio.previewReflects')}{' '}
+              <span className="font-medium text-ds-text">{t(formatAudienceLabel(audienceDraft))}</span>.
             </div>
             <div className="mt-1">
-              If the contract stays on inherit, the runtime will fall back to the mission default
-              first and then the legacy audience mapping ({formatAudienceLabel(fallbackAudience)}).
+              {t('settings.policyStudio.previewFallback', { fallback: t(formatAudienceLabel(fallbackAudience)) })}
             </div>
           </div>
         </div>
@@ -896,55 +957,73 @@ export function PolicyStudio() {
           <div>
             <div className="flex items-center gap-2 text-[11px] font-medium text-ds-text">
               <AlertTriangle size={13} className="text-amber-300" />
-              Action Matrix
+              {t('settings.policyStudio.actionMatrix')}
             </div>
             <p className="mt-1 text-[11px] text-ds-muted">
-              Operator overrides persist the base authority matrix. Mission-pack overrides still
-              take precedence at runtime when a mission explicitly pins a verdict.
+              {t('settings.policyStudio.actionMatrixDescription')}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void handleSaveMatrix()}
-              data-testid="policy-matrix-save"
-              disabled={!hasPendingMatrixChanges || matrixSaving}
-              className="rounded bg-ds-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-            >
-              {matrixSaving ? 'Saving...' : 'Save Matrix Draft'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMatrixDraft(currentMatrixOverrides);
-                setMatrixDirty(false);
-                setMatrixNotice(null);
-                setMatrixError(null);
-              }}
-              disabled={!hasPendingMatrixChanges || matrixSaving}
-              className="rounded border border-ds-border px-3 py-1.5 text-xs text-ds-text disabled:opacity-50"
-            >
-              Reset Draft
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMatrixDraft({});
-                setMatrixDirty(true);
-                setMatrixNotice(null);
-                setMatrixError(null);
-              }}
-              disabled={draftMatrixOverrideCount === 0 || matrixSaving}
-              className="rounded border border-ds-border px-3 py-1.5 text-xs text-ds-text disabled:opacity-50"
-            >
-              Clear Overrides
-            </button>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleSaveMatrix()}
+                data-testid="policy-matrix-save"
+                disabled={!hasPendingMatrixChanges || matrixSaving}
+                title={matrixSaving ? t('settings.policyStudio.savingMatrix') : matrixSaveDisabledReason}
+                aria-label={matrixSaveDisabledReason
+                  ? `${t('settings.policyStudio.saveMatrixDraft')}. ${matrixSaveDisabledReason}`
+                  : t('settings.policyStudio.saveMatrixDraft')}
+                className="rounded bg-ds-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+              >
+                {t(matrixSaving ? 'settings.policyStudio.savingMatrix' : 'settings.policyStudio.saveMatrixDraft')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMatrixDraft(currentMatrixOverrides);
+                  setMatrixDirty(false);
+                  setMatrixNotice(null);
+                  setMatrixError(null);
+                }}
+                disabled={!hasPendingMatrixChanges || matrixSaving}
+                title={matrixSaving ? t('settings.policyStudio.savingMatrix') : matrixResetDisabledReason}
+                aria-label={matrixResetDisabledReason
+                  ? `${t('settings.policyStudio.resetDraft')}. ${matrixResetDisabledReason}`
+                  : t('settings.policyStudio.resetDraft')}
+                className="rounded border border-ds-border px-3 py-1.5 text-xs text-ds-text disabled:opacity-50"
+              >
+                {t('settings.policyStudio.resetDraft')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMatrixDraft({});
+                  setMatrixDirty(true);
+                  setMatrixNotice(null);
+                  setMatrixError(null);
+                }}
+                disabled={draftMatrixOverrideCount === 0 || matrixSaving}
+                title={matrixSaving ? t('settings.policyStudio.savingMatrix') : matrixClearDisabledReason}
+                aria-label={matrixClearDisabledReason
+                  ? `${t('settings.policyStudio.clearOverrides')}. ${matrixClearDisabledReason}`
+                  : t('settings.policyStudio.clearOverrides')}
+                className="rounded border border-ds-border px-3 py-1.5 text-xs text-ds-text disabled:opacity-50"
+              >
+                {t('settings.policyStudio.clearOverrides')}
+              </button>
+            </div>
+            {!hasPendingMatrixChanges && draftMatrixOverrideCount === 0 && (
+              <p className="text-right text-[10px] text-ds-muted">
+                {t('settings.policyStudio.matrixButtonGroupIdleHint')}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-4">
           <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-3 py-2">
-            <div className="text-[10px] text-ds-muted">Stored overrides</div>
+            <div className="text-[10px] text-ds-muted">{t('settings.policyStudio.storedOverrides')}</div>
             <div
               data-testid="policy-matrix-stored-count"
               className="mt-1 text-sm font-mono text-ds-text"
@@ -953,15 +1032,15 @@ export function PolicyStudio() {
             </div>
           </div>
           <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-3 py-2">
-            <div className="text-[10px] text-ds-muted">Draft overrides</div>
+            <div className="text-[10px] text-ds-muted">{t('settings.policyStudio.draftOverrides')}</div>
             <div className="mt-1 text-sm font-mono text-ds-text">{draftMatrixOverrideCount}</div>
           </div>
           <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-3 py-2">
-            <div className="text-[10px] text-ds-muted">Changed cells</div>
+            <div className="text-[10px] text-ds-muted">{t('settings.policyStudio.changedCells')}</div>
             <div className="mt-1 text-sm font-mono text-ds-text">{matrixChangedCells}</div>
           </div>
           <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-3 py-2">
-            <div className="text-[10px] text-ds-muted">Changed rows</div>
+            <div className="text-[10px] text-ds-muted">{t('settings.policyStudio.changedRows')}</div>
             <div className="mt-1 text-sm font-mono text-ds-text">{matrixChangedRows}</div>
           </div>
         </div>
@@ -981,8 +1060,7 @@ export function PolicyStudio() {
 
         {actionMatrixRows.length === 0 ? (
           <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-3 py-2 text-[11px] text-ds-muted">
-            Policy snapshot is not available yet. Keep the runtime connected to load the current
-            matrix state.
+            {t('settings.policyStudio.matrixEmpty')}
           </div>
         ) : (
           <>
@@ -994,17 +1072,14 @@ export function PolicyStudio() {
                 <div>
                   <div className="flex items-center gap-2 text-[11px] font-medium text-ds-text">
                     <BriefcaseBusiness size={12} className="text-ds-muted" />
-                    Draft Impact Preview
+                    {t('settings.policyStudio.draftImpactPreview')}
                   </div>
                   <p className="mt-1 max-w-3xl text-[11px] text-ds-muted">
-                    Compares current effective verdicts against the unsaved matrix draft for each
-                    authority column. Autonomous counts track <span className="font-mono">auto</span>,
-                    guided counts group <span className="font-mono">ask / approve / dual</span>,
-                    and blocked counts track <span className="font-mono">skip</span>.
+                    {t('settings.policyStudio.draftImpactDescription')}
                   </p>
                 </div>
                 <div className="rounded border border-ds-border/70 bg-ds-surface/70 px-2 py-1 text-[10px] text-ds-muted">
-                  Current runtime authority: {formatAuthorityLabel(effectiveAuthorityCard)}
+                  {t('settings.policyStudio.currentRuntimeAuthority', { authority: t(formatAuthorityLabel(effectiveAuthorityCard)) })}
                 </div>
               </div>
 
@@ -1019,32 +1094,32 @@ export function PolicyStudio() {
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-medium text-ds-text">{item.label}</span>
+                      <span className="text-xs font-medium text-ds-text">{t(item.label)}</span>
                       {item.isHighlighted && (
                         <span className="rounded border border-ds-accent/50 px-1.5 py-0.5 text-[10px] text-ds-accent">
-                          live
+                          {t('settings.policyStudio.tag.live')}
                         </span>
                       )}
                       <span className="ml-auto rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                        {item.changedRows} changed row{item.changedRows === 1 ? '' : 's'}
+                        {t('settings.policyStudio.changedRowsCount', { count: item.changedRows })}
                       </span>
                     </div>
 
                     <div className="mt-3 grid grid-cols-3 gap-2">
                       <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-2 py-2">
-                        <div className="text-[10px] text-ds-muted">Autonomous</div>
+                        <div className="text-[10px] text-ds-muted">{t('settings.policyStudio.autonomous')}</div>
                         <div className="mt-1 text-xs text-ds-text">
                           {item.current.autonomous} → {item.preview.autonomous}
                         </div>
                       </div>
                       <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-2 py-2">
-                        <div className="text-[10px] text-ds-muted">Guided</div>
+                        <div className="text-[10px] text-ds-muted">{t('settings.policyStudio.guided')}</div>
                         <div className="mt-1 text-xs text-ds-text">
                           {item.current.guided} → {item.preview.guided}
                         </div>
                       </div>
                       <div className="rounded border border-ds-border/70 bg-ds-bg/70 px-2 py-2">
-                        <div className="text-[10px] text-ds-muted">Blocked</div>
+                        <div className="text-[10px] text-ds-muted">{t('settings.policyStudio.blocked')}</div>
                         <div className="mt-1 text-xs text-ds-text">
                           {item.current.blocked} → {item.preview.blocked}
                         </div>
@@ -1059,13 +1134,13 @@ export function PolicyStudio() {
               <table className="min-w-[1120px] w-full border-collapse text-left">
                 <thead className="bg-ds-bg/80 text-[10px] uppercase tracking-wider text-ds-muted">
                   <tr>
-                    <th className="border-b border-ds-border px-3 py-2 font-medium">Action class</th>
+                    <th className="border-b border-ds-border px-3 py-2 font-medium">{t('settings.policyStudio.actionClass')}</th>
                     {MATRIX_AUTHORITY_COLUMNS.map((column) => (
                       <th
                         key={column.value}
                         className="border-b border-ds-border px-2 py-2 font-medium"
                       >
-                        {column.label}
+                        {t(column.label)}
                       </th>
                     ))}
                   </tr>
@@ -1077,20 +1152,20 @@ export function PolicyStudio() {
                         <div className="text-xs font-medium text-ds-text">{row.actionClass}</div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                            data {row.dataSensitivity}
+                            {t('settings.policyStudio.tag.data', { value: row.dataSensitivity })}
                           </span>
                           <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                            write {row.writeSideEffect}
+                            {t('settings.policyStudio.tag.write', { value: row.writeSideEffect })}
                           </span>
                           <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
-                            cost {row.costImpact}
+                            {t('settings.policyStudio.tag.cost', { value: row.costImpact })}
                           </span>
                           <span className="rounded border border-ds-border/70 px-1.5 py-0.5 text-[10px] text-ds-muted">
                             {row.reversibility}
                           </span>
                           {row.auditRequired && (
                             <span className="rounded border border-amber-400/40 px-1.5 py-0.5 text-[10px] text-amber-200">
-                              audit
+                              {t('settings.policyStudio.tag.audit')}
                             </span>
                           )}
                         </div>
@@ -1121,7 +1196,7 @@ export function PolicyStudio() {
                                 )
                               }
                               data-testid={`policy-matrix-${row.actionClass}-${column.value}`}
-                              aria-label={`${row.actionClass} verdict for ${column.label}`}
+                              aria-label={`${row.actionClass} verdict for ${t(column.label)}`}
                               disabled={matrixSaving}
                               className={`w-full rounded border px-2 py-1.5 text-xs ${
                                 changed
@@ -1130,26 +1205,26 @@ export function PolicyStudio() {
                               }`}
                             >
                               <option value={INHERIT_MATRIX_VALUE}>
-                                Inherit ({formatMatrixVerdictLabel(defaultVerdict)})
+                                {t('settings.policyStudio.matrix.inheritOption', { verdict: t(formatMatrixVerdictLabel(defaultVerdict)) })}
                               </option>
                               {MATRIX_VERDICT_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>
-                                  {option.label}
+                                  {t(option.label)}
                                 </option>
                               ))}
                             </select>
                             <div className="mt-1.5 space-y-1 text-[10px] leading-4 text-ds-muted">
                               <div>
-                                Current {formatMatrixVerdictLabel(currentEffectiveVerdict)}
+                                {t('settings.policyStudio.matrix.currentVerdict', { verdict: t(formatMatrixVerdictLabel(currentEffectiveVerdict)) })}
                               </div>
                               <div>
-                                Preview{' '}
+                                {t('settings.policyStudio.matrix.previewLabel')}{' '}
                                 <span className={changed ? 'text-amber-200' : 'text-ds-text'}>
-                                  {formatMatrixVerdictLabel(previewVerdict)}
+                                  {t(formatMatrixVerdictLabel(previewVerdict))}
                                 </span>
                               </div>
                               <div>
-                                Override {currentOverride ? formatMatrixVerdictLabel(currentOverride) : 'none'}
+                                {t('settings.policyStudio.matrix.overrideLabel', { verdict: currentOverride ? t(formatMatrixVerdictLabel(currentOverride)) : t('settings.policyStudio.none') })}
                               </div>
                             </div>
                           </td>

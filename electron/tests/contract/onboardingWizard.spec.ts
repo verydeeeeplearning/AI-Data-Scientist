@@ -14,7 +14,7 @@ function run(): void {
   {
     assert.deepEqual(
       ONBOARDING_PRIMARY_STEPS.map((entry) => entry.id),
-      ['use_case', 'data', 'deliverables', 'mode', 'model', 'confirm'],
+      ['use_case', 'data', 'deliverables', 'mode', 'model', 'notify', 'confirm'],
     );
   }
 
@@ -68,7 +68,12 @@ function run(): void {
     assert.deepEqual(payload.responses.step3_deliverables, ['report', 'notebook']);
     assert.equal(payload.responses.step4_mode, 'balanced');
     assert.equal(payload.responses.step5_model, 'anthropic/claude-sonnet-4-6');
+    assert.deepEqual(payload.responses.step6_notify, {
+      choice: 'desktop_only',
+      telegramConnected: false,
+    });
     assert.equal(payload.responses.step6_confirmed, true);
+    assert.equal(payload.responses.step7_confirmed, true);
   }
 
   {

@@ -62,7 +62,9 @@ export function RawToolLog({ toolEvents }: Props) {
               )}
             </div>
             {toolEvent.outputPreview && (
-              <div className="mt-1 line-clamp-2 text-ds-muted">{toolEvent.outputPreview}</div>
+              <div className="mt-1 line-clamp-2 break-all text-ds-muted">
+                {toolEvent.outputPreview}
+              </div>
             )}
           </div>
         </li>

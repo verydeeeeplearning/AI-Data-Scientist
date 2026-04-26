@@ -36,7 +36,7 @@ export function PromotionGateModal({
   const { rpc } = useWs();
   const [candidateRunId, setCandidateRunId] = useState('');
   const [targetStage, setTargetStage] = useState<'staging' | 'production' | 'canary'>('staging');
-  const [approversText, setApproversText] = useState('growth-ds, ml-lead, mlops-oncall');
+  const [approversText, setApproversText] = useState('');
   const [rollbackPlanRef, setRollbackPlanRef] = useState(defaultRollbackPlanRef);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export function PromotionGateModal({
     wasOpenRef.current = true;
     setCandidateRunId(initialCandidateRunId ?? runs[0]?.run_id ?? '');
     setTargetStage('staging');
-    setApproversText('growth-ds, ml-lead, mlops-oncall');
+    setApproversText('');
     setRollbackPlanRef(defaultRollbackPlanRef);
     setBusy(false);
     setError(null);

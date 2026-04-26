@@ -83,10 +83,12 @@ test('autonomy mode maps to quality preset', () => {
 
 test('next/previous step traversal honors fixed order', () => {
   assert.equal(nextOnboardingStep('use_case'), 'data');
+  assert.equal(nextOnboardingStep('model'), 'notify');
+  assert.equal(previousOnboardingStep('confirm'), 'notify');
   assert.equal(nextOnboardingStep('confirm'), null);
   assert.equal(previousOnboardingStep('use_case'), null);
   assert.equal(previousOnboardingStep('mode'), 'deliverables');
-  assert.equal(ONBOARDING_PRIMARY_STEP_ORDER.length, 6);
+  assert.equal(ONBOARDING_PRIMARY_STEP_ORDER.length, 7);
 });
 
 test('canAdvanceOnboardingStep enforces selection invariants', () => {
@@ -135,7 +137,12 @@ test('buildOnboardingFinalizePayload emits the documented wire contract', () => 
   assert.equal(payload.useCaseId, 'data_analysis');
   assert.deepEqual(payload.responses.step3_deliverables, ['chart_summary']);
   assert.equal(payload.responses.step5_model, 'claude-opus-4-7');
+  assert.deepEqual(payload.responses.step6_notify, {
+    choice: 'desktop_only',
+    telegramConnected: false,
+  });
   assert.equal(payload.responses.step6_confirmed, true);
+  assert.equal(payload.responses.step7_confirmed, true);
   assert.equal(payload.responses.step2_data.sampleId, 'builtin:data_analysis');
 });
 

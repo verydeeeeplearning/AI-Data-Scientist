@@ -228,5 +228,16 @@
   "brief.create.defaults.title": "下書きの既定値",
   "brief.create.defaults.contract_type": "契約タイプ: {value}",
   "brief.create.drafting": "下書きを作成中...",
-  "brief.create.submit": "下書きを作成"
+  "brief.create.submit": "下書きを作成",
+  "context.label": "ミッションコンテキスト",
+  "context.goalEmpty": "目標が設定されていません — エージェントにセッション開始を依頼してください",
+  "context.stage": "ステージ",
+  "context.stageIdle": "待機",
+  "context.mode": "モード",
+  "context.model": "モデル",
+  "context.modelMissing": "—",
+  "context.budget": "予算",
+  "context.warnings": "警告",
+  "context.connected": "接続済み",
+  "context.disconnected": "切断"
 }

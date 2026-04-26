@@ -310,7 +310,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
     setTestResult(null);
     try {
       const payload = buildPayload(selectedType, currentDraft, { editingConnector });
-      const result = await rpc('connector.test', payload);
+      const result = await rpc('connector.test', payload, { timeoutMs: 60_000 });
       const parsed = parseTestResult(result, t);
       setTestResult(parsed);
       if (parsed.ok) {
@@ -379,7 +379,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="connector-wizard">
       <div className="rounded-lg border border-ds-border bg-ds-bg p-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -394,6 +394,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
             <button
               onClick={() => void refreshConnectors()}
               disabled={loading}
+              data-testid="connector-list-refresh"
               className="rounded-lg border border-ds-border bg-ds-surface px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50 disabled:opacity-40"
             >
               {loading
@@ -445,6 +446,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
               return (
                 <div
                   key={connector.name}
+                  data-testid={`connector-list-row-${connector.name}`}
                   className={`rounded-lg border px-3 py-3 ${
                     isEditing
                       ? 'border-ds-accent/50 bg-ds-accent/5'
@@ -481,6 +483,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleEdit(connector)}
+                        data-testid={`connector-list-edit-${connector.name}`}
                         className="rounded-lg border border-ds-border bg-ds-bg px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50"
                       >
                         {t('settings.connectorWizard.action.edit')}
@@ -488,6 +491,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                       <button
                         onClick={() => void handleDelete(connector)}
                         disabled={!connectorCreationAllowed || deletingName === connector.name}
+                        data-testid={`connector-list-delete-${connector.name}`}
                         className="rounded-lg border border-ds-border bg-ds-bg px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-error/50 hover:text-ds-error disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {deletingName === connector.name
@@ -515,6 +519,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                   setTestedFingerprint(null);
                   setMessage(null);
                 }}
+                data-testid={`connector-wizard-type-${entry.type}`}
                 className={`rounded-lg border px-3 py-2 text-left transition-colors ${
                   active
                     ? 'border-ds-accent/60 bg-ds-accent/10 text-ds-text'
@@ -561,6 +566,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                   updateDraft(selectedType, (draft) => ({ ...draft, name: event.target.value }))
                 }
                 placeholder="analytics_prod"
+                data-testid="connector-wizard-field-name"
                 className={fieldClassName}
               />
             </LabeledField>
@@ -574,6 +580,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                 placeholder={t('settings.connectorWizard.field.display_label_placeholder', {
                   type: connectorTypeLabel(selectedType, t),
                 })}
+                data-testid="connector-wizard-field-label"
                 className={fieldClassName}
               />
             </LabeledField>
@@ -588,6 +595,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                     timeoutSeconds: event.target.value,
                   }))
                 }
+                data-testid="connector-wizard-field-timeout"
                 className={fieldClassName}
               />
             </LabeledField>
@@ -599,6 +607,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
                 onChange={(event) =>
                   updateDraft(selectedType, (draft) => ({ ...draft, maxRows: event.target.value }))
                 }
+                data-testid="connector-wizard-field-max-rows"
                 className={fieldClassName}
               />
             </LabeledField>
@@ -647,13 +656,16 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
           )}
 
           {validationErrors.length > 0 && (
-            <div className="mt-4 rounded-lg border border-ds-error/30 bg-ds-error/10 px-3 py-2 text-[11px] text-ds-error">
+            <div
+              data-testid="connector-wizard-error"
+              className="mt-4 rounded-lg border border-ds-error/30 bg-ds-error/10 px-3 py-2 text-[11px] text-ds-error"
+            >
               {validationErrors[0]}
             </div>
           )}
 
           {testResult && (
-            <div className="mt-4 rounded-lg border border-ds-border/60 bg-ds-bg p-3">
+            <div data-testid="connector-wizard-test-result" className="mt-4 rounded-lg border border-ds-border/60 bg-ds-bg p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-medium text-ds-text">
                   {t('settings.connectorWizard.test.title')}
@@ -690,6 +702,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
             <button
               onClick={() => void handleTest()}
               disabled={!connectorCreationAllowed || testing || validationErrors.length > 0}
+              data-testid="connector-wizard-test"
               className="rounded-lg border border-ds-border bg-ds-bg px-3 py-1.5 text-xs font-medium text-ds-text transition-colors hover:border-ds-accent/50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {testing
@@ -699,6 +712,7 @@ export function ConnectorWizard({ rpc }: { rpc: RpcFn }) {
             <button
               onClick={() => void handleSave()}
               disabled={saving || !canSave}
+              data-testid="connector-wizard-save"
               className="rounded-lg bg-ds-accent px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-ds-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
               {saving
@@ -734,6 +748,7 @@ function PostgresFields({
             value={draft.host}
             onChange={(event) => onChange((current) => ({ ...current, host: event.target.value }))}
             placeholder="localhost"
+            data-testid="connector-wizard-field-host"
             className={fieldClassName}
           />
         </LabeledField>
@@ -743,6 +758,7 @@ function PostgresFields({
             value={draft.port}
             onChange={(event) => onChange((current) => ({ ...current, port: event.target.value }))}
             placeholder="5432"
+            data-testid="connector-wizard-field-port"
             className={fieldClassName}
           />
         </LabeledField>
@@ -754,6 +770,7 @@ function PostgresFields({
               onChange((current) => ({ ...current, database: event.target.value }))
             }
             placeholder="analytics"
+            data-testid="connector-wizard-field-database"
             className={fieldClassName}
           />
         </LabeledField>
@@ -763,6 +780,7 @@ function PostgresFields({
             value={draft.schema}
             onChange={(event) => onChange((current) => ({ ...current, schema: event.target.value }))}
             placeholder="public"
+            data-testid="connector-wizard-field-schema"
             className={fieldClassName}
           />
         </LabeledField>
@@ -774,6 +792,7 @@ function PostgresFields({
               onChange((current) => ({ ...current, username: event.target.value }))
             }
             placeholder="readonly_user"
+            data-testid="connector-wizard-field-user"
             className={fieldClassName}
           />
         </LabeledField>
@@ -783,6 +802,7 @@ function PostgresFields({
               type="checkbox"
               checked={draft.ssl}
               onChange={(event) => onChange((current) => ({ ...current, ssl: event.target.checked }))}
+              data-testid="connector-wizard-field-ssl"
             />
             {t('settings.connectorWizard.postgres.require_ssl')}
           </label>
@@ -818,6 +838,7 @@ function PostgresFields({
                 ? t('settings.connectorWizard.secret.reuse_placeholder')
                 : t('settings.connectorWizard.secret.enter_password')
             }
+            data-testid="connector-wizard-field-secret"
             className={fieldClassName}
           />
         </LabeledField>
@@ -830,6 +851,7 @@ function PostgresFields({
               onChange((current) => ({ ...current, credentialRef: event.target.value }))
             }
             placeholder={t('settings.connectorWizard.postgres.env_placeholder')}
+            data-testid="connector-wizard-field-credential-ref"
             className={fieldClassName}
           />
         </LabeledField>
@@ -866,6 +888,7 @@ function BigQueryFields({
               onChange((current) => ({ ...current, projectId: event.target.value }))
             }
             placeholder="my-analytics-project"
+            data-testid="connector-wizard-field-project-id"
             className={fieldClassName}
           />
         </LabeledField>
@@ -875,6 +898,7 @@ function BigQueryFields({
             value={draft.dataset}
             onChange={(event) => onChange((current) => ({ ...current, dataset: event.target.value }))}
             placeholder="analytics"
+            data-testid="connector-wizard-field-dataset"
             className={fieldClassName}
           />
         </LabeledField>
@@ -886,6 +910,7 @@ function BigQueryFields({
               onChange((current) => ({ ...current, location: event.target.value }))
             }
             placeholder="asia-northeast3"
+            data-testid="connector-wizard-field-location"
             className={fieldClassName}
           />
         </LabeledField>
@@ -897,6 +922,7 @@ function BigQueryFields({
               onChange((current) => ({ ...current, billingProject: event.target.value }))
             }
             placeholder="billing-project-id"
+            data-testid="connector-wizard-field-billing-project"
             className={fieldClassName}
           />
         </LabeledField>
@@ -933,6 +959,7 @@ function BigQueryFields({
                 : '{ "type": "service_account", ... }'
             }
             rows={8}
+            data-testid="connector-wizard-field-secret"
             className={`${fieldClassName} min-h-[10rem] py-2 font-mono`}
           />
         </LabeledField>
@@ -945,6 +972,7 @@ function BigQueryFields({
               onChange((current) => ({ ...current, credentialRef: event.target.value }))
             }
             placeholder={t('settings.connectorWizard.bigquery.env_placeholder')}
+            data-testid="connector-wizard-field-credential-ref"
             className={fieldClassName}
           />
         </LabeledField>
@@ -981,6 +1009,7 @@ function SnowflakeFields({
               onChange((current) => ({ ...current, account: event.target.value }))
             }
             placeholder="xy12345.ap-northeast-2.aws"
+            data-testid="connector-wizard-field-account"
             className={fieldClassName}
           />
         </LabeledField>
@@ -992,6 +1021,7 @@ function SnowflakeFields({
               onChange((current) => ({ ...current, warehouse: event.target.value }))
             }
             placeholder="ANALYTICS_WH"
+            data-testid="connector-wizard-field-warehouse"
             className={fieldClassName}
           />
         </LabeledField>
@@ -1003,6 +1033,7 @@ function SnowflakeFields({
               onChange((current) => ({ ...current, database: event.target.value }))
             }
             placeholder="ANALYTICS"
+            data-testid="connector-wizard-field-database"
             className={fieldClassName}
           />
         </LabeledField>
@@ -1012,6 +1043,7 @@ function SnowflakeFields({
             value={draft.schema}
             onChange={(event) => onChange((current) => ({ ...current, schema: event.target.value }))}
             placeholder="PUBLIC"
+            data-testid="connector-wizard-field-schema"
             className={fieldClassName}
           />
         </LabeledField>
@@ -1023,6 +1055,7 @@ function SnowflakeFields({
               onChange((current) => ({ ...current, username: event.target.value }))
             }
             placeholder="readonly_user"
+            data-testid="connector-wizard-field-user"
             className={fieldClassName}
           />
         </LabeledField>
@@ -1032,6 +1065,7 @@ function SnowflakeFields({
             value={draft.role}
             onChange={(event) => onChange((current) => ({ ...current, role: event.target.value }))}
             placeholder="ANALYST"
+            data-testid="connector-wizard-field-role"
             className={fieldClassName}
           />
         </LabeledField>
@@ -1066,6 +1100,7 @@ function SnowflakeFields({
                 ? t('settings.connectorWizard.secret.reuse_placeholder')
                 : t('settings.connectorWizard.secret.enter_password')
             }
+            data-testid="connector-wizard-field-secret"
             className={fieldClassName}
           />
         </LabeledField>
@@ -1078,6 +1113,7 @@ function SnowflakeFields({
               onChange((current) => ({ ...current, credentialRef: event.target.value }))
             }
             placeholder={t('settings.connectorWizard.snowflake.env_placeholder')}
+            data-testid="connector-wizard-field-credential-ref"
             className={fieldClassName}
           />
         </LabeledField>

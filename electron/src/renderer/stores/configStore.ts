@@ -7,19 +7,28 @@ import {
   applyThemeToDocument,
   getNextTheme,
   loadStoredTheme,
+  normalizeTheme,
   THEME_STORAGE_KEY,
   type Theme,
 } from '../design-system/themes';
 import {
   DEFAULT_DENSITY_MODE,
+  isDensityMode,
   type DensityMode,
 } from '../domain/layout/density';
 import {
   applyDensityToDocument,
+  DENSITY_STORAGE_KEY,
   loadStoredDensity,
-  persistDensity,
 } from '../infrastructure/layout/densityPersistence';
+import { announce } from '../application/a11y/ariaLive';
 import type { DeepLinkReauthPolicy } from '../application/deepLink/handleDeepLink';
+import {
+  LOCALE_STORAGE_KEY,
+  normalizeLocale,
+  setLocale as setAppLocale,
+  translateKey,
+} from './i18nStore';
 
 export const DEEP_LINK_REAUTH_STORAGE_KEY = 'ds-agent-deep-link-reauth:v1';
 const DEEP_LINK_REAUTH_DEFAULT: DeepLinkReauthPolicy = 'once-per-session';
@@ -71,19 +80,14 @@ function loadDeepLinkReauth(): DeepLinkReauthPolicy {
   return DEEP_LINK_REAUTH_DEFAULT;
 }
 
-function persistDeepLinkReauth(policy: DeepLinkReauthPolicy): void {
-  try {
-    localStorage.setItem(DEEP_LINK_REAUTH_STORAGE_KEY, policy);
-  } catch {
-    // ignore
-  }
+function persistDeepLinkReauth(policy: DeepLinkReauthPolicy): boolean {
+  return persistStorageValue(DEEP_LINK_REAUTH_STORAGE_KEY, policy);
 }
 
 const ONBOARDING_STORAGE_KEY = 'ds-agent-onboarded-v2';
 const LEGACY_ONBOARDING_STORAGE_KEY = 'ds-agent-onboarded';
 export const MISSION_HEADER_FLAG_STORAGE_KEY = 'ds-agent-feature-mission-header';
 export const NEW_EXECUTION_TIMELINE_FLAG_STORAGE_KEY = 'ds-agent-feature-new-execution-timeline';
-export const IA_V2_FLAG_STORAGE_KEY = 'ds-agent-feature-ia-v2';
 
 const TELEGRAM_DIGEST_CADENCE_ALIASES: Readonly<Record<string, TelegramDigestCadence>> = {
   interval: 'interval',
@@ -139,7 +143,15 @@ function normalizeTelegramTimeZone(value: unknown, fallback: string): string {
     return fallback;
   }
   const trimmed = value.trim();
-  return trimmed || fallback;
+  if (!trimmed) {
+    return fallback;
+  }
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: trimmed }).format(new Date(0));
+    return trimmed;
+  } catch {
+    return fallback;
+  }
 }
 
 export function createDefaultTelegramNotificationSettings(): TelegramNotificationSettings {
@@ -182,7 +194,7 @@ function coerceTelegramNotificationSettings(
 function persistTelegramNotificationSettings(
   settings: TelegramNotificationSettings,
   source: Exclude<TelegramNotificationSettingsSource, 'default'>,
-): void {
+): boolean {
   try {
     const payload: StoredTelegramNotificationSettingsPayload = {
       source,
@@ -192,16 +204,18 @@ function persistTelegramNotificationSettings(
       TELEGRAM_NOTIFICATION_SETTINGS_STORAGE_KEY,
       JSON.stringify(payload),
     );
+    return true;
   } catch {
-    // ignore
+    return false;
   }
 }
 
-function clearTelegramNotificationSettings(): void {
+function clearTelegramNotificationSettings(): boolean {
   try {
     localStorage.removeItem(TELEGRAM_NOTIFICATION_SETTINGS_STORAGE_KEY);
+    return true;
   } catch {
-    // ignore
+    return false;
   }
 }
 
@@ -237,8 +251,7 @@ interface ConfigState {
   // Settings panel
   showSettings: boolean;
 
-  // Local rollback gates
-  useIaV2: boolean;
+  // Local rollout gates
   missionHeaderEnabled: boolean;
   useNewExecutionTimeline: boolean;
 
@@ -267,7 +280,6 @@ interface ConfigState {
   setFirstRun: (v: boolean) => void;
   setShowOnboarding: (v: boolean) => void;
   setShowSettings: (v: boolean) => void;
-  setUseIaV2: (v: boolean) => void;
   setMissionHeaderEnabled: (v: boolean) => void;
   setUseNewExecutionTimeline: (v: boolean) => void;
   setTheme: (t: Theme) => void;
@@ -308,18 +320,53 @@ function loadInitialDensity(): DensityMode {
   }
 }
 
-function persistTheme(theme: Theme): void {
+function persistStorageValue(key: string, value: string): boolean {
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch {}
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function notifySessionOnlyPersist(): void {
+  announce(translateKey('common.storage.persistFailed'));
+}
+
+function notifyIfPersistFailed(persisted: boolean): void {
+  if (!persisted) {
+    notifySessionOnlyPersist();
+  }
+}
+
+function serializeFlag(enabled: boolean): string {
+  return enabled ? 'true' : 'false';
+}
+
+function persistTheme(theme: Theme): boolean {
+  return persistStorageValue(THEME_STORAGE_KEY, theme);
+}
+
+function persistDensityMode(mode: DensityMode): boolean {
+  return persistStorageValue(DENSITY_STORAGE_KEY, mode);
+}
+
+export function parseFlag(value: string | null, defaultValue: boolean): boolean {
+  if (value === null) {
+    return defaultValue;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === '1' || normalized === 'true' || normalized === 'on') {
+    return true;
+  }
+  if (normalized === '0' || normalized === 'false' || normalized === 'off') {
+    return false;
+  }
+  return defaultValue;
 }
 
 export function parseMissionHeaderEnabled(value: string | null): boolean {
-  if (value === null) {
-    return true;
-  }
-  const normalized = value.trim().toLowerCase();
-  return normalized !== '0' && normalized !== 'false' && normalized !== 'off';
+  return parseFlag(value, true);
 }
 
 export function loadMissionHeaderEnabled(): boolean {
@@ -330,44 +377,12 @@ export function loadMissionHeaderEnabled(): boolean {
   }
 }
 
-export function parseIaV2Enabled(value: string | null): boolean {
-  if (value === null) {
-    return true;
-  }
-  const normalized = value.trim().toLowerCase();
-  return normalized !== '0' && normalized !== 'false' && normalized !== 'off';
-}
-
-export function loadIaV2Enabled(): boolean {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('e2e_force_legacy_ia') === '1') {
-      return false;
-    }
-    return parseIaV2Enabled(localStorage.getItem(IA_V2_FLAG_STORAGE_KEY));
-  } catch {
-    return true;
-  }
-}
-
-function persistIaV2Enabled(enabled: boolean): void {
-  try {
-    localStorage.setItem(IA_V2_FLAG_STORAGE_KEY, enabled ? 'true' : 'false');
-  } catch {}
-}
-
-function persistMissionHeaderEnabled(enabled: boolean): void {
-  try {
-    localStorage.setItem(MISSION_HEADER_FLAG_STORAGE_KEY, enabled ? 'true' : 'false');
-  } catch {}
+function persistMissionHeaderEnabled(enabled: boolean): boolean {
+  return persistStorageValue(MISSION_HEADER_FLAG_STORAGE_KEY, serializeFlag(enabled));
 }
 
 export function parseNewExecutionTimelineEnabled(value: string | null): boolean {
-  if (value === null) {
-    return true;
-  }
-  const normalized = value.trim().toLowerCase();
-  return normalized !== '0' && normalized !== 'false' && normalized !== 'off';
+  return parseFlag(value, true);
 }
 
 export function loadNewExecutionTimelineEnabled(): boolean {
@@ -380,18 +395,16 @@ export function loadNewExecutionTimelineEnabled(): boolean {
   }
 }
 
-function persistNewExecutionTimelineEnabled(enabled: boolean): void {
-  try {
-    localStorage.setItem(
-      NEW_EXECUTION_TIMELINE_FLAG_STORAGE_KEY,
-      enabled ? 'true' : 'false',
-    );
-  } catch {}
+function persistNewExecutionTimelineEnabled(enabled: boolean): boolean {
+  return persistStorageValue(NEW_EXECUTION_TIMELINE_FLAG_STORAGE_KEY, serializeFlag(enabled));
 }
 
 function checkFirstRun(): boolean {
   try {
-    return !localStorage.getItem(ONBOARDING_STORAGE_KEY);
+    return (
+      !localStorage.getItem(ONBOARDING_STORAGE_KEY)
+      && !localStorage.getItem(LEGACY_ONBOARDING_STORAGE_KEY)
+    );
   } catch {
     return true;
   }
@@ -416,7 +429,6 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   isFirstRun: SKIP_ONBOARDING_FOR_E2E ? false : checkFirstRun(),
   showOnboarding: SKIP_ONBOARDING_FOR_E2E ? false : checkFirstRun(),
   showSettings: false,
-  useIaV2: loadIaV2Enabled(),
   missionHeaderEnabled: loadMissionHeaderEnabled(),
   useNewExecutionTimeline: loadNewExecutionTimelineEnabled(),
   theme: loadTheme(),
@@ -434,58 +446,58 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
   setShowSettings: (v) => set({ showSettings: v }),
 
-  setUseIaV2: (v) => {
-    persistIaV2Enabled(v);
-    set({ useIaV2: v });
-  },
-
   setMissionHeaderEnabled: (v) => {
-    persistMissionHeaderEnabled(v);
+    const persisted = persistMissionHeaderEnabled(v);
     set({ missionHeaderEnabled: v });
+    notifyIfPersistFailed(persisted);
   },
 
   setUseNewExecutionTimeline: (v) => {
-    persistNewExecutionTimelineEnabled(v);
+    const persisted = persistNewExecutionTimelineEnabled(v);
     set({ useNewExecutionTimeline: v });
+    notifyIfPersistFailed(persisted);
   },
 
   setTheme: (t) => {
-    persistTheme(t);
+    const persisted = persistTheme(t);
     applyThemeToDocument(t);
     set({ theme: t });
+    notifyIfPersistFailed(persisted);
   },
 
-  toggleTheme: () =>
-    set((s) => {
-      const next = getNextTheme(s.theme);
-      persistTheme(next);
-      applyThemeToDocument(next);
-      return { theme: next };
-    }),
+  toggleTheme: () => {
+    const next = getNextTheme(get().theme);
+    const persisted = persistTheme(next);
+    applyThemeToDocument(next);
+    set({ theme: next });
+    notifyIfPersistFailed(persisted);
+  },
 
   setDensity: (mode) => {
-    persistDensity(mode);
+    const persisted = persistDensityMode(mode);
     applyDensityToDocument(mode);
     set({ density: mode });
+    notifyIfPersistFailed(persisted);
   },
 
   setDeepLinkReauth: (policy) => {
-    persistDeepLinkReauth(policy);
+    const persisted = persistDeepLinkReauth(policy);
     set({ deepLinkReauth: policy });
+    notifyIfPersistFailed(persisted);
   },
 
-  updateTelegramNotificationSettings: (patch) =>
-    set((state) => {
-      const next = coerceTelegramNotificationSettings({
-        ...state.telegramNotificationSettings,
-        ...patch,
-      });
-      persistTelegramNotificationSettings(next, 'local');
-      return {
-        telegramNotificationSettings: next,
-        telegramNotificationSettingsSource: 'local',
-      };
-    }),
+  updateTelegramNotificationSettings: (patch) => {
+    const next = coerceTelegramNotificationSettings({
+      ...get().telegramNotificationSettings,
+      ...patch,
+    });
+    const persisted = persistTelegramNotificationSettings(next, 'local');
+    set({
+      telegramNotificationSettings: next,
+      telegramNotificationSettingsSource: 'local',
+    });
+    notifyIfPersistFailed(persisted);
+  },
 
   hydrateTelegramNotificationSettingsFromWorkspace: (settings) =>
     set((state) => {
@@ -502,27 +514,30 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
   replaceTelegramNotificationSettings: (settings, source = 'local') => {
     if (source === 'default') {
-      clearTelegramNotificationSettings();
+      const persisted = clearTelegramNotificationSettings();
       set({
         telegramNotificationSettings: createDefaultTelegramNotificationSettings(),
         telegramNotificationSettingsSource: 'default',
       });
+      notifyIfPersistFailed(persisted);
       return;
     }
     const next = coerceTelegramNotificationSettings(settings);
-    persistTelegramNotificationSettings(next, source);
+    const persisted = persistTelegramNotificationSettings(next, source);
     set({
       telegramNotificationSettings: next,
       telegramNotificationSettingsSource: source,
     });
+    notifyIfPersistFailed(persisted);
   },
 
   resetTelegramNotificationSettings: () => {
-    clearTelegramNotificationSettings();
+    const persisted = clearTelegramNotificationSettings();
     set({
       telegramNotificationSettings: createDefaultTelegramNotificationSettings(),
       telegramNotificationSettingsSource: 'default',
     });
+    notifyIfPersistFailed(persisted);
   },
 
   setMaxBudget: (v) => set({ maxBudgetUsd: v }),
@@ -539,16 +554,123 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   },
 
   resetOnboarding: () => {
+    let persisted = true;
     try {
       localStorage.removeItem(ONBOARDING_STORAGE_KEY);
       localStorage.removeItem(LEGACY_ONBOARDING_STORAGE_KEY);
     } catch {
+      persisted = false;
       // localStorage may be unavailable (private mode); UI state below
       // still re-opens the wizard for this session.
     }
     set({ isFirstRun: true, showOnboarding: true });
+    notifyIfPersistFailed(persisted);
   },
 }));
+
+function isConfigStorageEvent(event: StorageEvent): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    return event.storageArea === null || event.storageArea === window.localStorage;
+  } catch {
+    return event.storageArea === null;
+  }
+}
+
+function readStoredValue(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function syncThemeFromStorage(value: string | null): void {
+  const theme = normalizeTheme(value) ?? loadTheme();
+  applyThemeToDocument(theme);
+  useConfigStore.setState({ theme });
+}
+
+function syncDensityFromStorage(value: string | null): void {
+  const density = isDensityMode(value) ? value : loadInitialDensity();
+  applyDensityToDocument(density);
+  useConfigStore.setState({ density });
+}
+
+function syncDeepLinkReauthFromStorage(value: string | null): void {
+  useConfigStore.setState({
+    deepLinkReauth: isDeepLinkReauthPolicy(value) ? value : loadDeepLinkReauth(),
+  });
+}
+
+function syncTelegramNotificationSettingsFromStorage(): void {
+  const next = loadTelegramNotificationSettings();
+  useConfigStore.setState({
+    telegramNotificationSettings: next.settings,
+    telegramNotificationSettingsSource: next.source,
+  });
+}
+
+function syncLocaleFromStorage(value: string | null): void {
+  const locale = normalizeLocale(value);
+  if (locale) {
+    setAppLocale(locale);
+  }
+}
+
+function syncAllConfigStorage(): void {
+  syncThemeFromStorage(readStoredValue(THEME_STORAGE_KEY));
+  syncDensityFromStorage(readStoredValue(DENSITY_STORAGE_KEY));
+  useConfigStore.setState({
+    missionHeaderEnabled: loadMissionHeaderEnabled(),
+    useNewExecutionTimeline: loadNewExecutionTimelineEnabled(),
+    deepLinkReauth: loadDeepLinkReauth(),
+  });
+  syncTelegramNotificationSettingsFromStorage();
+  syncLocaleFromStorage(readStoredValue(LOCALE_STORAGE_KEY));
+}
+
+export function syncConfigStoreFromStorageEvent(event: StorageEvent): void {
+  if (!isConfigStorageEvent(event)) {
+    return;
+  }
+  if (event.key === null) {
+    syncAllConfigStorage();
+    return;
+  }
+
+  switch (event.key) {
+    case THEME_STORAGE_KEY:
+      syncThemeFromStorage(event.newValue);
+      break;
+    case DENSITY_STORAGE_KEY:
+      syncDensityFromStorage(event.newValue);
+      break;
+    case MISSION_HEADER_FLAG_STORAGE_KEY:
+      useConfigStore.setState({
+        missionHeaderEnabled: parseMissionHeaderEnabled(event.newValue),
+      });
+      break;
+    case NEW_EXECUTION_TIMELINE_FLAG_STORAGE_KEY:
+      useConfigStore.setState({
+        useNewExecutionTimeline: parseNewExecutionTimelineEnabled(event.newValue),
+      });
+      break;
+    case DEEP_LINK_REAUTH_STORAGE_KEY:
+      syncDeepLinkReauthFromStorage(event.newValue);
+      break;
+    case TELEGRAM_NOTIFICATION_SETTINGS_STORAGE_KEY:
+      syncTelegramNotificationSettingsFromStorage();
+      break;
+    case LOCALE_STORAGE_KEY:
+      syncLocaleFromStorage(event.newValue);
+      break;
+    default:
+      break;
+  }
+}
 
 // Apply on load
 applyThemeToDocument(loadTheme());

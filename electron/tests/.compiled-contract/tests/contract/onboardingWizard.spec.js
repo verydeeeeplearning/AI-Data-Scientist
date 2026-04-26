@@ -7,7 +7,7 @@ const strict_1 = __importDefault(require("node:assert/strict"));
 const OnboardingWizard_1 = require("../../src/renderer/components/settings/OnboardingWizard");
 function run() {
     {
-        strict_1.default.deepEqual(OnboardingWizard_1.ONBOARDING_PRIMARY_STEPS.map((entry) => entry.id), ['use_case', 'data', 'deliverables', 'mode', 'model', 'confirm']);
+        strict_1.default.deepEqual(OnboardingWizard_1.ONBOARDING_PRIMARY_STEPS.map((entry) => entry.id), ['use_case', 'data', 'deliverables', 'mode', 'model', 'notify', 'confirm']);
     }
     {
         const defaults = (0, OnboardingWizard_1.deriveUseCaseDefaults)('reporting');
@@ -54,7 +54,12 @@ function run() {
         strict_1.default.deepEqual(payload.responses.step3_deliverables, ['report', 'notebook']);
         strict_1.default.equal(payload.responses.step4_mode, 'balanced');
         strict_1.default.equal(payload.responses.step5_model, 'anthropic/claude-sonnet-4-6');
+        strict_1.default.deepEqual(payload.responses.step6_notify, {
+            choice: 'desktop_only',
+            telegramConnected: false,
+        });
         strict_1.default.equal(payload.responses.step6_confirmed, true);
+        strict_1.default.equal(payload.responses.step7_confirmed, true);
     }
     {
         strict_1.default.equal((0, OnboardingWizard_1.canContinueFromModelSelection)({

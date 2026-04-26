@@ -123,6 +123,7 @@ app.on('open-url', (event, url) => {
 
 app.whenReady().then(async () => {
   registerMainIpcHandlers();
+  initAutoUpdater();
   recordDiagnosticLog('info', 'main', 'Electron app is ready.');
   const existingBackend = getExistingBackendForE2E();
   if (existingBackend) {
@@ -170,7 +171,6 @@ app.whenReady().then(async () => {
     pendingDeepLinkUri = null;
     deliverDeepLink(queued);
   }
-  initAutoUpdater();
 });
 
 app.on('window-all-closed', () => {

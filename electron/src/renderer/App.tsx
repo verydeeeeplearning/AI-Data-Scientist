@@ -8,8 +8,8 @@ import { DiagnosticPanel } from './components/diagnostic/DiagnosticPanel';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
 import { SplashScreen } from './components/layout/SplashScreen';
 import { DisconnectOverlay } from './components/layout/DisconnectOverlay';
-import { MainPanel } from './components/layout/MainPanel';
 import { AreaMainPanel } from './components/layout/AreaMainPanel';
+import { AppToastStack } from './components/layout/AppToastStack';
 import { UpdateNotification } from './components/layout/UpdateNotification';
 import { OnboardingWizard, type OnboardingResult } from './components/settings/OnboardingWizard';
 import { SandboxApprovalModal } from './components/sandbox/SandboxApprovalModal';
@@ -25,19 +25,18 @@ import { usePolicy } from './hooks/usePolicy';
 import { useProjects } from './hooks/useProjects';
 import { useProviderAuth } from './hooks/useProviderAuth';
 import { useRuntimeEvents } from './hooks/useRuntimeEvents';
+import { useTelegramRuntime } from './hooks/useTelegramRuntime';
 import { useRuntime } from './hooks/useRuntime';
 import { useUsageSummary } from './hooks/useUsageSummary';
 import { useWorkflow } from './hooks/useWorkflow';
-import { useConfigStore } from './stores/configStore';
+import {
+  syncConfigStoreFromStorageEvent,
+  useConfigStore,
+} from './stores/configStore';
 import { useAgentStore } from './stores/agentStore';
 import { useChatStore } from './stores/chatStore';
 import type { UploadedFileResult } from './domain/workspace/uploadedFile';
-
-function getBackendPort(): number {
-  const params = new URLSearchParams(window.location.search);
-  const port = params.get('port');
-  return port ? parseInt(port, 10) : 18790;
-}
+import { getBackendPort, getBackendQueryParam } from './utils/backendUrl';
 
 function getScreen(): 'main' | 'diagnostic' {
   const params = new URLSearchParams(window.location.search);
@@ -59,20 +58,25 @@ function getStartupPayload(): Record<string, unknown> | null {
 }
 
 function getWsToken(): string {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('token') ?? '';
+  return getBackendQueryParam('token') ?? '';
 }
 
 function AppInner() {
   // WIRE-07: useChat and useAgent now share a single WebSocket via WsProvider
   const { sendMessage, abort, status, disconnectReason, on } = useChat();
-  const { rpc, refreshFiles, changeModel, changeQualityPreset, changeMode, uploadFile } = useAgent();
+  const { rpc, refreshFiles, changeModel, changeQualityPreset, changeMode, changeMaxBudget, uploadFile } = useAgent();
   useDeepLinkListener();
+
+  useEffect(() => {
+    window.addEventListener('storage', syncConfigStoreFromStorageEvent);
+    return () => window.removeEventListener('storage', syncConfigStoreFromStorageEvent);
+  }, []);
 
   // Subscribe to DS workflow events (harness warnings, quality, experiments, budget)
   useWorkflow(on, rpc, status === 'connected');
   useRuntime(on, rpc, status === 'connected');
   useRuntimeEvents(on, rpc, status === 'connected');
+  useTelegramRuntime(on, rpc, status === 'connected');
   usePolicy(on, rpc, status === 'connected');
   useProviderAuth(on, rpc, status === 'connected');
   useUsageSummary(status === 'connected');
@@ -84,7 +88,6 @@ function AppInner() {
     setShowSettings,
     setFirstRun,
     resetOnboarding,
-    useIaV2,
   } = useConfigStore();
   const { mode, setMode, setModel, setQualityPreset } = useAgentStore();
   const { messages } = useChatStore();
@@ -107,26 +110,42 @@ function AppInner() {
     }
   }, [status, showOnboarding]);
 
-  // Onboarding complete — wizard already persists model + use_case via rpc('config.set');
-  // here we sync the local UI store and dismiss the modal. The starter prompt is
-  // handed off through configStore.pendingStarterPrompt and consumed by ChatInput.
-  const handleOnboardingComplete = useCallback((result: OnboardingResult) => {
-    setModel(result.model);
-    setQualityPreset(result.qualityPreset);
-    setFirstRun(false);
-    setShowOnboarding(false);
-  }, [setFirstRun, setModel, setQualityPreset, setShowOnboarding]);
+  // Onboarding complete — wizard issues config.set, but those calls have been
+  // observed to silently fail (provider.default_model = None in backend even
+  // after a successful wizard run). We re-issue the model/preset sync via
+  // useAgent.changeModel/changeQualityPreset, which (a) writes config.set,
+  // (b) round-trips through status.get to refresh the renderer store, and
+  // (c) aborts any in-flight chat — guaranteeing header + backend agree.
+  const handleOnboardingComplete = useCallback(
+    async (result: OnboardingResult) => {
+      try {
+        await changeModel(result.model);
+        if (result.qualityPreset !== 'custom') {
+          await changeQualityPreset(result.qualityPreset);
+        } else {
+          setQualityPreset(result.qualityPreset);
+        }
+      } catch (err) {
+        console.error('[app] failed to sync model/preset after onboarding:', err);
+        setModel(result.model);
+        setQualityPreset(result.qualityPreset);
+      }
+      setFirstRun(false);
+      setShowOnboarding(false);
+    },
+    [
+      changeModel,
+      changeQualityPreset,
+      setFirstRun,
+      setModel,
+      setQualityPreset,
+      setShowOnboarding,
+    ],
+  );
 
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Ctrl+, → toggle settings
-      if (!useIaV2 && e.ctrlKey && e.key === ',') {
-        e.preventDefault();
-        setShowSettings(!showSettings);
-        return;
-      }
-
       // Ctrl+M → cycle mode
       if (e.ctrlKey && e.key === 'm') {
         e.preventDefault();
@@ -146,7 +165,7 @@ function AppInner() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showSettings, setShowSettings, mode, changeMode, setMode, useIaV2]);
+  }, [showSettings, setShowSettings, mode, changeMode, setMode]);
 
   // Splash screen — only before first connection
   if (!hasConnected && status !== 'connected') {
@@ -160,34 +179,20 @@ function AppInner() {
 
   return (
     <>
-      {useIaV2 ? (
-        <AreaMainPanel
-          onSend={sendMessage}
-          onAbort={abort}
-          onRefreshFiles={refreshFiles}
-          onChangeModel={changeModel}
-          onChangeQualityPreset={changeQualityPreset}
-          onChangeMode={changeMode}
-          onUploadFile={uploadFile as (file: File) => Promise<UploadedFileResult>}
-          onRestartOnboarding={resetOnboarding}
-          disabled={status !== 'connected'}
-          modelGroups={modelGroups}
-          rpc={rpc}
-        />
-      ) : (
-        <MainPanel
-          onSend={sendMessage}
-          onAbort={abort}
-          onRefreshFiles={refreshFiles}
-          onChangeModel={changeModel}
-          onChangeQualityPreset={changeQualityPreset}
-          onChangeMode={changeMode}
-          onUploadFile={uploadFile as (file: File) => Promise<UploadedFileResult>}
-          onOpenSettings={() => setShowSettings(true)}
-          disabled={status !== 'connected'}
-          modelGroups={modelGroups}
-        />
-      )}
+      <AreaMainPanel
+        onSend={sendMessage}
+        onAbort={abort}
+        onRefreshFiles={refreshFiles}
+        onChangeModel={changeModel}
+        onChangeQualityPreset={changeQualityPreset}
+        onChangeMode={changeMode}
+        onChangeMaxBudget={changeMaxBudget}
+        onUploadFile={uploadFile as (file: File) => Promise<UploadedFileResult>}
+        onRestartOnboarding={resetOnboarding}
+        disabled={status !== 'connected'}
+        modelGroups={modelGroups}
+        rpc={rpc}
+      />
 
       {/* Disconnect overlay — only after initial connection, when messages exist */}
       {hasConnected && status !== 'connected' && messages.length > 0 && (
@@ -211,6 +216,7 @@ function AppInner() {
       {/* P0-01 Phase 3: sandbox approval modal + violation toast stack */}
       <SandboxApprovalModal />
       <SandboxViolationToast />
+      <AppToastStack />
 
       <GlobalDropOverlay onUploadFile={uploadFile as (file: File) => Promise<UploadedFileResult>} />
     </>

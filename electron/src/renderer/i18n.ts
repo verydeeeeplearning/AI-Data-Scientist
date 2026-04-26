@@ -21,6 +21,7 @@ import koCards from '../../public/locales/ko/cards.json';
 import koChat from '../../public/locales/ko/chat.json';
 import koCmd from '../../public/locales/ko/cmd.json';
 import koShare from '../../public/locales/ko/share.json';
+import koSession from '../../public/locales/ko/session.json';
 
 import enCommon from '../../public/locales/en/common.json';
 import enArea from '../../public/locales/en/area.json';
@@ -38,6 +39,7 @@ import enCards from '../../public/locales/en/cards.json';
 import enChat from '../../public/locales/en/chat.json';
 import enCmd from '../../public/locales/en/cmd.json';
 import enShare from '../../public/locales/en/share.json';
+import enSession from '../../public/locales/en/session.json';
 
 import jaCommon from '../../public/locales/ja/common.json';
 import jaArea from '../../public/locales/ja/area.json';
@@ -55,6 +57,7 @@ import jaCards from '../../public/locales/ja/cards.json';
 import jaChat from '../../public/locales/ja/chat.json';
 import jaCmd from '../../public/locales/ja/cmd.json';
 import jaShare from '../../public/locales/ja/share.json';
+import jaSession from '../../public/locales/ja/session.json';
 
 export const SUPPORTED_LNGS = SHARED_I18N_LOCALES;
 export type SupportedLng = (typeof SUPPORTED_LNGS)[number];
@@ -83,6 +86,7 @@ export const I18N_RESOURCES = {
     chat: koChat,
     cmd: koCmd,
     share: koShare,
+    session: koSession,
   },
   en: {
     common: enCommon,
@@ -101,6 +105,7 @@ export const I18N_RESOURCES = {
     chat: enChat,
     cmd: enCmd,
     share: enShare,
+    session: enSession,
   },
   ja: {
     common: jaCommon,
@@ -119,6 +124,7 @@ export const I18N_RESOURCES = {
     chat: jaChat,
     cmd: jaCmd,
     share: jaShare,
+    session: jaSession,
   },
 } as const;
 

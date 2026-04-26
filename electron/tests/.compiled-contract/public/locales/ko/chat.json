@@ -5,5 +5,16 @@
     "input.placeholder": "메시지를 입력하세요... (Enter 전송, Shift+Enter 줄바꿈)",
     "you": "사용자",
     "agent": "DS Agent",
-    "toolActivity": "도구 활동"
+    "message.truncatedNotice": "응답이 중단되었습니다. 다시 보내 주세요.",
+    "error.modelKeyMissing": "전송할 수 없습니다: {model} 사용에 API 키 또는 로그인이 필요합니다. 관리 > 커넥터에서 등록하세요.",
+    "toolActivity": "도구 활동",
+    "floating.label": "채팅 패널",
+    "floating.title": "채팅",
+    "floating.open": "채팅 열기",
+    "floating.close": "채팅 닫기",
+    "floating.pin": "채팅 고정",
+    "floating.unpin": "채팅 고정 해제",
+    "floating.fullscreen": "전체 화면",
+    "floating.exitFullscreen": "축소",
+    "floating.streaming": "스트리밍 중"
 }

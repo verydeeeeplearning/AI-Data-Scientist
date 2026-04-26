@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Pin, TableProperties, ChartColumn, FolderOpen, FileOutput } from 'lucide-react';
+import { FileOutput, Pin } from 'lucide-react';
 import { Badge, Card } from '../../design-system/primitives';
 import { useI18n } from '../../stores/i18nStore';
 import type { EvidenceWorkspaceTab, WorkspaceReadModel } from '../../stores/workspaceStore';
@@ -12,10 +12,7 @@ interface Props {
 }
 
 const SECTION_ICONS = {
-  summary: Pin,
-  tables: TableProperties,
-  charts: ChartColumn,
-  files: FolderOpen,
+  overview: Pin,
   export: FileOutput,
 } as const;
 

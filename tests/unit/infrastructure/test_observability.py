@@ -15,9 +15,13 @@ class _FakeSentrySdk:
         self.init_calls: list[dict[str, Any]] = []
         self.flush_calls: list[float] = []
         self.close_calls: list[float] = []
+        self.breadcrumbs: list[dict[str, Any]] = []
 
     def init(self, **kwargs: Any) -> None:
         self.init_calls.append(kwargs)
+
+    def add_breadcrumb(self, **kwargs: Any) -> None:
+        self.breadcrumbs.append(kwargs)
 
     def flush(self, *, timeout: float) -> None:
         self.flush_calls.append(timeout)
@@ -111,6 +115,83 @@ def test_transaction_redaction_respects_telemetry_gate() -> None:
     assert redacted["transaction"] == "READY:18790:***REDACTED***"
     assert redacted["contexts"]["trace"]["token"] == "***REDACTED***"
     assert sentry_backend._backend_traces_sampler({}) == 0.1
+
+
+def test_add_backend_breadcrumb_noops_when_sentry_unavailable_or_inactive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sentry_backend.add_backend_breadcrumb(
+        "telegram.bot_supervisor",
+        data={"status": "pending"},
+    )
+
+    fake_sdk = _FakeSentrySdk()
+    monkeypatch.setattr(sentry_backend, "sentry_sdk", fake_sdk)
+    cast(dict[str, Any], sentry_backend._state).update(
+        {
+            "initialized": True,
+            "dsn": None,
+            "error_reporting_enabled": True,
+            "telemetry_enabled": False,
+        },
+    )
+    sentry_backend.add_backend_breadcrumb(
+        "telegram.bot_supervisor",
+        data={"status": "pending"},
+    )
+
+    cast(dict[str, Any], sentry_backend._state).update(
+        {
+            "initialized": True,
+            "dsn": "https://public@example.ingest.sentry.io/1",
+            "error_reporting_enabled": False,
+            "telemetry_enabled": False,
+        },
+    )
+    sentry_backend.add_backend_breadcrumb(
+        "telegram.bot_supervisor",
+        data={"status": "pending"},
+    )
+
+    assert fake_sdk.breadcrumbs == []
+
+
+def test_add_backend_breadcrumb_sends_redacted_payload_when_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_sdk = _FakeSentrySdk()
+    monkeypatch.setattr(sentry_backend, "sentry_sdk", fake_sdk)
+    cast(dict[str, Any], sentry_backend._state).update(
+        {
+            "initialized": True,
+            "dsn": "https://public@example.ingest.sentry.io/1",
+            "error_reporting_enabled": True,
+            "telemetry_enabled": False,
+        },
+    )
+
+    sentry_backend.add_backend_breadcrumb(
+        "telegram.bot_supervisor",
+        message="READY:18790:desktop-token chat_id=987654321",
+        data={
+            "status": "pending",
+            "action": "start",
+            "chatId": "987654321",
+            "api_token": "123456789:secret-token-value",
+            "notes": "chat_id=987654321 sk-ant-secretvalue",
+        },
+    )
+
+    assert len(fake_sdk.breadcrumbs) == 1
+    breadcrumb = fake_sdk.breadcrumbs[0]
+    assert breadcrumb["message"] == "READY:18790:***REDACTED*** chat_id=***REDACTED***"
+    assert breadcrumb["data"] == {
+        "status": "pending",
+        "action": "start",
+        "chatId": "***REDACTED***",
+        "api_token": "***REDACTED***",
+        "notes": "chat_id=***REDACTED*** ***REDACTED***",
+    }
 
 
 # --------------------------------------------------------------------------- #

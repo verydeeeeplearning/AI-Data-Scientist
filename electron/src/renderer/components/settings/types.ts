@@ -1,6 +1,7 @@
 export type RpcFn = (
   method: string,
   params?: Record<string, unknown>,
+  options?: { timeoutMs?: number },
 ) => Promise<Record<string, unknown>>;
 
 export type OrgRole = 'admin' | 'editor' | 'viewer';

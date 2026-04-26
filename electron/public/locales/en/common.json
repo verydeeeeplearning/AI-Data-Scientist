@@ -202,6 +202,7 @@
   "mainIpc.taskContract.shadowGetFailed": "Failed to load the shadow comparison.",
   "mainIpc.taskContract.previewFailed": "Failed to load rendered artifact preview.",
   "close": "Close",
+  "notifications": "Notifications",
   "cancel": "Cancel",
   "save": "Save",
   "change": "Change",
@@ -211,5 +212,13 @@
   "loading": "Loading...",
   "language": "Language",
   "notSet": "Not set",
-  "error": "Something went wrong"
+  "error": "Something went wrong",
+  "mode.auto.short": "Auto",
+  "mode.supervised.short": "Supervised",
+  "mode.step.short": "Step",
+  "quality.fast.short": "Fast",
+  "quality.balanced.short": "Balanced",
+  "quality.thorough.short": "Thorough",
+  "quality.best_quality.short": "Best",
+  "storage.persistFailed": "Setting saved for this session only. Local storage may be full or unavailable."
 }

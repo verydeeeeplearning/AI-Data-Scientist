@@ -255,6 +255,7 @@ function FileRow({
   const [busy, setBusy] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const exportMenuId = `file-export-menu-${useId().replace(/:/g, '')}`;
 
@@ -313,8 +314,10 @@ function FileRow({
 
   const handleExport = useCallback(
     async (format: string) => {
+      setExportError(null);
       if (!window.electronAPI?.finishArtifactExport) {
-        window.alert(t('sidebar.exportDesktopOnly'));
+        setExportOpen(false);
+        setExportError(t('sidebar.exportDesktopOnly'));
         return;
       }
 
@@ -334,7 +337,7 @@ function FileRow({
           needsPdfRender: staged.needsPdfRender,
         });
         if (!result.canceled && result.error) {
-          window.alert(
+          setExportError(
             t('sidebar.exportFailed', {
               message: resolveMainIpcErrorMessage(result, 'common.mainIpc.export.finishFailed'),
             }),
@@ -342,7 +345,7 @@ function FileRow({
         }
       } catch (err) {
         console.error('[FileExplorer] export failed:', err);
-        window.alert(
+        setExportError(
           t('sidebar.exportFailed', { message: (err as Error)?.message ?? String(err) }),
         );
       } finally {
@@ -359,12 +362,13 @@ function FileRow({
   return (
     <Card
       className="
-        group flex items-center gap-ds-2 border-ds-border/40 bg-transparent px-ds-2 py-ds-2 text-xs
+        group flex flex-col gap-ds-1 border-ds-border/40 bg-transparent px-ds-2 py-ds-2 text-xs
         shadow-none transition-colors hover:border-ds-accent/20 hover:bg-ds-bg/60
         focus-within:border-ds-accent/30 focus-within:bg-ds-bg/60
       "
       title={`${file.path} (${formatSize(file.size)})`}
     >
+      <div className="flex items-center gap-ds-2">
       <FileIcon type={file.type} />
       {previewable ? (
         <button
@@ -467,6 +471,16 @@ function FileRow({
           <span className="sr-only">{t('sidebar.delete')}</span>
         </Button>
       </div>
+      </div>
+      {exportError ? (
+        <p
+          role="alert"
+          className="text-ds-xs text-ds-error"
+          data-testid="file-export-error"
+        >
+          {exportError}
+        </p>
+      ) : null}
     </Card>
   );
 }

@@ -30,11 +30,18 @@ interface Props {
   onSend: (message: string) => void;
   onAbort: () => void;
   disabled?: boolean;
+  /**
+   * Visual context this panel renders in.
+   * - 'default' (or omitted): full chrome — MissionHeader, AlertBanner, etc.
+   * - 'floating': narrow companion (FloatingChat). Drops MissionHeader and
+   *   AlertBanner because MissionContextBar already surfaces that info.
+   */
+  layout?: 'default' | 'floating';
 }
 
 const FALLBACK_NOTICE_TTL_MS = 5 * 60 * 1000;
 
-export function ChatPanel({ onSend, onAbort, disabled }: Props) {
+export function ChatPanel({ onSend, onAbort, disabled, layout = 'default' }: Props) {
   const setCardPinned = useSetCardPinned();
   const {
     messages,
@@ -135,11 +142,11 @@ export function ChatPanel({ onSend, onAbort, disabled }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <AlertBanner />
+      {layout !== 'floating' && <AlertBanner />}
 
       {fallbackNotice && <ProviderFallbackNotice event={fallbackNotice} />}
 
-      {missionHeaderEnabled && sessionId && (
+      {layout !== 'floating' && missionHeaderEnabled && sessionId && (
         <MissionHeader sessionId={sessionId} isStreaming={isStreaming} onAbort={onAbort} />
       )}
 
@@ -247,7 +254,7 @@ function getCardActionPath(
     case 'request_review':
       return `/governance/verifier/${encodeURIComponent(card.resultId)}`;
     case 'open_artifact':
-      return buildEvidenceWorkspacePath('summary', {
+      return buildEvidenceWorkspacePath('overview', {
         mode: 'detail',
         target: 'card',
         value: card.cardId,

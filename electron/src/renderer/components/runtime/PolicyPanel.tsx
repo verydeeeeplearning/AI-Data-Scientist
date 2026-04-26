@@ -2,9 +2,11 @@
  * Policy panel for autonomous runtime state and editing.
  */
 
-import { ShieldAlert } from 'lucide-react';
-import { useId, useMemo } from 'react';
-import { Badge, Card } from '../../design-system/primitives';
+import { RefreshCw, ShieldAlert } from 'lucide-react';
+import { useId, useMemo, useState } from 'react';
+import { Badge, Button, Card } from '../../design-system/primitives';
+import { useWs } from '../../hooks/WsProvider';
+import { fetchPolicySnapshot } from '../../hooks/usePolicy';
 import { useI18n } from '../../stores/i18nStore';
 import { usePolicyStore } from '../../stores/policyStore';
 import { useRuntimeStore } from '../../stores/runtimeStore';
@@ -15,19 +17,32 @@ import { StandingOrdersPanel } from './StandingOrdersPanel';
 export function PolicyPanel() {
   const { t } = useI18n();
   const headingId = useId();
+  const { rpc } = useWs();
   const snapshot = usePolicyStore((s) => s.snapshot);
+  const setSnapshot = usePolicyStore((s) => s.setSnapshot);
+  const markUpdated = usePolicyStore((s) => s.markUpdated);
   const lastUpdatedAt = usePolicyStore((s) => s.lastUpdatedAt);
   const runtimeStatus = useRuntimeStore((s) => s.status);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const recurringGoals = snapshot?.recurringGoals ?? [];
-  const standingOrders = snapshot?.standingOrders ?? [];
-  const actionMatrixOverrideCount = snapshot?.actionMatrixOverrideCount ?? 0;
   const profile = runtimeStatus?.automationProfile ?? snapshot?.automationProfile ?? 'balanced';
 
   const summary = useMemo(
     () => t(`run.runtime.profile.description.${profile}`),
     [profile, t],
   );
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      setSnapshot(await fetchPolicySnapshot(rpc));
+      markUpdated();
+    } catch (err) {
+      console.warn('[PolicyPanel] manual refresh failed:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <section className="px-3 py-2" aria-labelledby={headingId}>
@@ -40,18 +55,23 @@ export function PolicyPanel() {
             <ShieldAlert size={12} aria-hidden="true" />
             {t('run.runtime.policy.title')}
           </div>
-          <Badge tone="accent" compact className="ml-auto uppercase tracking-[0.16em]">
+          <Badge tone="accent" compact className="uppercase tracking-[0.16em]">
             {translateRuntimeProfile(profile, t)}
           </Badge>
+          <Button
+            type="button"
+            onClick={() => void handleRefresh()}
+            variant="secondary"
+            size="sm"
+            loading={refreshing}
+            leadingIcon={<RefreshCw size={14} aria-hidden="true" />}
+            className="ml-auto"
+          >
+            {t('run.runtime.policy.action.refresh')}
+          </Button>
         </header>
 
         <p className="text-sm leading-6 text-ds-text">{summary}</p>
-
-        <dl className="grid grid-cols-3 gap-3">
-          <PolicySummaryCard label={t('run.runtime.policy.summary.recurringGoals')} value={recurringGoals.length} />
-          <PolicySummaryCard label={t('run.runtime.policy.summary.standingOrders')} value={standingOrders.length} />
-          <PolicySummaryCard label={t('run.runtime.policy.summary.matrixOverrides')} value={actionMatrixOverrideCount} />
-        </dl>
 
         <div className="space-y-4">
           <RecurringGoalsPanel />
@@ -67,16 +87,5 @@ export function PolicyPanel() {
         ) : null}
       </Card>
     </section>
-  );
-}
-
-function PolicySummaryCard({ label, value }: { label: string; value: number }) {
-  return (
-    <Card className="space-y-2 bg-ds-bg/60">
-      <dt className="text-[10px] font-medium uppercase tracking-[0.16em] text-ds-muted">
-        {label}
-      </dt>
-      <dd className="font-mono text-lg text-ds-text">{value}</dd>
-    </Card>
   );
 }

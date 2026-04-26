@@ -4,7 +4,7 @@
  * Event payload shapes are defined in ``types/events.ts`` (canonical contract).
  */
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type {
   ApprovalEvent,
   BudgetDetailEvent,
@@ -18,6 +18,7 @@ import type {
   WorkflowStepEvent,
 } from '../types/events';
 import { useWorkflowStore } from '../stores/workflowStore';
+import { useVisiblePolling } from './useVisiblePolling';
 
 type OnFn = (event: string, handler: (payload: Record<string, unknown>) => void) => () => void;
 type RpcFn = (method: string, params?: Record<string, unknown>) => Promise<Record<string, unknown>>;
@@ -37,6 +38,21 @@ export function useWorkflow(on: OnFn, rpc: RpcFn, connected: boolean) {
   const updateContext = useWorkflowStore((s) => s.updateContext);
   const setOverallQuality = useWorkflowStore((s) => s.setOverallQuality);
   const recordSandboxViolation = useWorkflowStore((s) => s.recordSandboxViolation);
+  const approvalRefreshGenerationRef = useRef(0);
+
+  const loadApprovals = useCallback(async () => {
+    const generation = approvalRefreshGenerationRef.current;
+    try {
+      const result = await rpc('approval.list', { limit: 20 });
+      if (approvalRefreshGenerationRef.current === generation) {
+        setApprovals((result.approvals as unknown as ApprovalEvent[]) ?? []);
+      }
+    } catch (err) {
+      if (approvalRefreshGenerationRef.current === generation) {
+        console.warn('[useWorkflow] approval.list failed:', err);
+      }
+    }
+  }, [rpc, setApprovals]);
 
   useEffect(() => {
     const unsubs = [
@@ -161,31 +177,17 @@ export function useWorkflow(on: OnFn, rpc: RpcFn, connected: boolean) {
   ]);
 
   useEffect(() => {
+    approvalRefreshGenerationRef.current += 1;
     if (!connected) {
       setApprovals([]);
-      return;
     }
 
-    let cancelled = false;
-    const loadApprovals = async () => {
-      try {
-        const result = await rpc('approval.list', { limit: 20 });
-        if (!cancelled) {
-          setApprovals((result.approvals as unknown as ApprovalEvent[]) ?? []);
-        }
-      } catch (err) {
-        console.warn('[useWorkflow] approval.list failed:', err);
-      }
-    };
-
-    void loadApprovals();
-    const timer = window.setInterval(() => {
-      void loadApprovals();
-    }, 3000);
-
     return () => {
-      cancelled = true;
-      window.clearInterval(timer);
+      approvalRefreshGenerationRef.current += 1;
     };
-  }, [connected, rpc, setApprovals]);
+  }, [connected, loadApprovals, setApprovals]);
+
+  useVisiblePolling(() => {
+    void loadApprovals();
+  }, { intervalMs: 3000, enabled: connected });
 }

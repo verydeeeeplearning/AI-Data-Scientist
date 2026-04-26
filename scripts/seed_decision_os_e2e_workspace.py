@@ -6,6 +6,8 @@ import argparse
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import _repo_imports  # noqa: F401
+
 from ds_agent.config.loader import save_config
 from ds_agent.config.schema import DSAgentConfig
 from ds_agent.domain.entities.experiment import ExperimentRun

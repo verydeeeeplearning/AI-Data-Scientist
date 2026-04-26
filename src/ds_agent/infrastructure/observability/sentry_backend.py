@@ -43,6 +43,8 @@ _CARD_MASK = "***CARD***"
 _MAX_REDACT_DEPTH = 8
 
 _SECRET_FIELD_TOKENS = (
+    "chat_id",
+    "chatid",
     "key",
     "token",
     "secret",
@@ -62,6 +64,13 @@ _SECRET_FIELD_TOKENS = (
 # Ordered patterns. Token patterns first so that e.g. sk-ant-* is redacted
 # before a more general PII rule could otherwise partial-match.
 _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "chat_id",
+        re.compile(
+            r"\b(chat[_-]?id|chatId)(\s*[:=]\s*['\"]?)-?\d{4,}\b(['\"]?)",
+            re.IGNORECASE,
+        ),
+    ),
     ("token", re.compile(r"READY:(\d+):[^\s]+")),
     ("token", re.compile(r"sk-ant-[A-Za-z0-9\-_]+")),
     ("token", re.compile(r"sk-[A-Za-z0-9\-_]{20,}")),
@@ -155,6 +164,34 @@ def shutdown_backend_observability(timeout: float = 2.0) -> None:
         _state["initialized"] = False
 
 
+def add_backend_breadcrumb(
+    category: str,
+    *,
+    message: str | None = None,
+    data: dict[str, Any] | None = None,
+    level: str = "info",
+) -> None:
+    """Add a redacted Sentry breadcrumb when backend observability is active."""
+
+    if (
+        sentry_sdk is None
+        or not cast(bool, _state["initialized"])
+        or not _state["dsn"]
+        or not _backend_observability_active()
+    ):
+        return
+
+    try:
+        sentry_sdk.add_breadcrumb(
+            category=_redact_text(category),
+            message=None if message is None else _redact_text(message),
+            data=cast(dict[str, Any], _deep_redact(data or {})),
+            level=_redact_text(level),
+        )
+    except Exception as exc:  # pragma: no cover - defensive optional telemetry path
+        logger.debug("backend_sentry_breadcrumb_failed", error=str(exc))
+
+
 def redact_backend_sentry_event(event: Event, _hint: Hint) -> Event | None:
     """Redact secrets and gate error events by current runtime settings."""
 
@@ -176,6 +213,13 @@ def redact_backend_sentry_transaction(
 
 def _backend_traces_sampler(_sampling_context: SamplingContext) -> float:
     return 0.1 if cast(bool, _state["telemetry_enabled"]) else 0.0
+
+
+def _backend_observability_active() -> bool:
+    return cast(bool, _state["error_reporting_enabled"]) or cast(
+        bool,
+        _state["telemetry_enabled"],
+    )
 
 
 def _deep_redact(value: Any, depth: int = 0) -> Any:
@@ -219,6 +263,8 @@ def _make_substitutor(kind: str) -> Callable[[re.Match[str]], str]:
 
 def _replace_secret_match(match: re.Match[str], kind: str) -> str:
     full_match = match.group(0)
+    if kind == "chat_id":
+        return f"{match.group(1)}{match.group(2)}{_REDACTED}{match.group(3)}"
     if kind == "token":
         if full_match.startswith("READY:"):
             return f"READY:{match.group(1)}:{_REDACTED}"

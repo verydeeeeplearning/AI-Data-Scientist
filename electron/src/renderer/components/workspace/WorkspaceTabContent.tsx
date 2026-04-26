@@ -1,5 +1,3 @@
-import { FileExplorer } from '../sidebar/FileExplorer';
-import { PlotGallery } from '../sidebar/PlotGallery';
 import type { ExportWizardCandidate } from './ExportWizardModal';
 import { Badge, Button, Card } from '../../design-system/primitives';
 import { useI18n } from '../../stores/i18nStore';
@@ -11,8 +9,6 @@ import type {
 import { WorkspaceEmptyState } from './WorkspaceEmptyState';
 import { WorkspacePinnedProjectionList } from './WorkspacePinnedProjectionList';
 import type { EvidenceWorkspaceFocus } from '../../application/workspace/workspaceRoute';
-
-type TFn = (key: string, vars?: Record<string, string | number | null | undefined>) => string;
 
 export type WorkspaceExportDisplayCandidate = ExportWizardCandidate & {
   sourceKind?: 'file' | 'plot';
@@ -26,26 +22,8 @@ interface Props {
   exportCandidatesLoading?: boolean;
   exportCandidatesRunId?: string | null;
   onOpenPinnedItem: (item: WorkspacePinnedProjectionItem) => void;
-  onRefreshFiles: () => void;
   onOpenFiles: () => void;
   onLaunchExportWizard: () => void;
-}
-
-function formatFileSize(bytes: number, t: TFn): string {
-  if (bytes < 1024) {
-    return t('workspace:format.size.bytes', { value: bytes });
-  }
-  if (bytes < 1024 * 1024) {
-    return t('workspace:format.size.kilobytes', { value: (bytes / 1024).toFixed(1) });
-  }
-  return t('workspace:format.size.megabytes', { value: (bytes / (1024 * 1024)).toFixed(1) });
-}
-
-function formatDate(timestamp: number | undefined, t: TFn): string {
-  if (timestamp == null) {
-    return t('workspace:format.date.unknown');
-  }
-  return new Date(timestamp).toLocaleString();
 }
 
 function ExportStatusMeta({
@@ -76,7 +54,7 @@ function ExportStatusMeta({
   );
 }
 
-function SummaryTab({
+function OverviewTab({
   focus,
   readModel,
   exportCandidates,
@@ -151,100 +129,6 @@ function SummaryTab({
         </Card>
       </div>
     </div>
-  );
-}
-
-function TablesTab({ readModel }: { readModel: WorkspaceReadModel }) {
-  const { t } = useI18n();
-  if (readModel.status === 'loading' && readModel.tableCount === 0) {
-    return (
-      <WorkspaceEmptyState
-        title={t('workspace:tables.loading.title')}
-        description={t('workspace:tables.loading.description')}
-      />
-    );
-  }
-  if (readModel.tableFiles.length === 0) {
-    return (
-      <WorkspaceEmptyState
-        title={t('workspace:tables.empty.title')}
-        description={t('workspace:tables.empty.description')}
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {readModel.tableFiles.map((file) => (
-        <Card key={file.path} className="bg-ds-bg/40 shadow-none">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-ds-text" title={file.name}>
-                {file.name}
-              </div>
-              <div className="mt-1 truncate text-xs text-ds-muted" title={file.path}>
-                {file.path}
-              </div>
-            </div>
-            <Badge compact tone="accent" className="shrink-0 uppercase tracking-wide">
-              {file.type}
-            </Badge>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-3 text-xs text-ds-muted">
-            <span>{formatFileSize(file.size, t)}</span>
-            <span>{formatDate(file.modifiedAt, t)}</span>
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-function ChartsTab({ readModel }: { readModel: WorkspaceReadModel }) {
-  const { t } = useI18n();
-  if (readModel.status === 'loading' && readModel.plotCount === 0) {
-    return (
-      <WorkspaceEmptyState
-        title={t('workspace:charts.loading.title')}
-        description={t('workspace:charts.loading.description')}
-      />
-    );
-  }
-  if (readModel.plotCount === 0) {
-    return (
-      <WorkspaceEmptyState
-        title={t('workspace:charts.empty.title')}
-        description={t('workspace:charts.empty.description')}
-      />
-    );
-  }
-  return (
-    <Card className="overflow-hidden bg-ds-surface/60 p-0 shadow-none">
-      <PlotGallery />
-    </Card>
-  );
-}
-
-function FilesTab({
-  readModel,
-  onRefreshFiles,
-}: {
-  readModel: WorkspaceReadModel;
-  onRefreshFiles: () => void;
-}) {
-  const { t } = useI18n();
-  if (readModel.status === 'loading' && readModel.nonPlotFileCount === 0) {
-    return (
-      <WorkspaceEmptyState
-        title={t('workspace:files.loading.title')}
-        description={t('workspace:files.loading.description')}
-      />
-    );
-  }
-  return (
-    <Card className="overflow-hidden bg-ds-surface/60 p-0 shadow-none">
-      <FileExplorer onRefresh={onRefreshFiles} />
-    </Card>
   );
 }
 
@@ -376,13 +260,12 @@ export function WorkspaceTabContent({
   exportCandidatesLoading,
   exportCandidatesRunId,
   onOpenPinnedItem,
-  onRefreshFiles,
   onOpenFiles,
   onLaunchExportWizard,
 }: Props) {
-  if (activeTab === 'summary') {
+  if (activeTab === 'overview') {
     return (
-      <SummaryTab
+      <OverviewTab
         focus={focus}
         readModel={readModel}
         exportCandidates={exportCandidates}
@@ -391,15 +274,6 @@ export function WorkspaceTabContent({
         onOpenPinnedItem={onOpenPinnedItem}
       />
     );
-  }
-  if (activeTab === 'tables') {
-    return <TablesTab readModel={readModel} />;
-  }
-  if (activeTab === 'charts') {
-    return <ChartsTab readModel={readModel} />;
-  }
-  if (activeTab === 'files') {
-    return <FilesTab readModel={readModel} onRefreshFiles={onRefreshFiles} />;
   }
   return (
     <ExportTab
